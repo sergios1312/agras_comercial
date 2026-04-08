@@ -7,6 +7,7 @@ export const SUCURSALES_DATA = [
     correo: "sergio.araujo@quetalcompra.com",
     pin: "7232",
     role: "admin",
+    maneja_stock: false,
   },
   {
     usuario: "admin_oficina",
@@ -16,6 +17,7 @@ export const SUCURSALES_DATA = [
     correo: "jesus.tapia@quetalcompra.com",
     pin: "7232",
     role: "admin",
+    maneja_stock: false,
   },
   {
     usuario: "admin_almacen",
@@ -25,8 +27,10 @@ export const SUCURSALES_DATA = [
     correo: "wilber.mallma@quetalcompra.com",
     pin: "7232",
     role: "admin",
+    maneja_stock: false, // Wilber recibe los pedidos en Lima, pero el stock se visualiza bajo "Lima"
   },
   {
+    id_db: 1,
     usuario: "lima",
     ciudad: "Lima",
     responsable: "Gabriel",
@@ -34,8 +38,10 @@ export const SUCURSALES_DATA = [
     correo: "gabriel.castro@quetalcompra.com",
     pin: "1001",
     role: "sucursal",
+    maneja_stock: true,
   },
   {
+    id_db: 2,
     usuario: "chiclayo",
     ciudad: "Chiclayo",
     responsable: "Cesar",
@@ -43,8 +49,10 @@ export const SUCURSALES_DATA = [
     correo: "cesar.flores@quetalcompra.com",
     pin: "1002",
     role: "sucursal",
+    maneja_stock: true,
   },
   {
+    id_db: 3,
     usuario: "ica",
     ciudad: "Ica",
     responsable: "Victor",
@@ -52,8 +60,10 @@ export const SUCURSALES_DATA = [
     correo: "victor.vicerrel@quetalcompra.com",
     pin: "1003",
     role: "sucursal",
+    maneja_stock: true,
   },
   {
+    id_db: 4,
     usuario: "bellavista",
     ciudad: "Bellavista",
     responsable: "Jerson",
@@ -61,8 +71,10 @@ export const SUCURSALES_DATA = [
     correo: "jerson.silva@quetalcompra.com",
     pin: "1004",
     role: "sucursal",
+    maneja_stock: true,
   },
   {
+    id_db: 5,
     usuario: "nueva_cajamarca",
     ciudad: "Nueva Cajamarca",
     responsable: "Wilson",
@@ -70,8 +82,10 @@ export const SUCURSALES_DATA = [
     correo: "wilson.carhuancho@quetalcompra.com",
     pin: "1005",
     role: "sucursal",
+    maneja_stock: true,
   },
   {
+    id_db: 6,
     usuario: "pucallpa",
     ciudad: "Pucallpa",
     responsable: "Jhon",
@@ -79,8 +93,10 @@ export const SUCURSALES_DATA = [
     correo: "jhon.duendez@quetalcompra.com",
     pin: "1006",
     role: "sucursal",
+    maneja_stock: true,
   },
   {
+    id_db: 7,
     usuario: "jaen",
     ciudad: "Jaen",
     responsable: "Mariano",
@@ -88,8 +104,10 @@ export const SUCURSALES_DATA = [
     correo: "mariano.vega@quetalcompra.com",
     pin: "1007",
     role: "sucursal",
+    maneja_stock: true,
   },
   {
+    id_db: 8,
     usuario: "huanuco",
     ciudad: "Huanuco",
     responsable: "Nando",
@@ -97,8 +115,10 @@ export const SUCURSALES_DATA = [
     correo: "nando.martinez@quetalcompra.com",
     pin: "1008",
     role: "sucursal",
+    maneja_stock: true,
   },
   {
+    id_db: 9,
     usuario: "yurimaguas",
     ciudad: "Yurimaguas",
     responsable: "Percy",
@@ -106,5 +126,17 @@ export const SUCURSALES_DATA = [
     correo: "percy.saucedo@quetalcompra.com",
     pin: "1009",
     role: "sucursal",
+    maneja_stock: true,
+  },
+  {
+    id_db: 11,
+    usuario: "piura",
+    ciudad: "Piura",
+    responsable: "Jim",
+    telefono: "",
+    correo: "jim.davila@quetalcompra.com",
+    pin: "1010",
+    role: "sucursal",
+    maneja_stock: true,
   },
 ];

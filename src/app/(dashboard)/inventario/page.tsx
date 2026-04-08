@@ -7,6 +7,9 @@ import { SolicitudTab } from "@/components/inventario/SolicitudTab";
 import { HistorialTab } from "@/components/inventario/HistorialTab";
 import type { RepuestoConStock, HistorialPedido, InventarioRow } from "@/types/database.types";
 import { Search, Package, History } from "lucide-react";
+import { SUCURSALES_DATA } from "@/lib/constants";
+
+import { fetchAll } from "@/lib/db";
 
 export const metadata: Metadata = {
   title: "Solicitudes de Repuestos",
@@ -26,24 +29,26 @@ export default async function InventarioPage() {
     user.user_metadata?.role === "admin" ||
     false;
 
-  // ─── Fetch de datos en paralelo ────────────────────────────
-  const [repuestosRes, sucursalesRes, inventarioRes, historialRes] = await Promise.all([
-    supabase.from("repuestos").select("*").order("nombre"),
+  // ─── Fetch de datos en paralelo (Recursivo para tablas grandes) ─────
+  // Nota: fetchAll maneja el bucle de 1000 en 1000 automáticamente
+  const [repuestos, sucursalesRes, inventario, historialRes] = await Promise.all([
+    fetchAll<import("@/types/database.types").Repuesto>(supabase.from("repuestos").select("*")),
     supabase.from("sucursales").select("id, nombre_ciudad"),
-    supabase.from("inventario").select("id, repuesto_id, sucursal_id, cantidad"),
+    fetchAll<InventarioRow>(supabase.from("inventario").select("id, repuesto_id, sucursal_id, cantidad")),
     supabase
       .from("historial_pedidos")
       .select("*")
       .order("created_at", { ascending: false })
-      .range(0, 299), // paginación: máx 300 registros
+      .range(0, 299),
   ]);
 
-  const repuestos = (repuestosRes.data as unknown as import("@/types/database.types").Repuesto[]) ?? [];
   const sucursales = (sucursalesRes.data as unknown as import("@/types/database.types").Sucursal[]) ?? [];
-  const inventario = (inventarioRes.data as unknown as InventarioRow[]) ?? [];
   const historial = (historialRes.data as unknown as HistorialPedido[]) ?? [];
 
-  const sucursalNames = sucursales.map((s) => s.nombre_ciudad);
+  // ─── Filtrar Sucursales que manejan stock ───────────────────
+  const sedesConStock = SUCURSALES_DATA.filter((s) => s.maneja_stock).map((s) => s.ciudad);
+  const sucursalesFiltradas = sucursales.filter((s) => sedesConStock.includes(s.nombre_ciudad));
+  const sucursalNames = sucursalesFiltradas.map((s) => s.nombre_ciudad);
 
   // ─── Construir el catálogo pivotado con stock por sucursal ──
   const idToSucursal = Object.fromEntries(sucursales.map((s) => [s.id, s.nombre_ciudad]));

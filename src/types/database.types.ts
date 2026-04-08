@@ -38,6 +38,9 @@ export interface Repuesto {
 export interface Sucursal {
   id: number;
   nombre_ciudad: string;
+  nombre_tecnico?: string;
+  numero_telefono?: string;
+  correo?: string;
 }
 
 // ─── Tabla: inventario ───────────────────────────────────────

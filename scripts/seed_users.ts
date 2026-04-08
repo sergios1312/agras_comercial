@@ -22,13 +22,13 @@ const supabase = createClient(supabaseUrl, supabaseServiceKey, {
 });
 
 async function seedUsers() {
-  console.log('🚀 Iniciando creación masiva de usuarios...');
+  console.log('🚀 Iniciando creación masiva de usuarios y sincronización de sucursales...');
 
   for (const user of SUCURSALES_DATA) {
-    console.log(`👤 Creando/Actualizando: ${user.usuario} (${user.correo})...`);
+    console.log(`👤 Procesando: ${user.usuario} (${user.correo})...`);
     
-    // El método admin.createUser crea al usuario sin necesidad de confirmación de email
-    const { data, error } = await supabase.auth.admin.createUser({
+    // 1. Sincronizar Autenticación (Auth)
+    const { data: authData, error: authError } = await supabase.auth.admin.createUser({
       email: user.correo,
       password: user.pin,
       email_confirm: true,
@@ -40,14 +40,34 @@ async function seedUsers() {
       }
     });
 
-    if (error) {
-      if (error.message.includes('already registered')) {
-        console.log(`   ℹ️ El usuario ${user.correo} ya existe.`);
+    if (authError) {
+      if (authError.message.includes('already registered')) {
+        console.log(`   ℹ️ El usuario Auth ${user.correo} ya existe.`);
       } else {
-        console.error(`   ❌ Error creando ${user.usuario}:`, error.message);
+        console.error(`   ❌ Error creando Auth ${user.usuario}:`, authError.message);
       }
     } else {
-      console.log(`   ✅ Creado con éxito: ${data.user?.id}`);
+      console.log(`   ✅ Usuario Auth creado: ${authData.user?.id}`);
+    }
+
+    // 2. Sincronizar Tabla Pública (sucursales) - Solo si tiene id_db (entidades de stock)
+    if ('id_db' in user && user.id_db) {
+      console.log(`   🏠 Sincronizando tabla 'sucursales' para ${user.ciudad} (ID: ${user.id_db})...`);
+      const { error: dbError } = await supabase
+        .from('sucursales')
+        .upsert({
+          id: user.id_db,
+          nombre_ciudad: user.ciudad,
+          nombre_tecnico: user.responsable,
+          numero_telefono: user.telefono || null,
+          correo: user.correo
+        });
+
+      if (dbError) {
+        console.error(`   ❌ Error sincronizando tabla pública ${user.ciudad}:`, dbError.message);
+      } else {
+        console.log(`   ✅ Tabla 'sucursales' actualizada.`);
+      }
     }
   }
 
