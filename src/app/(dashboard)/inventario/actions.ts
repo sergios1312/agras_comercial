@@ -103,8 +103,8 @@ export async function submitPedido(
     estado,
   }));
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const rawClient = supabase as any;
+  // Casting a unknown antes de any para evitar advertencias de tipos si fuera necesario
+  const rawClient = supabase as unknown as any;
 
   const { error: insertError } = await rawClient
     .from("historial_pedidos")
@@ -117,8 +117,7 @@ export async function submitPedido(
   // ─── Descuento de inventario (solo consumo normal, no venta) ─
   if (!esSinStock) {
     for (const item of carrito.filter((i) => !i.es_venta)) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const invIds = (item as any).inv_ids as Record<string, number> | undefined;
+      const invIds = (item as unknown as any).inv_ids as Record<string, number> | undefined;
       const invId = invIds?.[item.sucursal_destino];
       if (invId) {
         const stockNuevo = item.stock_disponible - item.cantidad;
