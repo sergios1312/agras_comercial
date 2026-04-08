@@ -1,0 +1,89 @@
+import { createClient } from "@/utils/supabase/server";
+import { redirect } from "next/navigation";
+import type { Metadata } from "next";
+import { Tabs } from "@/components/ui/Tabs";
+import { CatalogoTab } from "@/components/inventario/CatalogoTab";
+import { SolicitudTab } from "@/components/inventario/SolicitudTab";
+import { HistorialTab } from "@/components/inventario/HistorialTab";
+import type { RepuestoConStock, HistorialPedido, InventarioRow } from "@/types/database.types";
+import { Search, Package, History } from "lucide-react";
+
+export const metadata: Metadata = {
+  title: "Solicitudes de Repuestos",
+  description: "Búsqueda, solicitud y seguimiento de repuestos por sucursal.",
+};
+
+export default async function InventarioPage() {
+  const supabase = await createClient();
+
+  // Verificar sesión
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  const sucursalOrigen = user.email?.split("@")[0] ?? "desconocido";
+  const isAdmin =
+    user.email?.startsWith("admin@") ||
+    user.user_metadata?.role === "admin" ||
+    false;
+
+  // ─── Fetch de datos en paralelo ────────────────────────────
+  const [repuestosRes, sucursalesRes, inventarioRes, historialRes] = await Promise.all([
+    supabase.from("repuestos").select("*").order("nombre"),
+    supabase.from("sucursales").select("id, nombre_ciudad"),
+    supabase.from("inventario").select("id, repuesto_id, sucursal_id, cantidad"),
+    supabase
+      .from("historial_pedidos")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .range(0, 299), // paginación: máx 300 registros
+  ]);
+
+  const repuestos = (repuestosRes.data as unknown as import("@/types/database.types").Repuesto[]) ?? [];
+  const sucursales = (sucursalesRes.data as unknown as import("@/types/database.types").Sucursal[]) ?? [];
+  const inventario = (inventarioRes.data as unknown as InventarioRow[]) ?? [];
+  const historial = (historialRes.data as unknown as HistorialPedido[]) ?? [];
+
+  const sucursalNames = sucursales.map((s) => s.nombre_ciudad);
+
+  // ─── Construir el catálogo pivotado con stock por sucursal ──
+  const idToSucursal = Object.fromEntries(sucursales.map((s) => [s.id, s.nombre_ciudad]));
+
+  const catalogo: RepuestoConStock[] = repuestos.map((r) => {
+    const filas = inventario.filter((inv) => inv.repuesto_id === r.id);
+    const stock_por_sucursal: Record<string, number> = {};
+    const inv_ids: Record<string, number> = {};
+    for (const fila of filas) {
+      const nombre = idToSucursal[fila.sucursal_id];
+      if (nombre) {
+        stock_por_sucursal[nombre] = fila.cantidad;
+        inv_ids[nombre] = fila.id;
+      }
+    }
+    return { ...r, stock_por_sucursal, inv_ids };
+  });
+
+  const tabs = [
+    { id: "catalogo", label: "Buscador", icon: <Search className="w-4 h-4" /> },
+    { id: "solicitud", label: "Envío de Repuestos", icon: <Package className="w-4 h-4" /> },
+    { id: "historial", label: "Historial", icon: <History className="w-4 h-4" /> },
+  ];
+
+  return (
+    <div className="space-y-2">
+      <Tabs tabs={tabs} defaultTab="catalogo">
+        <CatalogoTab catalogo={catalogo} sucursales={sucursalNames} />
+        <SolicitudTab
+          catalogo={catalogo}
+          sucursales={sucursalNames}
+          sucursalOrigen={sucursalOrigen}
+          isAdmin={isAdmin}
+        />
+        <HistorialTab
+          historial={historial}
+          isAdmin={isAdmin}
+          sucursalOrigen={sucursalOrigen}
+        />
+      </Tabs>
+    </div>
+  );
+}
