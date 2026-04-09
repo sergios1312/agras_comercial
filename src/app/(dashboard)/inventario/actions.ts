@@ -4,6 +4,8 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/utils/supabase/server";
 import type { ItemCarrito, EstadoPedido } from "@/types/database.types";
 import { esNumeroCasoValido } from "@/lib/utils";
+import { enviarNotificacionPedido } from "@/lib/email";
+import { SUCURSALES_DATA } from "@/lib/constants";
 
 export interface PedidoState {
   error: string | null;
@@ -28,7 +30,10 @@ export async function submitPedido(
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: "Sesión expirada. Por favor inicia sesión nuevamente.", success: null };
 
-  const sucursalOrigen = user.email?.split("@")[0] ?? "desconocido";
+  const emailPrefix = user.email?.split("@")[0] ?? "desconocido";
+  // Normalizar a nombre de ciudad para el routing de correos
+  const sucursalData = SUCURSALES_DATA.find((s) => s.usuario === emailPrefix);
+  const sucursalOrigen = sucursalData?.ciudad ?? emailPrefix;
 
   // Parsear el carrito desde el formulario
   const carritoRaw = formData.get("carrito") as string;
@@ -130,6 +135,11 @@ export async function submitPedido(
   }
 
   revalidatePath("/inventario");
+
+  // ── Notificación por email (async, no bloquea respuesta) ─────
+  // El error de email es silenciado internamente en enviarNotificacionPedido
+  void enviarNotificacionPedido(sucursalOrigen, carrito, esSinStock);
+
   return {
     error: null,
     success: `✅ Pedido registrado correctamente. ${carrito.length} ítem(s) enviados.`,

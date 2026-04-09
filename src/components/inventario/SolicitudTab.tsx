@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useActionState } from "react";
+import { useState, useMemo, useActionState, useCallback } from "react";
 import { useFormStatus } from "react-dom";
 import {
   Search, Plus, Trash2, ShoppingCart, Loader2, AlertCircle, CheckCircle2,
@@ -39,13 +39,43 @@ export function SolicitudTab({
   catalogo, sucursales, sucursalOrigen, isAdmin,
 }: SolicitudTabProps) {
   const [state, formAction] = useActionState(submitPedido, initialState);
-  const [termino, setTermino] = useState("");
+  // terminoInput: lo que el usuario escribe en tiempo real
+  const [terminoInput, setTerminoInput] = useState("");
+  // terminoActivo: lo que se pasa al motor de búsqueda
+  const [terminoActivo, setTerminoActivo] = useState("");
   const [carrito, setCarrito] = useState<ItemCarrito[]>([]);
   const [seleccionados, setSeleccionados] = useState<Set<number>>(new Set());
   const [tipoSolicitud, setTipoSolicitud] = useState<"Consumo normal" | "Solicitud/Reserva sin stock">("Consumo normal");
   const esSinStock = tipoSolicitud === "Solicitud/Reserva sin stock";
 
-  const resultados = useMemo(() => buscarRepuestos(catalogo, termino), [catalogo, termino]);
+  const resultados = useMemo(() => buscarRepuestos(catalogo, terminoActivo), [catalogo, terminoActivo]);
+
+  /**
+   * Regla de búsqueda reactiva:
+   * - ≥ 3 caracteres → búsqueda automática mientras se escribe (live search)
+   * - < 3 caracteres → se requiere presionar Enter para disparar la búsqueda
+   */
+  const handleTerminoChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const valor = e.target.value;
+      setTerminoInput(valor);
+      if (valor.trim().length >= 3) {
+        setTerminoActivo(valor);
+      } else if (valor.trim() === "") {
+        setTerminoActivo("");
+      }
+    },
+    []
+  );
+
+  const handleTerminoKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLInputElement>) => {
+      if (e.key === "Enter") {
+        setTerminoActivo(terminoInput);
+      }
+    },
+    [terminoInput]
+  );
 
   function toggleSeleccion(id: number) {
     setSeleccionados((prev) => {
@@ -72,7 +102,8 @@ export function SolicitudTab({
     }));
     setCarrito((prev) => [...prev, ...nuevos]);
     setSeleccionados(new Set());
-    setTermino("");
+    setTerminoInput("");
+    setTerminoActivo("");
   }
 
   function eliminarDelCarrito(id: string) {
@@ -130,16 +161,23 @@ export function SolicitudTab({
           <input
             type="text"
             placeholder="Buscar repuesto para agregar..."
-            value={termino}
-            onChange={(e) => setTermino(e.target.value)}
+            value={terminoInput}
+            onChange={handleTerminoChange}
+            onKeyDown={handleTerminoKeyDown}
             className="w-full pl-10 pr-4 py-2.5 bg-slate-800 border border-slate-700 rounded-xl
                        text-sm text-slate-100 placeholder:text-slate-500
                        focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
           />
+          {/* Indicador: se muestra cuando el input tiene texto pero no dispara búsqueda automática */}
+          {terminoInput.trim().length > 0 && terminoInput.trim().length < 3 && (
+            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-500 select-none pointer-events-none">
+              Presiona Enter ↵
+            </span>
+          )}
         </div>
 
         {/* Resultados seleccionables */}
-        {termino && (
+        {terminoActivo && (
           <div className="max-h-48 overflow-y-auto rounded-xl border border-slate-700 bg-slate-800 divide-y divide-slate-700">
             {resultados.slice(0, 20).map((r) => (
               <label

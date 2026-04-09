@@ -1,71 +1,109 @@
 // ============================================================
-// src/lib/search.ts — Motor de búsqueda por Score (Blueprint §3)
-// Score: 4=SAP/modelos | 3=nombre_traducido | 2=nombre | 1=codigo
+// src/lib/search.ts — Motor de búsqueda por Score
+// Especificación: search_engine_specification.md
+//
+// Jerarquía de prioridad (score menor = mayor prioridad visual):
+//   1 → codigo          (máxima prioridad)
+//   2 → nombre
+//   3 → nombre_traducido
+//   4 → codigo_sap / modelos_compatibles
+//
+// Comportamiento:
+//   - Vacío → head(100) sin filtrar
+//   - < 2 chars → [] (anti-spam)
+//   - ≥ 2 chars → scoring completo, sort ascendente
 // ============================================================
 import type { RepuestoConStock, RepuestoConScore } from "@/types/database.types";
 
-function normalizar(texto: string | null | undefined): string {
-  return (texto ?? "").toLowerCase().trim();
+/**
+ * Fase 1 — Normalización del término de búsqueda.
+ * Aplica lowercase, trim y la RegEx de limpieza de sub-versiones numéricas.
+ * Ej: "ABC.01" → "abc.", "LCD.12" → "lcd."
+ */
+function normalizarTermino(termino: string): string {
+  return termino
+    .toLowerCase()
+    .trim()
+    .replace(/\.\d{1,2}$/, ".");
 }
 
 /**
- * Detecta si el término de búsqueda es un valor decimal (ej. "1.5")
- * para aplicar coincidencia exacta en el código.
+ * Fase 2 — Sistema de calificación de relevancia (Scoring System).
+ *
+ * La asignación es de SOBREESCRITURA sobre la marcha usando if secuenciales.
+ * La última coincidencia exitosa (de menor a mayor prioridad) es la que
+ * prevalece, garantizando que el score 1 (código exacto) siempre gane.
+ *
+ * Orden de evaluación (el último en confirmar sobreescribe):
+ *   4 → codigo_sap / modelos_compatibles  (soporte técnico)
+ *   3 → nombre_traducido                  (nombres alternativos)
+ *   2 → nombre                            (nombre core)
+ *   1 → codigo                            (identificador único — máxima prioridad)
  */
-function esDecimal(termino: string): boolean {
-  return /^\d+[.,]\d+$/.test(termino.trim());
-}
+function calcularScore(repuesto: RepuestoConStock, cleanTerm: string): number {
+  let _score = 0;
 
-/**
- * Calcula el score de relevancia de un repuesto para un término de búsqueda.
- * Retorna 0 si no hay ninguna coincidencia.
- */
-export function calcularScore(
-  repuesto: RepuestoConStock,
-  termino: string
-): number {
-  const t = normalizar(termino);
-  if (!t) return 1; // sin término = mostrar todo con score base
-
-  let score = 0;
-
-  // Score 4: código SAP o modelos compatibles
-  if (normalizar(repuesto.codigo_sap).includes(t)) score = Math.max(score, 4);
-  if (normalizar(repuesto.modelos_compatibles).includes(t))
-    score = Math.max(score, 4);
-
-  // Score 3: nombre traducido (inglés/otro idioma)
-  if (normalizar(repuesto.nombre_traducido).includes(t))
-    score = Math.max(score, 3);
-
-  // Score 2: nombre en español
-  if (normalizar(repuesto.nombre).includes(t)) score = Math.max(score, 2);
-
-  // Score 1: código de repuesto puro
-  if (esDecimal(t)) {
-    // Coincidencia exacta para decimales (evitar falsos positivos)
-    if (normalizar(repuesto.codigo) === t) score = Math.max(score, 1);
-  } else {
-    if (normalizar(repuesto.codigo).includes(t)) score = Math.max(score, 1);
+  // Nivel 4 — SAP & Compatibilidades
+  const strSapMod =
+    String(repuesto.codigo_sap ?? "") +
+    " " +
+    String(repuesto.modelos_compatibles ?? "");
+  if (strSapMod.toLowerCase().includes(cleanTerm)) {
+    _score = 4;
   }
 
-  return score;
+  // Nivel 3 — Traducciones / Nombres alternativos
+  if (String(repuesto.nombre_traducido ?? "").toLowerCase().includes(cleanTerm)) {
+    _score = 3;
+  }
+
+  // Nivel 2 — Nombre core
+  if (String(repuesto.nombre ?? "").toLowerCase().includes(cleanTerm)) {
+    _score = 2;
+  }
+
+  // Nivel 1 — Código matriz (máxima prioridad, siempre sobreescribe)
+  if (String(repuesto.codigo ?? "").toLowerCase().includes(cleanTerm)) {
+    _score = 1;
+  }
+
+  return _score;
 }
 
 /**
- * Filtra y rankea un catálogo de repuestos por relevancia.
- * Retorna solo los items con score > 0, ordenados de mayor a menor score.
+ * Motor principal de búsqueda.
+ *
+ * @param catalogo  - Lista completa de repuestos con stock.
+ * @param termino   - Texto ingresado por el usuario (sin normalizar).
+ * @returns         - Lista filtrada y ordenada ascendentemente por _score.
+ *
+ * Optimizaciones UX:
+ *   - Vacío / null → head(100) estático, sin procesar.
+ *   - 1 char       → [] (validación anti-spam / advertencia implícita).
+ *   - ≥ 2 chars    → scoring completo + filtro (_score > 0) + sort ASC.
  */
 export function buscarRepuestos(
   catalogo: RepuestoConStock[],
   termino: string
 ): RepuestoConScore[] {
-  if (!termino.trim()) {
-    return catalogo.map((r) => ({ ...r, score: 1 }));
+  // Standby / Paginación estática: sin término → primeros 100
+  if (!termino || termino.trim() === "") {
+    return catalogo.slice(0, 100).map((r) => ({ ...r, _score: 0 }));
   }
 
+  const trimmed = termino.toLowerCase().trim();
+
+  // Validación anti-spam: 1 solo carácter → 0 resultados
+  if (trimmed.length < 2) {
+    return [];
+  }
+
+  // Normalización completa (incluye regex de sub-versiones)
+  const cleanTerm = trimmed.replace(/\.\d{1,2}$/, ".");
+
+  // Scoring, filtrado y ordenamiento ascendente
   return catalogo
-    .map((r) => ({ ...r, score: calcularScore(r, termino) }))
-    .filter((r) => r.score > 0)
-    .sort((a, b) => b.score - a.score);
+    .map((r) => ({ ...r, _score: calcularScore(r, cleanTerm) }))
+    .filter((r) => r._score > 0)
+    .sort((a, b) => a._score - b._score);
 }

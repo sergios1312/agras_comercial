@@ -22,6 +22,8 @@ export type EstadoPedido =
 
 export type TipoSolicitud = "Consumo normal" | "Solicitud/Reserva sin stock";
 
+export type TipoReporte = "Abastecimiento" | "Reposición" | "Envío Interno";
+
 // ─── Tabla: repuestos ────────────────────────────────────────
 export interface Repuesto {
   id: number;
@@ -92,9 +94,9 @@ export interface ItemCarrito {
   stock_disponible: number; // stock de la sede seleccionada
 }
 
-/** Resultado del motor de búsqueda por score */
+/** Resultado del motor de búsqueda por score (_score: menor = mayor prioridad) */
 export interface RepuestoConScore extends RepuestoConStock {
-  score: number;
+  _score: number;
 }
 
 /** Repuesto con stock de todas las sucursales */

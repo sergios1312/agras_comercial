@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useTransition } from "react";
+import { useState, useMemo, useTransition, useCallback } from "react";
 import { Search, Package2 } from "lucide-react";
 import { buscarRepuestos } from "@/lib/search";
 import { formatCurrency } from "@/lib/utils";
@@ -12,12 +12,45 @@ interface CatalogoTabProps {
 }
 
 export function CatalogoTab({ catalogo, sucursales }: CatalogoTabProps) {
-  const [termino, setTermino] = useState("");
+  // terminoInput: lo que el usuario escribe en tiempo real
+  const [terminoInput, setTerminoInput] = useState("");
+  // terminoActivo: lo que se pasa al motor de búsqueda
+  const [terminoActivo, setTerminoActivo] = useState("");
   const [_isPending, startTransition] = useTransition();
 
+  /**
+   * Regla de búsqueda reactiva:
+   * - ≥ 3 caracteres → búsqueda automática mientras se escribe (live search)
+   * - < 3 caracteres → se requiere presionar Enter para disparar la búsqueda
+   */
+  const handleChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const valor = e.target.value;
+      setTerminoInput(valor);
+
+      if (valor.trim().length >= 3) {
+        startTransition(() => setTerminoActivo(valor));
+      } else if (valor.trim() === "") {
+        // Al limpiar el campo completamente, restablecer resultados
+        startTransition(() => setTerminoActivo(""));
+      }
+    },
+    []
+  );
+
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLInputElement>) => {
+      if (e.key === "Enter") {
+        // Enter siempre dispara la búsqueda, sin importar la longitud
+        startTransition(() => setTerminoActivo(terminoInput));
+      }
+    },
+    [terminoInput]
+  );
+
   const resultados = useMemo(
-    () => buscarRepuestos(catalogo, termino),
-    [catalogo, termino]
+    () => buscarRepuestos(catalogo, terminoActivo),
+    [catalogo, terminoActivo]
   );
 
   return (
@@ -28,18 +61,25 @@ export function CatalogoTab({ catalogo, sucursales }: CatalogoTabProps) {
         <input
           type="text"
           placeholder="Buscar por código, nombre, SAP o modelos compatibles..."
-          value={termino}
-          onChange={(e) => startTransition(() => setTermino(e.target.value))}
+          value={terminoInput}
+          onChange={handleChange}
+          onKeyDown={handleKeyDown}
           className="w-full pl-10 pr-4 py-3 bg-slate-800 border border-slate-700 rounded-xl
                      text-sm text-slate-100 placeholder:text-slate-500
                      focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent
                      transition-all duration-200"
         />
+        {/* Indicador: se muestra cuando el input tiene texto pero no ha disparado búsqueda automática */}
+        {terminoInput.trim().length > 0 && terminoInput.trim().length < 3 && (
+          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-500 select-none pointer-events-none">
+            Presiona Enter ↵
+          </span>
+        )}
       </div>
 
       {/* Conteo de resultados */}
       <p className="text-xs text-slate-500">
-        {resultados.length} resultado(s){termino ? ` para "${termino}"` : ""}
+        {resultados.length} resultado(s){terminoActivo ? ` para "${terminoActivo}"` : ""}
       </p>
 
       {/* Tabla del catálogo */}

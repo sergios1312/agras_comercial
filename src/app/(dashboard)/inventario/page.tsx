@@ -24,6 +24,9 @@ export default async function InventarioPage() {
   if (!user) redirect("/login");
 
   const sucursalOrigen = user.email?.split("@")[0] ?? "desconocido";
+  // Normalizar el prefijo de email al nombre de ciudad real
+  const sucursalData = SUCURSALES_DATA.find((s) => s.usuario === sucursalOrigen);
+  const ciudadUsuario = sucursalData?.ciudad ?? sucursalOrigen;
   const isAdmin =
     user.email?.startsWith("admin@") ||
     user.user_metadata?.role === "admin" ||
@@ -31,19 +34,16 @@ export default async function InventarioPage() {
 
   // ─── Fetch de datos en paralelo (Recursivo para tablas grandes) ─────
   // Nota: fetchAll maneja el bucle de 1000 en 1000 automáticamente
-  const [repuestos, sucursalesRes, inventario, historialRes] = await Promise.all([
+  const [repuestos, sucursalesRes, inventario, historial] = await Promise.all([
     fetchAll<import("@/types/database.types").Repuesto>(supabase.from("repuestos").select("*")),
     supabase.from("sucursales").select("id, nombre_ciudad"),
     fetchAll<InventarioRow>(supabase.from("inventario").select("id, repuesto_id, sucursal_id, cantidad")),
-    supabase
-      .from("historial_pedidos")
-      .select("*")
-      .order("created_at", { ascending: false })
-      .range(0, 299),
+    fetchAll<HistorialPedido>(
+      supabase.from("historial_pedidos").select("*").order("created_at", { ascending: false })
+    ),
   ]);
 
   const sucursales = (sucursalesRes.data as unknown as import("@/types/database.types").Sucursal[]) ?? [];
-  const historial = (historialRes.data as unknown as HistorialPedido[]) ?? [];
 
   // ─── Filtrar Sucursales que manejan stock ───────────────────
   const sedesConStock = SUCURSALES_DATA.filter((s) => s.maneja_stock).map((s) => s.ciudad);
@@ -85,8 +85,8 @@ export default async function InventarioPage() {
         />
         <HistorialTab
           historial={historial}
-          isAdmin={isAdmin}
-          sucursalOrigen={sucursalOrigen}
+          isAdmin={!!isAdmin}
+          ciudadUsuario={ciudadUsuario}
         />
       </Tabs>
     </div>
