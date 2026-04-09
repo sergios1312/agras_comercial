@@ -1,5 +1,6 @@
 import { createClient } from "@/utils/supabase/server";
 import { redirect } from "next/navigation";
+import { getSession } from "@/lib/auth";
 import type { Metadata } from "next";
 import { Tabs } from "@/components/ui/Tabs";
 import { CatalogoTab } from "@/components/inventario/CatalogoTab";
@@ -20,17 +21,12 @@ export default async function InventarioPage() {
   const supabase = await createClient();
 
   // Verificar sesión
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getSession();
   if (!user) redirect("/login");
 
-  const sucursalOrigen = user.email?.split("@")[0] ?? "desconocido";
-  // Normalizar el prefijo de email al nombre de ciudad real
-  const sucursalData = SUCURSALES_DATA.find((s) => s.usuario === sucursalOrigen);
-  const ciudadUsuario = sucursalData?.ciudad ?? sucursalOrigen;
-  const isAdmin =
-    user.email?.startsWith("admin@") ||
-    user.user_metadata?.role === "admin" ||
-    false;
+  const sucursalOrigen = user.usuario ?? "desconocido";
+  const ciudadUsuario = user.ciudad ?? sucursalOrigen;
+  const isAdmin = user.role === "admin";
 
   // ─── Fetch de datos en paralelo (Recursivo para tablas grandes) ─────
   // Nota: fetchAll maneja el bucle de 1000 en 1000 automáticamente

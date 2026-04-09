@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { createClient } from "@/utils/supabase/server";
+import { getSession } from "@/lib/auth";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { Header } from "@/components/layout/Header";
 
@@ -13,24 +13,19 @@ export default async function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getSession();
 
   if (!user) {
     redirect("/login");
   }
 
-  // Determinar si el usuario es admin basado en el email
-  const isAdmin = user.email === process.env.ADMIN_EMAIL ||
-    user.email?.startsWith("admin@") ||
-    user.user_metadata?.role === "admin";
+  // Determinar si el usuario es admin
+  const isAdmin = user.role === "admin";
 
   return (
     <div className="flex h-screen bg-slate-950 text-slate-100 overflow-hidden">
       {/* Sidebar fijo */}
-      <Sidebar userEmail={user.email} isAdmin={!!isAdmin} />
+      <Sidebar userEmail={user.email} isAdmin={isAdmin} />
 
       {/* Contenido principal */}
       <div className="flex flex-col flex-1 overflow-hidden">

@@ -2,11 +2,11 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/utils/supabase/server";
+import { getSession } from "@/lib/auth";
 import type { ItemCarrito, EstadoPedido } from "@/types/database.types";
 import { esNumeroCasoValido } from "@/lib/utils";
 import { enviarNotificacionPedido } from "@/lib/email";
 import { calcularTipoReporte } from "@/lib/transferencias";
-import { SUCURSALES_DATA } from "@/lib/constants";
 
 export interface PedidoState {
   error: string | null;
@@ -28,13 +28,11 @@ export async function submitPedido(
   const supabase = await createClient();
 
   // Obtener usuario actual
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getSession();
   if (!user) return { error: "Sesión expirada. Por favor inicia sesión nuevamente.", success: null };
 
-  const emailPrefix = user.email?.split("@")[0] ?? "desconocido";
-  // Normalizar a nombre de ciudad para el routing de correos
-  const sucursalData = SUCURSALES_DATA.find((s) => s.usuario === emailPrefix);
-  const sucursalOrigen = sucursalData?.ciudad ?? emailPrefix;
+  const sucursalOrigen = user.ciudad ?? "desconocido";
+  const emailPrefix = user.usuario;
 
   // Parsear el carrito desde el formulario
   const carritoRaw = formData.get("carrito") as string;

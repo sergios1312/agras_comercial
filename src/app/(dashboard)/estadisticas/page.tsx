@@ -1,5 +1,5 @@
-import { createClient } from "@/utils/supabase/server";
 import { redirect } from "next/navigation";
+import { getSession } from "@/lib/auth";
 import type { Metadata } from "next";
 import { BarChart3 } from "lucide-react";
 import { cargarCasos } from "@/lib/casos";
@@ -12,14 +12,10 @@ export const metadata: Metadata = {
 };
 
 export default async function EstadisticasPage() {
-  const supabase = await createClient();
-
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getSession();
   if (!user) redirect("/login");
 
-  const isAdmin =
-    user.email?.startsWith("admin@") ||
-    user.user_metadata?.role === "admin";
+  const isAdmin = user.role === "admin";
 
   if (!isAdmin) {
     return (

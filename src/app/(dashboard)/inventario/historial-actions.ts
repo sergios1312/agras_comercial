@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/utils/supabase/server";
+import { getSession } from "@/lib/auth";
 import { calcularTipoReporte } from "@/lib/transferencias";
 import type { EstadoPedido, HistorialPedido, TipoReporte } from "@/types/database.types";
 
@@ -16,12 +17,10 @@ export async function actualizarEstadoPedido(
 ): Promise<{ error: string | null }> {
   const supabase = await createClient();
 
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getSession();
   if (!user) return { error: "Sesión expirada." };
 
-  const isAdmin =
-    user.email?.startsWith("admin@") ||
-    user.user_metadata?.role === "admin";
+  const isAdmin = user.role === "admin";
   if (!isAdmin) return { error: "Solo el administrador puede cambiar estados." };
 
   const rawClient = supabase as unknown as any;
@@ -52,12 +51,10 @@ export async function exportarHistorialCSV(
 ): Promise<{ csv: string | null; error: string | null }> {
   const supabase = await createClient();
 
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getSession();
   if (!user) return { csv: null, error: "Sesión expirada." };
 
-  const isAdmin =
-    user.email?.startsWith("admin@") ||
-    user.user_metadata?.role === "admin";
+  const isAdmin = user.role === "admin";
 
   // Seguridad: técnicos solo pueden exportar sus propias bandejas
   if (!isAdmin && filtro === "todos") {

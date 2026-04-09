@@ -7,30 +7,10 @@
 import "server-only";
 import fs from "fs";
 import path from "path";
+import { parse } from "csv-parse/sync";
 import { contarDiasHabiles } from "@/lib/rtat";
 import { PLAZOS_IDEALES, SUCURSALES_BANEADAS, TRABAJOS_BANEADOS, SUCURSALES_OFICIALES } from "@/types/casos.types";
 import type { Caso, ClasificacionSLA } from "@/types/casos.types";
-
-// ─── CSV Simple Parser ───────────────────────────────────────
-function parseCSVLine(line: string): string[] {
-  const result: string[] = [];
-  let current = "";
-  let inQuotes = false;
-
-  for (let i = 0; i < line.length; i++) {
-    const char = line[i];
-    if (char === '"') {
-      inQuotes = !inQuotes;
-    } else if (char === "," && !inQuotes) {
-      result.push(current.trim());
-      current = "";
-    } else {
-      current += char;
-    }
-  }
-  result.push(current.trim());
-  return result;
-}
 
 function parseDate(val: string): string | null {
   if (!val || val.trim() === "") return null;
@@ -40,7 +20,6 @@ function parseDate(val: string): string | null {
   if (isNaN(d.getTime())) return null;
   return clean;
 }
-
 
 // ─── Clasificación SLA (§2 paso 5) ───────────────────────────
 function clasificarSLA(
@@ -65,19 +44,39 @@ function periodoMensual(fechaSalida: string | null): string | null {
 }
 
 // ─── Pipeline Principal (§2) ─────────────────────────────────
+let casosCached: Caso[] | null = null;
+let lastModified: number = 0;
+
 export function cargarCasos(): Caso[] {
   const csvPath = path.join(process.cwd(), "casos.csv");
+  
+  let stats;
+  try {
+    stats = fs.statSync(csvPath);
+  } catch (e) {
+    return []; // Archivo no existe aún
+  }
+
+  // Retornar de memoria si el archivo no ha sido modificado
+  if (casosCached && stats.mtimeMs === lastModified) {
+    return casosCached;
+  }
+
   const raw = fs.readFileSync(csvPath, "utf-8");
-  const lines = raw.split("\n").filter((l) => l.trim() !== "");
+  
+  // Utilizar csv-parse nativo para manejar correctamente saltos de línea en comillas.
+  const records = parse(raw, {
+    skip_empty_lines: true,
+    relax_column_count: true,
+  });
 
-  if (lines.length < 2) return [];
+  if (records.length < 2) return [];
 
-  const headers = parseCSVLine(lines[0]);
+  const headers = records[0].map((h: string) => h.trim());
 
   // Índices de columnas clave
-  const idx = (name: string) => headers.findIndex((h) => h.trim() === name);
+  const idx = (name: string) => headers.findIndex((h: string) => h === name);
   const I = {
-    num:          idx("Numeración"),
     estadoGen:    idx("ESTADO GENERAL"),
     desc:         idx("DESCRIPCIÓN"),
     sucursal:     idx("Sucursal DJI AGRAS - QTC:"),
@@ -92,30 +91,30 @@ export function cargarCasos(): Caso[] {
   const hoy = new Date().toISOString().slice(0, 10);
   const casos: Caso[] = [];
 
-  for (let i = 1; i < lines.length; i++) {
-    const cols = parseCSVLine(lines[i]);
+  for (let i = 1; i < records.length; i++) {
+    const cols = records[i].map((c: string) => c.trim());
     if (cols.length < 5) continue;
 
-    const sucursalRaw = (cols[I.sucursal] ?? "").trim();
+    const sucursalRaw = (cols[I.sucursal] ?? "");
     // Encuentra la sucursal buscando coincidencias en la lista oficial
     const sucursalMatch = SUCURSALES_OFICIALES.find((s) => sucursalRaw.toLowerCase().includes(s.toLowerCase()));
     
     if (!sucursalMatch) continue; // Descarta filas corruptas ("WhatsApp video", etc.)
     const sucursal = sucursalMatch;
 
-    const tipoTrabajo = (cols[I.tipoTrabajo] ?? "").trim().toUpperCase();
-    const estadoGeneral = (cols[I.estadoGen] ?? "").trim().toUpperCase();
+    const tipoTrabajo = (cols[I.tipoTrabajo] ?? "").toUpperCase();
+    const estadoGeneral = (cols[I.estadoGen] ?? "").toUpperCase();
 
     // ── Exclusiones (§1) ─────────────────────────────────────
     if (SUCURSALES_BANEADAS.some((s) => sucursal.toLowerCase().includes(s.toLowerCase()))) continue;
     if (TRABAJOS_BANEADOS.some((t) => tipoTrabajo.includes(t))) continue;
 
     // ── Limpieza de campos (§2 pasos 1-2) ────────────────────
-    let estadoCaso = (cols[I.estadoCaso] ?? "").trim();
+    let estadoCaso = (cols[I.estadoCaso] ?? "");
     if (!estadoCaso) estadoCaso = "SIN ESTADO";
 
-    const fechaIngresoRaw = (cols[I.fechaIngreso] ?? "").trim();
-    const fechaSalidaRaw  = (cols[I.fechaSalida]  ?? "").trim();
+    const fechaIngresoRaw = (cols[I.fechaIngreso] ?? "");
+    const fechaSalidaRaw  = (cols[I.fechaSalida]  ?? "");
 
     const fechaIngreso = parseDate(fechaIngresoRaw);
     const fechaSalida  = parseDate(fechaSalidaRaw);
@@ -139,12 +138,12 @@ export function cargarCasos(): Caso[] {
     const sla = clasificarSLA(rtat, tipoTrabajo, estadoGeneral);
 
     casos.push({
-      id:              Number(cols[I.num]) || i,
+      id:              i, // Usamos índice inmutable para evitar bugs de React con keys repetidas
       estadoGeneral:   estadoGeneral || "ABIERTO",
-      descripcion:     (cols[I.desc] ?? "").trim(),
+      descripcion:     (cols[I.desc] ?? ""),
       sucursal:        sucursal || "Sin sucursal",
-      cliente:         (cols[I.cliente] ?? "").trim(),
-      garantia:        (cols[I.garantia] ?? "").trim(),
+      cliente:         (cols[I.cliente] ?? ""),
+      garantia:        (cols[I.garantia] ?? ""),
       estadoCaso:      estadoFinal,
       tipoTrabajo:     tipoTrabajo || "SIN TIPO",
       fechaIngreso,
@@ -154,6 +153,10 @@ export function cargarCasos(): Caso[] {
       clasificacionSLA: sla,
     });
   }
+
+  // Guardar en caché
+  casosCached = casos;
+  lastModified = stats.mtimeMs;
 
   return casos;
 }

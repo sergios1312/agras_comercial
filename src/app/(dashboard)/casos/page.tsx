@@ -1,5 +1,6 @@
 import { createClient } from "@/utils/supabase/server";
 import { redirect } from "next/navigation";
+import { getSession } from "@/lib/auth";
 import type { Metadata } from "next";
 import { SucursalExpander } from "@/components/casos/SucursalExpander";
 import { KpiCard } from "@/components/estadisticas/KpiCard";
@@ -14,12 +15,10 @@ export const metadata: Metadata = {
 export default async function CasosPage() {
   const supabase = await createClient();
 
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getSession();
   if (!user) redirect("/login");
 
-  const isAdmin =
-    user.email?.startsWith("admin@") ||
-    user.user_metadata?.role === "admin";
+  const isAdmin = user.role === "admin";
 
   if (!isAdmin) {
     return (
