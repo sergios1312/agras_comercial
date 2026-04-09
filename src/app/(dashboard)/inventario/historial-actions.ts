@@ -68,7 +68,7 @@ export async function exportarHistorialCSV(
   const { data, error } = await rawClient
     .from("historial_pedidos")
     .select("*")
-    .order("created_at", { ascending: false });
+    .order("fecha_pedido", { ascending: false });
 
   if (error) return { csv: null, error: error.message };
 
@@ -76,16 +76,21 @@ export async function exportarHistorialCSV(
 
   // Aplicar filtro
   if (filtro === "realizados") {
-    pedidos = pedidos.filter((p) => p.sucursal_origen === sucursalUsuario);
+    // Pedidos realizados por el usuario actual
+    pedidos = pedidos.filter((p) => p.tecnico_destino === sucursalUsuario);
   } else if (filtro === "recibidos") {
+    // Pedidos donde el usuario actual es el "origen" (debe despachar)
+    // Nota: sucursalUsuario es el prefix (piura), necesitamos el nombre de ciudad si se cruza
+    // Pero en el sistema 1.0, sucursalUsuario solía ser el nombre de la ciudad en algunos contextos.
+    // Vamos a usar la lógica de tecnico_destino para identificar al usuario.
     pedidos = pedidos.filter(
-      (p) => p.tecnico_destino === sucursalUsuario && p.sucursal_origen !== sucursalUsuario
+      (p) => p.sucursal_origen === sucursalUsuario && p.tecnico_destino !== sucursalUsuario
     );
   } else if (filtro !== "todos") {
-    // Es un TipoReporte → filtrar por tipo calculado
-    const tipo = filtro as TipoReporte;
+    // Es un TipoReporte → filtrar por tipo calculado (ya está en el DB como tipo_reporte)
+    const tipoStr = (filtro as string).toLowerCase();
     pedidos = pedidos.filter(
-      (p) => calcularTipoReporte(p.sucursal_destino) === tipo
+      (p) => p.tipo_reporte.toLowerCase() === tipoStr
     );
   }
 
@@ -101,15 +106,15 @@ export async function exportarHistorialCSV(
 
   const filas = pedidos.map((p) => [
     p.id,
-    new Date(p.created_at).toLocaleDateString("es-PE"),
+    new Date(p.fecha_pedido).toLocaleDateString("es-PE"),
     p.sucursal_origen,
-    p.sucursal_destino ?? "Sin Stock",
-    p.codigo,
-    `"${p.nombre_repuesto.replace(/"/g, '""')}"`, // escape comillas
+    p.tecnico_destino, // Destino es el técnico que solicita
+    p.repuesto_codigo,
+    `"${p.repuesto_nombre.replace(/"/g, '""')}"`, // escape comillas
     p.numero_caso,
     p.cantidad,
-    calcularTipoReporte(p.sucursal_destino),
-    p.es_venta ? "Sí" : "No",
+    p.tipo_reporte,
+    "No", // es_venta no está en el esquema real actual
     p.estado,
   ]);
 

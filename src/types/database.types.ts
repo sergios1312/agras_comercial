@@ -67,15 +67,13 @@ export interface HistorialPedido {
   id: number;
   tecnico_destino: string;
   sucursal_origen: string;
-  sucursal_destino: string | null;
-  codigo: string;
-  nombre_repuesto: string;
+  repuesto_codigo: string;
+  repuesto_nombre: string;
   numero_caso: string;
   cantidad: number;
-  es_venta: boolean;
-  tipo_solicitud: TipoSolicitud;
+  tipo_reporte: string;
   estado: EstadoPedido;
-  created_at: string;
+  fecha_pedido: string;
 }
 
 // ─── Tipos UI ─────────────────────────────────────────────────
@@ -126,7 +124,7 @@ export interface Database {
       };
       historial_pedidos: {
         Row: HistorialPedido;
-        Insert: Omit<HistorialPedido, "id" | "created_at">;
+        Insert: Omit<HistorialPedido, "id" | "fecha_pedido">;
         Update: Partial<Omit<HistorialPedido, "id">>;
       };
     };

@@ -137,19 +137,19 @@ function TablaPedidos({
                   className={`border-b border-slate-800 hover:bg-slate-800/50 transition-colors
                     ${i % 2 === 0 ? "bg-slate-900" : "bg-slate-900/50"}`}
                 >
-                  <td className="px-4 py-3 text-xs text-slate-400 whitespace-nowrap">{formatDate(p.created_at)}</td>
-                  <td className="px-4 py-3 font-mono text-indigo-400 text-xs">{p.codigo}</td>
-                  <td className="px-4 py-3 text-slate-200 max-w-xs truncate">{p.nombre_repuesto}</td>
+                  <td className="px-4 py-3 text-xs text-slate-400 whitespace-nowrap">{formatDate(p.fecha_pedido)}</td>
+                  <td className="px-4 py-3 font-mono text-indigo-400 text-xs">{p.repuesto_codigo}</td>
+                  <td className="px-4 py-3 text-slate-200 max-w-xs truncate">{p.repuesto_nombre}</td>
                   <td className="px-4 py-3 font-mono text-slate-300 text-xs">{p.numero_caso}</td>
                   <td className="px-4 py-3 text-center text-slate-300">{p.cantidad}</td>
                   {mostrarOrigen && (
                     <td className="px-4 py-3 text-slate-400 text-xs capitalize">{p.sucursal_origen}</td>
                   )}
                   {mostrarDestino && (
-                    <td className="px-4 py-3 text-slate-400 text-xs capitalize">{p.sucursal_destino ?? "Sin Stock"}</td>
+                    <td className="px-4 py-3 text-slate-400 text-xs capitalize">{p.tecnico_destino}</td>
                   )}
                   <td className="px-4 py-3 text-xs text-slate-500 whitespace-nowrap">
-                    {calcularTipoReporte(p.sucursal_destino)}
+                    {p.tipo_reporte}
                   </td>
                   <td className="px-4 py-3">
                     {isAdmin && onActualizar ? (
@@ -267,7 +267,7 @@ function VistaAdmin({
   const pedidosFiltrados =
     activeTab === "todos"
       ? historial
-      : historial.filter((p) => calcularTipoReporte(p.sucursal_destino) === activeTab);
+      : historial.filter((p) => p.tipo_reporte.toLowerCase() === activeTab.toLowerCase());
 
   return (
     <div className="space-y-4">
@@ -290,7 +290,7 @@ function VistaAdmin({
                   ? pedidosFiltrados.length
                   : t.id === "todos"
                     ? historial.length
-                    : historial.filter((p) => calcularTipoReporte(p.sucursal_destino) === t.id).length
+                    : historial.filter((p) => p.tipo_reporte.toLowerCase() === t.id.toLowerCase()).length
                 }
               </span>
             </button>
@@ -319,9 +319,9 @@ function VistaTecnico({
 }) {
   const [activeTab, setActiveTab] = useState<"realizados" | "recibidos">("realizados");
 
-  const realizados = historial.filter((p) => p.sucursal_origen === ciudadUsuario);
+  const realizados = historial.filter((p) => p.tecnico_destino === ciudadUsuario);
   const recibidos  = historial.filter(
-    (p) => p.tecnico_destino === ciudadUsuario && p.sucursal_origen !== ciudadUsuario
+    (p) => p.sucursal_origen === ciudadUsuario && p.tecnico_destino !== ciudadUsuario
   );
 
   const pedidos = activeTab === "realizados" ? realizados : recibidos;

@@ -34,7 +34,7 @@ export default async function CasosPage() {
   const { data } = await supabase
     .from("historial_pedidos")
     .select("*")
-    .order("created_at", { ascending: false });
+    .order("fecha_pedido", { ascending: false });
 
   const pedidos = (data ?? []) as HistorialPedido[];
 

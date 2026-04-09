@@ -5,6 +5,7 @@ import { createClient } from "@/utils/supabase/server";
 import type { ItemCarrito, EstadoPedido } from "@/types/database.types";
 import { esNumeroCasoValido } from "@/lib/utils";
 import { enviarNotificacionPedido } from "@/lib/email";
+import { calcularTipoReporte } from "@/lib/transferencias";
 import { SUCURSALES_DATA } from "@/lib/constants";
 
 export interface PedidoState {
@@ -96,15 +97,13 @@ export async function submitPedido(
   const estado: EstadoPedido = esSinStock ? "Pendiente de abastecimiento" : "Pendiente";
 
   const inserts = carrito.map((item) => ({
-    tecnico_destino: item.sucursal_destino,
-    sucursal_origen: sucursalOrigen,
-    sucursal_destino: item.sucursal_destino || null,
-    codigo: item.codigo,
-    nombre_repuesto: item.nombre,
+    tecnico_destino: emailPrefix, // El técnico que recibe (quien solicita)
+    sucursal_origen: item.sucursal_destino || "Oficina Central", // De dónde viene el repuesto
+    repuesto_codigo: item.codigo,
+    repuesto_nombre: item.nombre,
     numero_caso: item.es_venta ? "VENTA" : item.numero_caso.trim(),
     cantidad: item.cantidad,
-    es_venta: item.es_venta,
-    tipo_solicitud: tipoSolicitud as "Consumo normal" | "Solicitud/Reserva sin stock",
+    tipo_reporte: calcularTipoReporte(item.sucursal_destino).toLowerCase(),
     estado,
   }));
 
