@@ -39,7 +39,7 @@ export default async function InventarioPage() {
     supabase.from("sucursales").select("id, nombre_ciudad"),
     fetchAll<InventarioRow>(supabase.from("inventario").select("id, repuesto_id, sucursal_id, cantidad")),
     fetchAll<HistorialPedido>(
-      supabase.from("historial_pedidos").select("*").order("created_at", { ascending: false })
+      supabase.from("historial_pedidos").select("*").order("fecha_pedido", { ascending: false })
     ),
   ]);
 
