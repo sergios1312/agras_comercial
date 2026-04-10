@@ -9,9 +9,10 @@ import type { RepuestoConStock } from "@/types/database.types";
 interface CatalogoTabProps {
   catalogo: RepuestoConStock[];
   sucursales: string[];
+  onAddCarrito?: (r: RepuestoConStock) => void;
 }
 
-export function CatalogoTab({ catalogo, sucursales }: CatalogoTabProps) {
+export function CatalogoTab({ catalogo, sucursales, onAddCarrito }: CatalogoTabProps) {
   // terminoInput: lo que el usuario escribe en tiempo real
   const [terminoInput, setTerminoInput] = useState("");
   // terminoActivo: lo que se pasa al motor de búsqueda
@@ -88,6 +89,9 @@ export function CatalogoTab({ catalogo, sucursales }: CatalogoTabProps) {
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-slate-800/80 border-b border-slate-700">
+                {onAddCarrito && (
+                  <th className="px-2 py-3 w-[36px] text-center"></th>
+                )}
                 <th className="text-left px-3 py-3 text-[11px] font-semibold text-slate-400 uppercase tracking-widest w-28">Código</th>
                 <th className="text-left px-3 py-3 text-[11px] font-semibold text-slate-400 uppercase tracking-widest min-w-[190px]">Nombre</th>
                 <th className="text-left px-2 py-3 text-[10px] font-semibold text-slate-400 uppercase tracking-widest w-16">SAP</th>
@@ -113,9 +117,21 @@ export function CatalogoTab({ catalogo, sucursales }: CatalogoTabProps) {
                 resultados.map((r, i) => (
                   <tr
                     key={r.id}
-                    className={`border-b border-slate-800 transition-colors hover:bg-slate-800/50
+                    className={`border-b border-slate-800 transition-colors hover:bg-slate-800/50 group
                       ${i % 2 === 0 ? "bg-slate-900" : "bg-slate-900/50"}`}
                   >
+                    {onAddCarrito && (
+                      <td className="px-1 py-1 text-center">
+                        <button
+                          type="button"
+                          onClick={() => onAddCarrito(r)}
+                          title="Añadir a carrito"
+                          className="w-7 h-7 flex items-center justify-center bg-indigo-500/10 text-indigo-400 rounded-md hover:bg-indigo-500 hover:text-white transition-colors"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-plus"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+                        </button>
+                      </td>
+                    )}
                     <td className="px-3 py-2 font-mono text-indigo-400 text-[11px] min-w-[112px] whitespace-nowrap">{r.codigo}</td>
                     <td className="px-3 py-2 text-slate-200 min-w-[190px] max-w-[220px]">
                       <div className="truncate text-[11px]">{r.nombre_traducido || r.nombre}</div>

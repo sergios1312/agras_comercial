@@ -90,6 +90,7 @@ export interface ItemCarrito {
   sucursal_destino: string;
   es_venta: boolean;
   stock_disponible: number; // stock de la sede seleccionada
+  inv_ids: Record<string, number>;
 }
 
 /** Resultado del motor de búsqueda por score (_score: menor = mayor prioridad) */

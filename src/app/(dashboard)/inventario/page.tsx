@@ -2,10 +2,7 @@ import { createClient } from "@/utils/supabase/server";
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
 import type { Metadata } from "next";
-import { Tabs } from "@/components/ui/Tabs";
-import { CatalogoTab } from "@/components/inventario/CatalogoTab";
-import { SolicitudTab } from "@/components/inventario/SolicitudTab";
-import { HistorialTab } from "@/components/inventario/HistorialTab";
+import { InventarioClientWrapper } from "@/components/inventario/InventarioClientWrapper";
 import type { RepuestoConStock, HistorialPedido, InventarioRow } from "@/types/database.types";
 import { Search, Package, History } from "lucide-react";
 import { SUCURSALES_DATA } from "@/lib/constants";
@@ -63,28 +60,16 @@ export default async function InventarioPage() {
     return { ...r, stock_por_sucursal, inv_ids };
   });
 
-  const tabs = [
-    { id: "catalogo", label: "Buscador", icon: <Search className="w-4 h-4" /> },
-    { id: "solicitud", label: "Envío de Repuestos", icon: <Package className="w-4 h-4" /> },
-    { id: "historial", label: "Historial", icon: <History className="w-4 h-4" /> },
-  ];
-
   return (
     <div className="space-y-2">
-      <Tabs tabs={tabs} defaultTab="catalogo">
-        <CatalogoTab catalogo={catalogo} sucursales={sucursalNames} />
-        <SolicitudTab
-          catalogo={catalogo}
-          sucursales={sucursalNames}
-          sucursalOrigen={sucursalOrigen}
-          isAdmin={isAdmin}
-        />
-        <HistorialTab
-          historial={historial}
-          isAdmin={!!isAdmin}
-          ciudadUsuario={ciudadUsuario}
-        />
-      </Tabs>
+      <InventarioClientWrapper
+        catalogo={catalogo}
+        sucursalesNames={sucursalNames}
+        sucursalOrigen={sucursalOrigen}
+        isAdmin={isAdmin}
+        historial={historial}
+        ciudadUsuario={ciudadUsuario}
+      />
     </div>
   );
 }
