@@ -88,14 +88,14 @@ export function CatalogoTab({ catalogo, sucursales }: CatalogoTabProps) {
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-slate-800/80 border-b border-slate-700">
-                <th className="text-left px-3 py-3 text-[11px] font-semibold text-slate-400 uppercase tracking-widest w-20">Código</th>
-                <th className="text-left px-3 py-3 text-[11px] font-semibold text-slate-400 uppercase tracking-widest min-w-[150px]">Nombre</th>
+                <th className="text-left px-3 py-3 text-[11px] font-semibold text-slate-400 uppercase tracking-widest w-28">Código</th>
+                <th className="text-left px-3 py-3 text-[11px] font-semibold text-slate-400 uppercase tracking-widest w-32">Nombre</th>
                 <th className="text-left px-2 py-3 text-[10px] font-semibold text-slate-400 uppercase tracking-widest w-16">SAP</th>
                 <th className="text-left px-3 py-3 text-[11px] font-semibold text-slate-400 uppercase tracking-widest w-36">Modelos</th>
                 <th className="text-right px-3 py-3 text-[11px] font-semibold text-slate-400 uppercase tracking-widest w-20">Precio</th>
                 <th className="text-right px-2 py-3 text-[11px] font-bold text-slate-300 uppercase tracking-widest w-12 border-l border-slate-700/50">Total</th>
                 {sucursales.map((s) => (
-                  <th key={s} title={s} className="text-right px-1.5 py-3 text-[10px] font-semibold text-slate-400 uppercase tracking-wider w-10 truncate max-w-[40px]">
+                  <th key={s} title={s} className="text-right px-2 py-3 text-[10px] font-semibold text-slate-400 uppercase tracking-wider w-14 truncate max-w-[56px]">
                     {s}
                   </th>
                 ))}
@@ -116,8 +116,8 @@ export function CatalogoTab({ catalogo, sucursales }: CatalogoTabProps) {
                     className={`border-b border-slate-800 transition-colors hover:bg-slate-800/50
                       ${i % 2 === 0 ? "bg-slate-900" : "bg-slate-900/50"}`}
                   >
-                    <td className="px-3 py-2 font-mono text-indigo-400 text-[11px] truncate max-w-[80px]" title={r.codigo}>{r.codigo}</td>
-                    <td className="px-3 py-2 text-slate-200 max-w-[180px]">
+                    <td className="px-3 py-2 font-mono text-indigo-400 text-[11px] min-w-[112px] whitespace-nowrap">{r.codigo}</td>
+                    <td className="px-3 py-2 text-slate-200 max-w-[128px]">
                       <div className="truncate text-[11px]">{r.nombre_traducido || r.nombre}</div>
                       {r.nombre_traducido && (
                         <div className="text-[10px] text-slate-500 truncate">{r.nombre}</div>
