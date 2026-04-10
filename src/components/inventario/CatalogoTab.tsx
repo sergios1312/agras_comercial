@@ -89,13 +89,13 @@ export function CatalogoTab({ catalogo, sucursales }: CatalogoTabProps) {
             <thead>
               <tr className="bg-slate-800/80 border-b border-slate-700">
                 <th className="text-left px-3 py-3 text-[11px] font-semibold text-slate-400 uppercase tracking-widest w-28">Código</th>
-                <th className="text-left px-3 py-3 text-[11px] font-semibold text-slate-400 uppercase tracking-widest w-32">Nombre</th>
+                <th className="text-left px-3 py-3 text-[11px] font-semibold text-slate-400 uppercase tracking-widest min-w-[190px]">Nombre</th>
                 <th className="text-left px-2 py-3 text-[10px] font-semibold text-slate-400 uppercase tracking-widest w-16">SAP</th>
                 <th className="text-left px-3 py-3 text-[11px] font-semibold text-slate-400 uppercase tracking-widest w-36">Modelos</th>
                 <th className="text-right px-3 py-3 text-[11px] font-semibold text-slate-400 uppercase tracking-widest w-20">Precio</th>
                 <th className="text-right px-2 py-3 text-[11px] font-bold text-slate-300 uppercase tracking-widest w-12 border-l border-slate-700/50">Total</th>
                 {sucursales.map((s) => (
-                  <th key={s} title={s} className="text-right px-2 py-3 text-[10px] font-semibold text-slate-400 uppercase tracking-wider w-14 truncate max-w-[56px]">
+                  <th key={s} title={s} className="text-right px-1.5 py-3 text-[10px] font-semibold text-slate-400 uppercase tracking-wider w-[50px] max-w-[50px] truncate">
                     {s}
                   </th>
                 ))}
@@ -117,7 +117,7 @@ export function CatalogoTab({ catalogo, sucursales }: CatalogoTabProps) {
                       ${i % 2 === 0 ? "bg-slate-900" : "bg-slate-900/50"}`}
                   >
                     <td className="px-3 py-2 font-mono text-indigo-400 text-[11px] min-w-[112px] whitespace-nowrap">{r.codigo}</td>
-                    <td className="px-3 py-2 text-slate-200 max-w-[128px]">
+                    <td className="px-3 py-2 text-slate-200 min-w-[190px] max-w-[220px]">
                       <div className="truncate text-[11px]">{r.nombre_traducido || r.nombre}</div>
                       {r.nombre_traducido && (
                         <div className="text-[10px] text-slate-500 truncate">{r.nombre}</div>
@@ -140,7 +140,7 @@ export function CatalogoTab({ catalogo, sucursales }: CatalogoTabProps) {
                     {sucursales.map((s) => {
                       const stock = r.stock_por_sucursal[s] ?? 0;
                       return (
-                        <td key={s} className="px-1.5 py-2 text-right">
+                        <td key={s} className="px-1.5 py-2 text-right w-[50px] max-w-[50px]">
                           <span className={`text-[11px] font-semibold ${stock > 0 ? "text-green-400" : "text-slate-600 opacity-40"}`}>
                             {stock}
                           </span>
