@@ -28,7 +28,7 @@ export function contarDiasHabiles(
   const limFin = new Date(fin);
   limFin.setHours(0, 0, 0, 0);
 
-  while (actual < limFin) {
+  while (actual <= limFin) {
     const diaSemana = actual.getDay(); // 0=Dom, 1=Lun, ... 6=Sáb
     if (DIAS_HABILES.includes(diaSemana)) {
       dias++;

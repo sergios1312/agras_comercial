@@ -64,8 +64,16 @@ export function cargarCasos(): Caso[] {
 
   const raw = fs.readFileSync(csvPath, "utf-8");
   
+  // Parche preventivo para CSV de Lark: si usa ; en lugar de ,
+  let delimitador = ",";
+  const lineas = raw.split("\n");
+  if (lineas.length > 0 && !lineas[0].includes(",") && lineas[0].includes(";")) {
+    delimitador = ";";
+  }
+
   // Utilizar csv-parse nativo para manejar correctamente saltos de línea en comillas.
   const records = parse(raw, {
+    delimiter: delimitador,
     skip_empty_lines: true,
     relax_column_count: true,
   });
@@ -77,6 +85,7 @@ export function cargarCasos(): Caso[] {
   // Índices de columnas clave
   const idx = (name: string) => headers.findIndex((h: string) => h === name);
   const I = {
+    numeracion:   idx("Numeración"),
     estadoGen:    idx("ESTADO GENERAL"),
     desc:         idx("DESCRIPCIÓN"),
     sucursal:     idx("Sucursal DJI AGRAS - QTC:"),
@@ -109,6 +118,11 @@ export function cargarCasos(): Caso[] {
     if (SUCURSALES_BANEADAS.some((s) => sucursal.toLowerCase().includes(s.toLowerCase()))) continue;
     if (TRABAJOS_BANEADOS.some((t) => tipoTrabajo.includes(t))) continue;
 
+    // ── Limpieza de N° Caso Gestioo (§2) ─────────────────────
+    let numRaw = (cols[I.numeracion] ?? "").trim();
+    if (numRaw.includes(".")) numRaw = numRaw.split(".")[0];
+    const numeracionCaso = numRaw ? numRaw.padStart(4, "0") : "0000";
+
     // ── Limpieza de campos (§2 pasos 1-2) ────────────────────
     let estadoCaso = (cols[I.estadoCaso] ?? "");
     if (!estadoCaso) estadoCaso = "SIN ESTADO";
@@ -139,6 +153,7 @@ export function cargarCasos(): Caso[] {
 
     casos.push({
       id:              i, // Usamos índice inmutable para evitar bugs de React con keys repetidas
+      numeracionCaso,
       estadoGeneral:   estadoGeneral || "ABIERTO",
       descripcion:     (cols[I.desc] ?? ""),
       sucursal:        sucursal || "Sin sucursal",

@@ -5,6 +5,7 @@ import type { Metadata } from "next";
 import { SucursalExpander } from "@/components/casos/SucursalExpander";
 import { KpiCard } from "@/components/estadisticas/KpiCard";
 import { FileText, Clock, CheckCircle, AlertTriangle } from "lucide-react";
+import { BotonNotificar } from "@/components/casos/BotonNotificar";
 import type { HistorialPedido } from "@/types/database.types";
 
 export const metadata: Metadata = {
@@ -57,12 +58,15 @@ export default async function CasosPage() {
 
   return (
     <div className="space-y-6">
-      {/* Banner modo desarrollo */}
-      <div className="flex items-center gap-2 px-4 py-3 bg-amber-500/10 border border-amber-500/20 rounded-xl">
-        <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
-        <p className="text-xs text-amber-300">
-          <strong>Módulo en desarrollo:</strong> Las notificaciones por correo SMTP se implementarán en la siguiente fase.
-        </p>
+      {/* Zona Superior Admin - Operaciones */}
+      <div className="flex bg-slate-900/40 p-4 border border-slate-800 rounded-2xl items-center justify-between shadow-sm">
+        <div>
+          <h2 className="text-base font-semibold text-slate-200">Panel de Casos (Procesos Colab)</h2>
+          <p className="text-xs text-slate-500 max-w-sm mt-1">
+            Genera un reporte consolidado con excel para cada sede y envía los resúmenes por correo respetando los rate limits de Gmail.
+          </p>
+        </div>
+        <BotonNotificar />
       </div>
 
       {/* KPIs globales */}

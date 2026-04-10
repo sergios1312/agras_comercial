@@ -8,6 +8,7 @@ export type ClasificacionSLA = "A TIEMPO" | "APLAZADO" | "ATRASADO" | null;
 
 export interface Caso {
   id: number;
+  numeracionCaso: string;
   estadoGeneral: string;
   descripcion: string;
   sucursal: string;
