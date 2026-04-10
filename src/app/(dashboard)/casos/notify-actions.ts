@@ -3,9 +3,27 @@
 import { revalidatePath } from "next/cache";
 import { getSession } from "@/lib/auth";
 import { cargarCasos } from "@/lib/casos";
-import { procesarCorreosCasosAbiertos } from "@/lib/notify-casos";
+import { procesarCorreosCasosAbiertos, obtenerVistaPrevia } from "@/lib/notify-casos";
+import type { Caso } from "@/types/casos.types";
 
-export async function dispararNotificacionesCasos(): Promise<{
+export async function previsualizarCasosAccion(targetSucursales: string[]): Promise<{
+  success: boolean;
+  data?: Record<string, Caso[]>;
+  error?: string;
+}> {
+  const user = await getSession();
+  if (!user || user.role !== "admin") return { success: false, error: "Acceso denegado." };
+
+  try {
+    const casos = cargarCasos();
+    const result = obtenerVistaPrevia(casos, targetSucursales);
+    return { success: true, data: result };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
+export async function dispararNotificacionesCasos(targetSucursales: string[]): Promise<{
   success: boolean;
   notificados: number;
   megaReporte: string[];
@@ -27,7 +45,7 @@ export async function dispararNotificacionesCasos(): Promise<{
     const casos = cargarCasos();
     
     // 2. Procesar y disparar motor de email (esperar la asincronía y su rate limit padding)
-    const result = await procesarCorreosCasosAbiertos(casos);
+    const result = await procesarCorreosCasosAbiertos(casos, targetSucursales);
 
     revalidatePath("/casos");
     

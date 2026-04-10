@@ -6,8 +6,8 @@ import type { Caso } from "@/types/casos.types";
 
 const MODO_PRUEBA = true;
 
-// Solo notificar sobre estas 10 sucursales (Master Data spec)
-const SUCURSALES_MAESTRAS = [
+// Todas las sucursales posibles donde se puede enviar garantía
+export const SUCURSALES_MAESTRAS = [
   "Lima", "Chiclayo", "Ica", "Bellavista", "Nueva Cajamarca",
   "Pucallpa", "Jaen", "Huanuco", "Yurimaguas", "Piura"
 ];
@@ -45,12 +45,7 @@ function calcularDiasCalendario(fechaIngreso: string | null): number {
   return Math.floor(diffTime / (1000 * 60 * 60 * 24)) + 1;
 }
 
-/**
- * Retorna True si está en la lista de las 10 maestras
- */
-function esSucursalMaestra(sucursal: string) {
-  return SUCURSALES_MAESTRAS.some(s => s.toLowerCase() === sucursal.toLowerCase());
-}
+// Ya no necesitamos esSucursalMaestra() porque las sucursales vienen en targets
 
 /**
  * Genera un buffer Excel usando exceljs con el styling exacto de la spec
@@ -124,18 +119,45 @@ async function generarExcelSucursalBuffer(casos: Caso[]): Promise<Buffer> {
 }
 
 /**
+ * Genera el diccionario para la vista previa de las tablas (Front-End)
+ */
+export function obtenerVistaPrevia(casosTotales: Caso[], targetSucursales: string[]): Record<string, Caso[]> {
+  const result: Record<string, Caso[]> = {};
+  
+  const abiertos = casosTotales.filter((c) => 
+    c.estadoGeneral === "ABIERTO" && targetSucursales.some(t => t.toLowerCase() === c.sucursal.toLowerCase())
+  );
+
+  for (const c of abiertos) {
+    if (!result[c.sucursal]) result[c.sucursal] = [];
+    result[c.sucursal].push(c);
+  }
+
+  // Ordenamos para UX (de mayor edad a menor, ignorando los nulos temporalmente)
+  for (const suc in result) {
+    result[suc].sort((a, b) => {
+      const d1 = calcularDiasCalendario(a.fechaIngreso);
+      const d2 = calcularDiasCalendario(b.fechaIngreso);
+      return d2 - d1;
+    });
+  }
+
+  return result;
+}
+
+/**
  * Envía notificaciones a cada sucursal con sus casos ABIERTOS
  */
-export async function procesarCorreosCasosAbiertos(casosTotales: Caso[]): Promise<{
+export async function procesarCorreosCasosAbiertos(casosTotales: Caso[], targetSucursales: string[]): Promise<{
   success: boolean;
   notificados: number;
   megaReporte: string[];
   error?: string;
 }> {
   try {
-    // 1. Filtrar solo los ABIERTOS procedentes de las 10 sucursales maestras
-    const abiertos = casosTotales.filter(
-      (c) => c.estadoGeneral === "ABIERTO" && esSucursalMaestra(c.sucursal)
+    // 1. Filtrar solo los ABIERTOS correspondientes
+    const abiertos = casosTotales.filter((c) => 
+      c.estadoGeneral === "ABIERTO" && targetSucursales.some(t => t.toLowerCase() === c.sucursal.toLowerCase())
     );
 
     // 2. Agrupar por sucursal

@@ -5,7 +5,7 @@ import type { Metadata } from "next";
 import { SucursalExpander } from "@/components/casos/SucursalExpander";
 import { KpiCard } from "@/components/estadisticas/KpiCard";
 import { FileText, Clock, CheckCircle, AlertTriangle } from "lucide-react";
-import { BotonNotificar } from "@/components/casos/BotonNotificar";
+import { PanelNotificaciones } from "@/components/casos/PanelNotificaciones";
 import type { HistorialPedido } from "@/types/database.types";
 
 export const metadata: Metadata = {
@@ -59,15 +59,8 @@ export default async function CasosPage() {
   return (
     <div className="space-y-6">
       {/* Zona Superior Admin - Operaciones */}
-      <div className="flex bg-slate-900/40 p-4 border border-slate-800 rounded-2xl items-center justify-between shadow-sm">
-        <div>
-          <h2 className="text-base font-semibold text-slate-200">Panel de Casos (Procesos Colab)</h2>
-          <p className="text-xs text-slate-500 max-w-sm mt-1">
-            Genera un reporte consolidado con excel para cada sede y envía los resúmenes por correo respetando los rate limits de Gmail.
-          </p>
-        </div>
-        <BotonNotificar />
-      </div>
+      {/* Panel de Notificaciones Interactivo */}
+      <PanelNotificaciones />
 
       {/* KPIs globales */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
