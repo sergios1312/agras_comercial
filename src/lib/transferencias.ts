@@ -32,7 +32,7 @@ const WILBER = getCorreo("admin_almacen"); // wilber.mallma@quetalcompra.com
  * Regla 3: Cualquier otra sucursal → Envío Interno
  */
 export function calcularTipoReporte(destino: string | null | undefined): TipoReporte {
-  if (!destino || destino.trim() === "") return "Reposición";
+  if (!destino || destino.trim() === "" || destino === "SIN_STOCK") return "Reposición";
   const d = destino.toLowerCase();
   if (d.includes("lima")) return "Abastecimiento";
   return "Envío Interno";

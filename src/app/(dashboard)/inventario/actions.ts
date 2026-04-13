@@ -92,7 +92,7 @@ export async function submitPedido(
   }
 
   // ─── Inserción masiva en historial_pedidos ─────────────────
-  const estado: EstadoPedido = esSinStock ? "Pendiente de abastecimiento" : "Pendiente";
+  const estado: EstadoPedido = "Pendiente";
 
   const inserts = carrito.map((item) => ({
     tecnico_destino: emailPrefix, // El técnico que recibe (quien solicita)
@@ -101,7 +101,7 @@ export async function submitPedido(
     repuesto_nombre: item.nombre,
     numero_caso: item.es_venta ? "VENTA" : item.numero_caso.trim(),
     cantidad: item.cantidad,
-    tipo_reporte: calcularTipoReporte(item.sucursal_destino).toLowerCase(),
+    tipo_reporte: calcularTipoReporte(item.sucursal_destino),
     estado,
   }));
 

@@ -40,13 +40,11 @@ export default async function CasosPage() {
 
   // KPIs globales
   const total = pedidos.length;
-  const pendientes = pedidos.filter((p) =>
-    p.estado === "Pendiente" || p.estado === "Pendiente de abastecimiento"
-  ).length;
+  const pendientes = pedidos.filter((p) => p.estado === "Pendiente").length;
   const completados = pedidos.filter((p) =>
     p.estado === "Recibido" || p.estado === "Aprobado"
   ).length;
-  const sinStock = pedidos.filter((p) => p.estado === "Pendiente de abastecimiento").length;
+  const sinStock = pedidos.filter((p) => p.tipo_reporte.toLowerCase() === "reposición").length;
 
   // Agrupar por sucursal de origen
   const porSucursal: Record<string, HistorialPedido[]> = {};

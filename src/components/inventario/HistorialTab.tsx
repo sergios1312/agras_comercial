@@ -13,7 +13,6 @@ import type { HistorialPedido, EstadoPedido, TipoReporte } from "@/types/databas
 
 // ─── Tipos de estado del pipeline ────────────────────────────
 const ESTADOS_PIPELINE: EstadoPedido[] = ["Pendiente", "Aprobado", "Enviado", "Recibido"];
-const ESTADOS_ABAST: EstadoPedido[] = ["Pendiente de abastecimiento", "Aprobado", "Enviado", "Recibido"];
 
 interface HistorialTabProps {
   historial: HistorialPedido[];
@@ -30,9 +29,7 @@ function SelectorEstado({
   onActualizar: (id: number, estado: EstadoPedido) => Promise<void>;
 }) {
   const [isPending, startTransition] = useTransition();
-  const opciones = pedido.estado === "Pendiente de abastecimiento"
-    ? ESTADOS_ABAST
-    : ESTADOS_PIPELINE;
+  const opciones = ESTADOS_PIPELINE;
 
   return (
     <div className="relative flex items-center gap-1">

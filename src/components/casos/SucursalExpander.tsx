@@ -13,7 +13,7 @@ interface SucursalExpanderProps {
 
 export function SucursalExpander({ sucursal, pedidos }: SucursalExpanderProps) {
   const [open, setOpen] = useState(false);
-  const pendientes = pedidos.filter((p) => p.estado === "Pendiente" || p.estado === "Pendiente de abastecimiento").length;
+  const pendientes = pedidos.filter((p) => p.estado === "Pendiente").length;
 
   return (
     <div className="border border-slate-700/50 rounded-xl overflow-hidden">
