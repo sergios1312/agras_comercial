@@ -14,15 +14,18 @@ interface HistorialTabProps {
   historial: HistorialPedido[];
   isAdmin: boolean;
   ciudadUsuario: string;
+  sucursales?: string[];
 }
 
 // ─── Modal Editar Pedido ─────────────────────────────────────
 function ModalEditarPedido({
   pedido,
+  sucursales,
   onClose,
   onSave
 }: {
   pedido: HistorialPedido;
+  sucursales: string[];
   onClose: () => void;
   onSave: (id: number, datos: Partial<HistorialPedido>) => Promise<void>;
 }) {
@@ -80,7 +83,7 @@ function ModalEditarPedido({
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1">
               <label className="text-xs text-slate-400">Código</label>
-              <input type="text" required name="repuesto_codigo" value={formData.repuesto_codigo} onChange={handleChange} className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-xs text-slate-200 font-mono focus:ring-1 focus:ring-indigo-500" />
+              <input type="text" readOnly name="repuesto_codigo" value={formData.repuesto_codigo} className="w-full bg-slate-800/50 border border-slate-700/30 rounded-lg p-2 text-xs text-slate-400 font-mono cursor-not-allowed" />
             </div>
             <div className="space-y-1">
               <label className="text-xs text-slate-400">Cantidad</label>
@@ -89,16 +92,23 @@ function ModalEditarPedido({
           </div>
           <div className="space-y-1">
             <label className="text-xs text-slate-400">Nombre Repuesto</label>
-            <input type="text" required name="repuesto_nombre" value={formData.repuesto_nombre} onChange={handleChange} className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-xs text-slate-200 focus:ring-1 focus:ring-indigo-500" />
+            <input type="text" readOnly name="repuesto_nombre" value={formData.repuesto_nombre} className="w-full bg-slate-800/50 border border-slate-700/30 rounded-lg p-2 text-xs text-slate-400 cursor-not-allowed" />
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1">
               <label className="text-xs text-slate-400">Origen (Solicita a)</label>
-              <input type="text" required name="sucursal_origen" value={formData.sucursal_origen} onChange={handleChange} className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-xs text-slate-200 focus:ring-1 focus:ring-indigo-500" />
+              <select required name="sucursal_origen" value={formData.sucursal_origen} onChange={handleChange} className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-xs text-slate-200 focus:ring-1 focus:ring-indigo-500">
+                <option value="">Seleccione origen...</option>
+                <option value="SIN_STOCK">- Repuestos sin stock -</option>
+                {sucursales.map(s => <option key={s} value={s}>{s}</option>)}
+              </select>
             </div>
             <div className="space-y-1">
               <label className="text-xs text-slate-400">Destino (Recibe)</label>
-              <input type="text" required name="tecnico_destino" value={formData.tecnico_destino} onChange={handleChange} className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-xs text-slate-200 focus:ring-1 focus:ring-indigo-500" />
+              <select required name="tecnico_destino" value={formData.tecnico_destino} onChange={handleChange} className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-xs text-slate-200 focus:ring-1 focus:ring-indigo-500">
+                <option value="">Seleccione destino...</option>
+                {sucursales.map(s => <option key={s} value={s}>{s}</option>)}
+              </select>
             </div>
           </div>
           <div className="space-y-1">
@@ -450,7 +460,7 @@ function VistaTecnico({
 }
 
 // ─── Componente principal ─────────────────────────────────────
-export function HistorialTab({ historial, isAdmin, ciudadUsuario }: HistorialTabProps) {
+export function HistorialTab({ historial, isAdmin, ciudadUsuario, sucursales = [] }: HistorialTabProps) {
   const [pedidoToEdit, setPedidoToEdit] = useState<HistorialPedido | null>(null);
 
   // Función de actualización de estado (admin) 
@@ -506,6 +516,7 @@ export function HistorialTab({ historial, isAdmin, ciudadUsuario }: HistorialTab
       {pedidoToEdit && (
          <ModalEditarPedido
             pedido={pedidoToEdit}
+            sucursales={sucursales}
             onClose={() => setPedidoToEdit(null)}
             onSave={handleSaveEdicion}
          />

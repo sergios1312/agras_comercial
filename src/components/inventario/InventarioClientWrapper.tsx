@@ -90,6 +90,7 @@ export function InventarioClientWrapper({
           historial={historial}
           isAdmin={!!isAdmin}
           ciudadUsuario={ciudadUsuario}
+          sucursales={sucursalesNames}
         />
       </Tabs>
 
