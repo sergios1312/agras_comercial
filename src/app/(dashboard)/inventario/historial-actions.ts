@@ -63,6 +63,32 @@ export async function editarPedidoAdmin(
   return { error: null };
 }
 
+// ─── eliminarPedidoAdmin ────────────────────────────────────────
+/**
+ * Permite al ADMIN eliminar un pedido del historial por completo.
+ */
+export async function eliminarPedidoAdmin(
+  id: number
+): Promise<{ error: string | null }> {
+  const supabase = await createClient();
+
+  const user = await getSession();
+  if (!user) return { error: "Sesión expirada." };
+
+  const isAdmin = user.role === "admin";
+  if (!isAdmin) return { error: "Solo el administrador puede eliminar pedidos." };
+
+  const rawClient = supabase as unknown as any;
+  const { error } = await rawClient
+    .from("historial_pedidos")
+    .delete()
+    .eq("id", id);
+
+  if (error) return { error: `Error al eliminar: ${error.message}` };
+
+  revalidatePath("/inventario");
+  return { error: null };
+}
 
 // ─── exportarHistorialCSV ─────────────────────────────────────
 /**

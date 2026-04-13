@@ -1,13 +1,13 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useEffect } from "react";
 import {
   RefreshCw, Download, Package, Truck, ArrowLeftRight,
-  CheckCircle2, Loader2, Edit, X, Check
+  CheckCircle2, Loader2, Edit, X, Check, Trash2
 } from "lucide-react";
 import { Badge, estadoToVariant } from "@/components/ui/Badge";
 import { formatDate } from "@/lib/utils";
-import { actualizarEstadoPedido, exportarHistorialCSV, editarPedidoAdmin } from "@/app/(dashboard)/inventario/historial-actions";
+import { actualizarEstadoPedido, exportarHistorialCSV, editarPedidoAdmin, eliminarPedidoAdmin } from "@/app/(dashboard)/inventario/historial-actions";
 import type { HistorialPedido, EstadoPedido, TipoReporte } from "@/types/database.types";
 
 interface HistorialTabProps {
@@ -22,12 +22,14 @@ function ModalEditarPedido({
   pedido,
   sucursales,
   onClose,
-  onSave
+  onSave,
+  onDelete
 }: {
   pedido: HistorialPedido;
   sucursales: string[];
   onClose: () => void;
   onSave: (id: number, datos: Partial<HistorialPedido>) => Promise<void>;
+  onDelete: (id: number) => Promise<void>;
 }) {
   const [formData, setFormData] = useState({
     fecha_pedido: new Date(pedido.fecha_pedido).toISOString().slice(0, 16),
@@ -40,6 +42,23 @@ function ModalEditarPedido({
     tipo_reporte: pedido.tipo_reporte,
   });
   const [loading, setLoading] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  useEffect(() => {
+    let nuevoTipo: TipoReporte = "Envío Interno";
+    const origen = formData.sucursal_origen.toLowerCase();
+    const destino = formData.tecnico_destino.toLowerCase();
+
+    if (origen === "sin_stock") {
+      nuevoTipo = "Reposición";
+    } else if (origen.includes("lima") && destino !== origen) {
+      nuevoTipo = "Abastecimiento";
+    }
+
+    if (nuevoTipo !== formData.tipo_reporte) {
+      setFormData(prev => ({ ...prev, tipo_reporte: nuevoTipo }));
+    }
+  }, [formData.sucursal_origen, formData.tecnico_destino, formData.tipo_reporte]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -54,6 +73,14 @@ function ModalEditarPedido({
       cantidad: Number(formData.cantidad)
     });
     setLoading(false);
+    onClose();
+  };
+
+  const handleDelete = async () => {
+    if (!window.confirm("¿Estás seguro de que deseas eliminar permanentemente esta solicitud? Esta acción no se puede deshacer.")) return;
+    setIsDeleting(true);
+    await onDelete(pedido.id);
+    setIsDeleting(false);
     onClose();
   };
 
@@ -113,17 +140,19 @@ function ModalEditarPedido({
           </div>
           <div className="space-y-1">
              <label className="text-xs text-slate-400">Tipo de Reporte</label>
-              <select name="tipo_reporte" value={formData.tipo_reporte} onChange={handleChange} className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-xs text-slate-200 focus:ring-1 focus:ring-indigo-500">
-                <option value="Abastecimiento">Abastecimiento</option>
-                <option value="Reposición">Reposición</option>
-                <option value="Envío Interno">Envío Interno</option>
-              </select>
+             <input type="text" readOnly name="tipo_reporte" value={formData.tipo_reporte} className="w-full bg-slate-800/50 border border-slate-700/30 rounded-lg p-2 text-xs text-slate-400 cursor-not-allowed uppercase font-medium tracking-wide" />
           </div>
-          <div className="pt-2 flex justify-end gap-2 border-t border-slate-800 mt-4 pt-4">
-            <button type="button" onClick={onClose} className="px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-xs font-semibold text-slate-300 transition-colors">Cancelar</button>
-            <button type="submit" disabled={loading} className="px-5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-semibold flex items-center justify-center gap-2 transition-colors disabled:opacity-50">
-              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Guardar Cambios"}
+          <div className="pt-2 flex justify-between items-center border-t border-slate-800 mt-4 pt-4">
+            <button type="button" onClick={handleDelete} disabled={isDeleting} className="flex items-center gap-1.5 px-3 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-500 rounded-lg text-xs font-semibold transition-colors disabled:opacity-50 border border-red-500/20">
+              {isDeleting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+              Eliminar Solicitud
             </button>
+            <div className="flex gap-2">
+              <button type="button" onClick={onClose} className="px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-xs font-semibold text-slate-300 transition-colors">Cancelar</button>
+              <button type="submit" disabled={loading} className="px-5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-semibold flex items-center justify-center gap-2 transition-colors disabled:opacity-50">
+                {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Guardar Cambios"}
+              </button>
+            </div>
           </div>
         </form>
       </div>
@@ -203,14 +232,16 @@ function TablaPedidos({
                   {isAdmin && onActualizarEstado && onEditarPedido && (
                      <td className="px-4 py-3 whitespace-nowrap">
                         <div className="flex items-center gap-1.5">
-                          <button
-                            title="Aprobar"
-                            onClick={() => startTransition(() => onActualizarEstado(p.id, "Aprobado"))}
-                            disabled={isPending || p.estado !== "Pendiente"}
-                            className="p-1.5 rounded bg-green-500/10 text-green-500 hover:bg-green-500/20 transition-colors disabled:opacity-30 border border-green-500/20"
-                          >
-                            <Check className="w-3.5 h-3.5" />
-                          </button>
+                          {p.estado === "Pendiente" && (
+                            <button
+                              title="Aprobar"
+                              onClick={() => startTransition(() => onActualizarEstado(p.id, "Aprobado"))}
+                              disabled={isPending}
+                              className="p-1.5 rounded bg-green-500/10 text-green-500 hover:bg-green-500/20 transition-colors disabled:opacity-30 border border-green-500/20"
+                            >
+                              <Check className="w-3.5 h-3.5" />
+                            </button>
+                          )}
                           <button
                             title="Editar"
                             onClick={() => onEditarPedido(p)}
@@ -218,14 +249,16 @@ function TablaPedidos({
                           >
                             <Edit className="w-3.5 h-3.5" />
                           </button>
-                          <button
-                            title="Rechazar"
-                            onClick={() => startTransition(() => onActualizarEstado(p.id, "Rechazado"))}
-                            disabled={isPending || p.estado === "Rechazado" || p.estado === "Aprobado"}
-                            className="p-1.5 rounded bg-red-500/10 text-red-500 hover:bg-red-500/20 transition-colors disabled:opacity-30 border border-red-500/20"
-                          >
-                            <X className="w-3.5 h-3.5" />
-                          </button>
+                          {p.estado === "Pendiente" && (
+                            <button
+                              title="Rechazar"
+                              onClick={() => startTransition(() => onActualizarEstado(p.id, "Rechazado"))}
+                              disabled={isPending}
+                              className="p-1.5 rounded bg-red-500/10 text-red-500 hover:bg-red-500/20 transition-colors disabled:opacity-30 border border-red-500/20"
+                            >
+                              <X className="w-3.5 h-3.5" />
+                            </button>
+                          )}
                         </div>
                      </td>
                   )}
@@ -462,15 +495,30 @@ function VistaTecnico({
 // ─── Componente principal ─────────────────────────────────────
 export function HistorialTab({ historial, isAdmin, ciudadUsuario, sucursales = [] }: HistorialTabProps) {
   const [pedidoToEdit, setPedidoToEdit] = useState<HistorialPedido | null>(null);
+  
+  // Optimistic UI state
+  const [localHistorial, setLocalHistorial] = useState<HistorialPedido[]>(historial);
+
+  useEffect(() => {
+    setLocalHistorial(historial);
+  }, [historial]);
 
   // Función de actualización de estado (admin) 
   async function handleActualizarEstado(id: number, estado: EstadoPedido) {
+    setLocalHistorial(prev => prev.map(p => p.id === id ? { ...p, estado } : p));
     await actualizarEstadoPedido(id, estado);
   }
 
   // Función de edición completa (admin)
   async function handleSaveEdicion(id: number, datos: Partial<HistorialPedido>) {
+    setLocalHistorial(prev => prev.map(p => p.id === id ? { ...p, ...datos } : p));
     await editarPedidoAdmin(id, datos);
+  }
+
+  // Función para eliminar solicitud
+  async function handleDelete(id: number) {
+    setLocalHistorial(prev => prev.filter(p => p.id !== id));
+    await eliminarPedidoAdmin(id);
   }
 
   return (
@@ -501,14 +549,14 @@ export function HistorialTab({ historial, isAdmin, ciudadUsuario, sucursales = [
       {/* Vistas por rol */}
       {isAdmin ? (
         <VistaAdmin
-          historial={historial}
+          historial={localHistorial}
           ciudadUsuario={ciudadUsuario}
           onActualizarEstado={handleActualizarEstado}
           onEditarPedido={(p) => setPedidoToEdit(p)}
         />
       ) : (
         <VistaTecnico
-          historial={historial}
+          historial={localHistorial}
           ciudadUsuario={ciudadUsuario}
         />
       )}
@@ -519,6 +567,7 @@ export function HistorialTab({ historial, isAdmin, ciudadUsuario, sucursales = [
             sucursales={sucursales}
             onClose={() => setPedidoToEdit(null)}
             onSave={handleSaveEdicion}
+            onDelete={handleDelete}
          />
       )}
     </div>
