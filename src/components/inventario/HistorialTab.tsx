@@ -445,7 +445,6 @@ function TablaPedidos({
   onUpdateCasoReposicion?: (id: number, val: string) => void;
 }) {
   const [pag, setPag] = useState(0);
-  const [isPending, startTransition] = useTransition();
   const POR_PAG = 15;
   const total = pedidos.length;
   const paginas = Math.ceil(total / POR_PAG);
@@ -512,9 +511,12 @@ function TablaPedidos({
                             {p.estado === "Pendiente" && (
                               <button
                                 title="Aprobar"
-                                onClick={() => startTransition(() => onActualizarEstado(p.id, "Aprobado"))}
-                                disabled={isPending}
-                                className="p-1.5 rounded bg-green-500/10 text-green-500 hover:bg-green-500/20 transition-colors disabled:opacity-30 border border-green-500/20"
+                                onClick={() => {
+                                  // Eliminado startTransition para que el borrado visual (Optimistic Update)
+                                  // se aplique instantáneamente sin congelar la UI esperando al servidor.
+                                  onActualizarEstado(p.id, "Aprobado");
+                                }}
+                                className="p-1.5 rounded bg-green-500/10 text-green-500 hover:bg-green-500/20 transition-colors border border-green-500/20"
                               >
                                 <Check className="w-3.5 h-3.5" />
                               </button>
@@ -529,9 +531,10 @@ function TablaPedidos({
                             {p.estado === "Pendiente" && (
                               <button
                                 title="Rechazar"
-                                onClick={() => startTransition(() => onActualizarEstado(p.id, "Rechazado"))}
-                                disabled={isPending}
-                                className="p-1.5 rounded bg-red-500/10 text-red-500 hover:bg-red-500/20 transition-colors disabled:opacity-30 border border-red-500/20"
+                                onClick={() => {
+                                  onActualizarEstado(p.id, "Rechazado");
+                                }}
+                                className="p-1.5 rounded bg-red-500/10 text-red-500 hover:bg-red-500/20 transition-colors border border-red-500/20"
                               >
                                 <X className="w-3.5 h-3.5" />
                               </button>
@@ -581,8 +584,10 @@ function TablaPedidos({
                       <td className="px-4 py-3 text-center whitespace-nowrap">
                         <button
                           title={isReposicion && !isStrictlyValid ? "Debe asignar un código de caso válido primero." : "Marcar como Despachado"}
-                          onClick={() => startTransition(() => onActualizarEstado(p.id, "Enviado"))}
-                          disabled={isPending || (isReposicion && !isStrictlyValid)}
+                          onClick={() => {
+                            onActualizarEstado(p.id, "Enviado");
+                          }}
+                          disabled={(isReposicion && !isStrictlyValid)}
                           className={`p-1.5 rounded-full inline-flex items-center justify-center transition-colors border
                             ${isReposicion && !isStrictlyValid 
                                ? 'bg-slate-800 text-slate-600 border-slate-700 cursor-not-allowed opacity-50' 
