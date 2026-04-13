@@ -74,12 +74,21 @@ export async function submitPedido(
       if (!item.sucursal_destino) {
         return { error: `Debes seleccionar una sede de destino para "${item.nombre}".`, success: null };
       }
+      
+      const invId = item.inv_ids?.[item.sucursal_destino];
+      
+      if (!invId) {
+        return {
+          error: `Stock insuficiente para "${item.nombre}". Disponible: 0, pedido: ${item.cantidad}.`,
+          success: null,
+        };
+      }
+
       // Consultar stock actual (validación en servidor, no en cliente)
       const { data: invData } = await supabase
         .from("inventario")
         .select("id, cantidad")
-        .eq("repuesto_id", item.repuesto_id)
-        .eq("sucursal_id", Number(item.sucursal_destino))
+        .eq("id", invId)
         .single();
 
       const inv = invData as unknown as { id: number; cantidad: number } | null;
