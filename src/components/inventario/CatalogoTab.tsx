@@ -5,6 +5,7 @@ import { Search, Package2 } from "lucide-react";
 import { buscarRepuestos } from "@/lib/search";
 import { formatCurrency } from "@/lib/utils";
 import type { RepuestoConStock } from "@/types/database.types";
+import config from "@/data/config.json";
 
 interface CatalogoTabProps {
   catalogo: RepuestoConStock[];
@@ -78,10 +79,17 @@ export function CatalogoTab({ catalogo, sucursales, onAddCarrito }: CatalogoTabP
         )}
       </div>
 
-      {/* Conteo de resultados */}
-      <p className="text-xs text-slate-500">
-        {resultados.length} resultado(s){terminoActivo ? ` para "${terminoActivo}"` : ""}
-      </p>
+      {/* Conteo de resultados y Fecha de actualización */}
+      <div className="flex justify-between items-center text-xs text-slate-500">
+        <p>
+          {resultados.length} resultado(s){terminoActivo ? ` para "${terminoActivo}"` : ""}
+        </p>
+        {config.lastUpdated && (
+          <p className="font-semibold text-indigo-400/80">
+            Inventario actualizado el {config.lastUpdated}
+          </p>
+        )}
+      </div>
 
       {/* Tabla del catálogo */}
       <div className="rounded-xl border border-slate-700/50 overflow-hidden">
