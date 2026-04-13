@@ -70,6 +70,7 @@ export interface HistorialPedido {
   repuesto_codigo: string;
   repuesto_nombre: string;
   numero_caso: string;
+  caso_reposicion?: string | null;
   cantidad: number;
   tipo_reporte: string;
   estado: EstadoPedido;
