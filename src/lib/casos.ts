@@ -47,6 +47,16 @@ function periodoMensual(fechaSalida: string | null): string | null {
 let casosCached: Caso[] | null = null;
 let lastModified: number = 0;
 
+export function obtenerFechaCasos(): string | null {
+  const csvPath = path.join(process.cwd(), "casos.csv");
+  try {
+    const stats = fs.statSync(csvPath);
+    return new Intl.DateTimeFormat('es-PE', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(stats.mtime);
+  } catch (e) {
+    return null;
+  }
+}
+
 export function cargarCasos(): Caso[] {
   const csvPath = path.join(process.cwd(), "casos.csv");
   

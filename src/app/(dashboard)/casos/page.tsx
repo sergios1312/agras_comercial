@@ -7,6 +7,7 @@ import { KpiCard } from "@/components/estadisticas/KpiCard";
 import { FileText, Clock, CheckCircle, AlertTriangle } from "lucide-react";
 import { PanelNotificaciones } from "@/components/casos/PanelNotificaciones";
 import type { HistorialPedido } from "@/types/database.types";
+import { obtenerFechaCasos } from "@/lib/casos";
 
 export const metadata: Metadata = {
   title: "Procesos y Notificaciones",
@@ -29,6 +30,9 @@ export default async function CasosPage() {
       </div>
     );
   }
+
+  // Obtener fecha de la base de casos crudos directamente desde el archivo
+  const fechaCasos = obtenerFechaCasos();
 
   // Cargar todos los pedidos agrupados
   const { data } = await supabase
@@ -56,6 +60,13 @@ export default async function CasosPage() {
 
   return (
     <div className="space-y-6">
+      {/* Indicador de última vez modificado */}
+      {fechaCasos && (
+        <div className="flex justify-end text-sm text-indigo-400 font-medium">
+          Base de casos actualizada el {fechaCasos}
+        </div>
+      )}
+
       {/* Zona Superior Admin - Operaciones */}
       {/* Panel de Notificaciones Interactivo */}
       <PanelNotificaciones />
