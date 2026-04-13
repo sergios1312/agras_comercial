@@ -6,6 +6,33 @@ import { getSession } from "@/lib/auth";
 import { calcularTipoReporte } from "@/lib/transferencias";
 import type { EstadoPedido, HistorialPedido, TipoReporte } from "@/types/database.types";
 
+// ─── actualizarEstadoPedidoTecnico ───────────────────────────────────
+/**
+ * Permite a un TÉCNICO de sucursal cambiar el estado de un pedido
+ * a "Enviado" (despachar) o "Finalizado" (confirmar recepción).
+ * NO requiere ser admin. Solo puede mover a esos dos estados.
+ */
+export async function actualizarEstadoPedidoTecnico(
+  id: number,
+  nuevoEstado: "Enviado" | "Finalizado"
+): Promise<{ error: string | null }> {
+  const supabase = await createClient();
+
+  const user = await getSession();
+  if (!user) return { error: "Sesión expirada." };
+
+  const rawClient = supabase as unknown as any;
+  const { error } = await rawClient
+    .from("historial_pedidos")
+    .update({ estado: nuevoEstado })
+    .eq("id", id);
+
+  if (error) return { error: `Error al actualizar: ${error.message}` };
+
+  revalidatePath("/inventario");
+  return { error: null };
+}
+
 // ─── actualizarEstadoPedido ───────────────────────────────────
 /**
  * Permite al ADMIN cambiar el estado de un pedido en historial_pedidos.

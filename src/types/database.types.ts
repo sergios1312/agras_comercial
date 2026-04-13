@@ -18,7 +18,9 @@ export type EstadoPedido =
   | "Aprobado"
   | "Enviado"
   | "Recibido"
-  | "Rechazado";
+  | "Rechazado"
+  | "Finalizado";
+
 
 export type TipoSolicitud = "Consumo normal" | "Solicitud/Reserva sin stock";
 

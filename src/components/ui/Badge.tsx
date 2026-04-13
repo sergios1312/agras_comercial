@@ -1,6 +1,6 @@
 import { cn } from "@/lib/utils";
 
-type BadgeVariant = "pendiente" | "aprobado" | "enviado" | "recibido" | "sin-stock" | "default";
+type BadgeVariant = "pendiente" | "aprobado" | "enviado" | "recibido" | "finalizado" | "rechazado" | "sin-stock" | "default";
 
 interface BadgeProps {
   label: string;
@@ -13,6 +13,8 @@ const VARIANT_STYLES: Record<BadgeVariant, string> = {
   aprobado: "bg-green-500/15 text-green-400 border-green-500/30",
   enviado: "bg-blue-500/15 text-blue-400 border-blue-500/30",
   recibido: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30",
+  finalizado: "bg-violet-500/15 text-violet-400 border-violet-500/30",
+  rechazado: "bg-red-500/15 text-red-400 border-red-500/30",
   "sin-stock": "bg-orange-500/15 text-orange-400 border-orange-500/30",
   default: "bg-slate-700/50 text-slate-400 border-slate-600/50",
 };
@@ -38,6 +40,8 @@ export function estadoToVariant(estado: string): BadgeVariant {
     Aprobado: "aprobado",
     Enviado: "enviado",
     Recibido: "recibido",
+    Finalizado: "finalizado",
+    Rechazado: "rechazado",
     "Pendiente de abastecimiento": "sin-stock",
   };
   return m[estado] ?? "default";

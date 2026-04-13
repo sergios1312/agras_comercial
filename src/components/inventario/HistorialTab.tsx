@@ -9,6 +9,7 @@ import { Badge, estadoToVariant } from "@/components/ui/Badge";
 import { formatDate } from "@/lib/utils";
 import { 
   actualizarEstadoPedido, 
+  actualizarEstadoPedidoTecnico,
   exportarHistorialCSV, 
   editarPedidoAdmin, 
   eliminarPedidoAdmin,
@@ -846,57 +847,364 @@ function VistaAdmin({
 function VistaTecnico({
   historial,
   ciudadUsuario,
+  onActualizarEstadoTecnico,
 }: {
   historial: HistorialPedido[];
   ciudadUsuario: string;
+  onActualizarEstadoTecnico: (id: number, estado: "Enviado" | "Finalizado") => Promise<void>;
 }) {
-  const [activeTab, setActiveTab] = useState<"realizados" | "recibidos">("realizados");
+  const [activeTab, setActiveTab] = useState<"misPedidos" | "aDespachar">("misPedidos");
 
-  const realizados = historial.filter((p) => p.tecnico_destino === ciudadUsuario);
-  const recibidos  = historial.filter(
-    (p) => p.sucursal_origen === ciudadUsuario && p.tecnico_destino !== ciudadUsuario
+  // ── MIS PEDIDOS: pedidos donde esta sucursal es el destino (ella recibe)
+  const misPedidosTodos = historial.filter((p) => p.tecnico_destino === ciudadUsuario);
+  // Activos: estados que no son terminales
+  const misPedidosActivos = misPedidosTodos.filter(
+    (p) => p.estado === "Pendiente" || p.estado === "Aprobado" || p.estado === "Enviado"
+  );
+  // Historial: Finalizado
+  const misPedidosHistorial = misPedidosTodos.filter(
+    (p) => p.estado === "Finalizado" || p.estado === "Rechazado"
   );
 
-  const pedidos = activeTab === "realizados" ? realizados : recibidos;
+  // ── A DESPACHAR: pedidos donde esta sucursal es el origen (ella despacha) y el destino es distinto
+  const aDespacharTodos = historial.filter(
+    (p) => p.sucursal_origen === ciudadUsuario && p.tecnico_destino !== ciudadUsuario
+  );
+  // Pedidos a realizar: estados activos (Aprobado, Pendiente)
+  const aDespacharActivos = aDespacharTodos.filter(
+    (p) => p.estado === "Pendiente" || p.estado === "Aprobado"
+  );
+  // Historial de pedidos despachados: Enviado, Recibido, Finalizado
+  const aDespacharHistorial = aDespacharTodos.filter(
+    (p) => p.estado === "Enviado" || p.estado === "Recibido" || p.estado === "Finalizado" || p.estado === "Rechazado"
+  );
+
+  const counts = {
+    misPedidos: misPedidosTodos.length,
+    aDespachar: aDespacharTodos.length,
+  };
 
   return (
     <div className="space-y-4">
+      {/* Tabs */}
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex gap-1 border-b border-slate-800 w-full mb-1">
-          {(["realizados", "recibidos"] as const).map((t) => {
-            const label = t === "realizados" ? "📤 Mis Pedidos" : "📥 A Despachar";
-            const count = t === "realizados" ? realizados.length : recibidos.length;
-            return (
-              <button
-                key={t}
-                onClick={() => setActiveTab(t)}
-                className={`flex items-center gap-1.5 px-4 py-2 text-xs font-semibold transition-all border-b-2 -mb-px
-                  ${activeTab === t
-                    ? "border-indigo-500 text-indigo-300"
-                    : "border-transparent text-slate-500 hover:text-slate-300"}`}
-              >
-                {label}
-                <span className="ml-1 px-1.5 py-0.5 rounded-full bg-slate-800 text-slate-500 text-[10px]">
-                  {count}
-                </span>
-              </button>
-            );
-          })}
+          {([
+            { id: "misPedidos" as const, label: "📤 Mis Pedidos", count: counts.misPedidos },
+            { id: "aDespachar" as const, label: "📥 A Despachar", count: counts.aDespachar },
+          ]).map(({ id, label, count }) => (
+            <button
+              key={id}
+              onClick={() => setActiveTab(id)}
+              className={`flex items-center gap-1.5 px-4 py-2 text-xs font-semibold transition-all border-b-2 -mb-px
+                ${activeTab === id
+                  ? "border-indigo-500 text-indigo-300 bg-indigo-500/10"
+                  : "border-transparent text-slate-500 hover:text-slate-300 hover:bg-slate-800/50"}`}
+            >
+              {label}
+              <span className={`ml-1 px-1.5 py-0.5 rounded-full text-[10px] ${activeTab === id ? "bg-indigo-500/20 text-indigo-300" : "bg-slate-800 text-slate-500"}`}>
+                {count}
+              </span>
+            </button>
+          ))}
         </div>
-        <div className="flex justify-end w-full -mt-2">
-          <ExportBtn filtro={activeTab} ciudadUsuario={ciudadUsuario} label="Exportar CSV" />
+        <div className="flex justify-end w-full -mt-2 mb-2">
+          <ExportBtn filtro={activeTab === "misPedidos" ? "realizados" : "recibidos"} ciudadUsuario={ciudadUsuario} label="Exportar CSV" />
         </div>
       </div>
 
-      <TablaPedidos
-        pedidos={pedidos}
-        isAdmin={false}
-        mostrarOrigen={activeTab === "recibidos"}
-        mostrarDestino={activeTab === "realizados"}
-      />
+      {/* ─── MIS PEDIDOS ─── */}
+      {activeTab === "misPedidos" && (
+        <div className="space-y-8">
+          {/* Tabla activa */}
+          <div>
+            <h3 className="text-xs uppercase text-slate-400 font-bold mb-3 tracking-wider flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-indigo-500"></span> Pedidos en curso
+            </h3>
+            <TablaMisPedidos
+              pedidos={misPedidosActivos}
+              onConfirmarRecepcion={(id) => onActualizarEstadoTecnico(id, "Finalizado")}
+            />
+          </div>
+
+          {/* Historial */}
+          <div>
+            <h3 className="text-xs uppercase text-slate-400 font-bold mb-3 tracking-wider flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-emerald-500"></span> Historial de pedidos
+            </h3>
+            <TablaMisPedidosHistorial pedidos={misPedidosHistorial} />
+          </div>
+        </div>
+      )}
+
+      {/* ─── A DESPACHAR ─── */}
+      {activeTab === "aDespachar" && (
+        <div className="space-y-8">
+          {/* Pedidos a realizar */}
+          <div>
+            <h3 className="text-xs uppercase text-slate-400 font-bold mb-3 tracking-wider flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-amber-500"></span> Pedidos a realizar
+            </h3>
+            <TablaADespachar
+              pedidos={aDespacharActivos}
+              onDespachar={(id) => onActualizarEstadoTecnico(id, "Enviado")}
+            />
+          </div>
+
+          {/* Historial */}
+          <div>
+            <h3 className="text-xs uppercase text-slate-400 font-bold mb-3 tracking-wider flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-emerald-500"></span> Historial de pedidos
+            </h3>
+            <TablaDespachadosHistorial pedidos={aDespacharHistorial} />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
+
+// ─── Tabla Mis Pedidos (en curso) ─────────────────────────────────
+// Muestra pedidos con estado Pendiente/Aprobado/Enviado
+// Columna final: "Confirmar Recepción" solo si estado === "Enviado"
+function TablaMisPedidos({
+  pedidos,
+  onConfirmarRecepcion,
+}: {
+  pedidos: HistorialPedido[];
+  onConfirmarRecepcion: (id: number) => Promise<void>;
+}) {
+  const [loadingId, setLoadingId] = useState<number | null>(null);
+
+  if (pedidos.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-10 text-slate-600 bg-slate-900 border border-slate-700/50 rounded-xl">
+        <Package className="w-8 h-8 mb-2 opacity-30" />
+        <p className="text-xs">No tienes pedidos activos en este momento.</p>
+      </div>
+    );
+  }
+
+  const handleConfirmar = async (id: number) => {
+    setLoadingId(id);
+    await onConfirmarRecepcion(id);
+    setLoadingId(null);
+  };
+
+  return (
+    <div className="rounded-xl border border-slate-700/50 overflow-hidden">
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="bg-slate-800/80 border-b border-slate-700">
+              {["Fecha", "Código", "Repuesto", "N° Caso", "Cant.", "Origen", "Tipo", "Estado", "Confirmar Recepción"].map(h => (
+                <th key={h} className={`text-left px-4 py-3 text-[11px] font-semibold text-slate-400 uppercase tracking-widest whitespace-nowrap ${h === "Confirmar Recepción" ? "text-center" : ""}`}>
+                  {h}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {pedidos.map((p, i) => (
+              <tr key={p.id} className={`border-b border-slate-800 hover:bg-slate-800/50 transition-colors ${i % 2 === 0 ? "bg-slate-900" : "bg-slate-900/50"}`}>
+                <td className="px-4 py-3 text-[11px] text-slate-400 whitespace-nowrap">{formatDate(p.fecha_pedido)}</td>
+                <td className="px-4 py-3 font-mono text-indigo-400 text-[11px]">{p.repuesto_codigo}</td>
+                <td className="px-4 py-3 text-[11px] text-slate-200 max-w-xs truncate" title={p.repuesto_nombre}>{p.repuesto_nombre}</td>
+                <td className="px-4 py-3 font-mono text-slate-300 text-[11px]">{p.numero_caso}</td>
+                <td className="px-4 py-3 text-center text-slate-300 text-[11px]">{p.cantidad}</td>
+                <td className="px-4 py-3 text-slate-400 text-[11px] capitalize">{p.sucursal_origen}</td>
+                <td className="px-4 py-3 text-[11px] text-slate-500 whitespace-nowrap">{p.tipo_reporte}</td>
+                <td className="px-4 py-3"><Badge label={p.estado} variant={estadoToVariant(p.estado)} /></td>
+                <td className="px-4 py-3 text-center">
+                  {p.estado === "Enviado" ? (
+                    <button
+                      title="Confirmar recepción del pedido"
+                      onClick={() => handleConfirmar(p.id)}
+                      disabled={loadingId === p.id}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 border border-emerald-500/20 text-[11px] font-semibold transition-colors disabled:opacity-50 animate-pulse hover:animate-none"
+                    >
+                      {loadingId === p.id
+                        ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        : <CheckCircle2 className="w-3.5 h-3.5" />
+                      }
+                      Recibido
+                    </button>
+                  ) : (
+                    <span className="text-[10px] text-slate-600 italic">
+                      {p.estado === "Pendiente" ? "Esperando aprobación" : p.estado === "Aprobado" ? "Pendiente de envío" : "—"}
+                    </span>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+// ─── Tabla Mis Pedidos — Historial (Finalizado / Rechazado) ──────────
+function TablaMisPedidosHistorial({ pedidos }: { pedidos: HistorialPedido[] }) {
+  if (pedidos.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-10 text-slate-600 bg-slate-900 border border-slate-700/50 rounded-xl">
+        <Package className="w-8 h-8 mb-2 opacity-30" />
+        <p className="text-xs">Sin historial de pedidos finalizados o rechazados.</p>
+      </div>
+    );
+  }
+  return (
+    <div className="rounded-xl border border-slate-700/50 overflow-hidden">
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="bg-slate-800/80 border-b border-slate-700">
+              {["Fecha", "Código", "Repuesto", "N° Caso", "Cant.", "Origen", "Tipo", "Estado"].map(h => (
+                <th key={h} className="text-left px-4 py-3 text-[11px] font-semibold text-slate-400 uppercase tracking-widest whitespace-nowrap">{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {pedidos.map((p, i) => (
+              <tr key={p.id} className={`border-b border-slate-800 hover:bg-slate-800/50 transition-colors ${i % 2 === 0 ? "bg-slate-900" : "bg-slate-900/50"}`}>
+                <td className="px-4 py-3 text-[11px] text-slate-400 whitespace-nowrap">{formatDate(p.fecha_pedido)}</td>
+                <td className="px-4 py-3 font-mono text-indigo-400 text-[11px]">{p.repuesto_codigo}</td>
+                <td className="px-4 py-3 text-[11px] text-slate-200 max-w-xs truncate" title={p.repuesto_nombre}>{p.repuesto_nombre}</td>
+                <td className="px-4 py-3 font-mono text-slate-300 text-[11px]">{p.numero_caso}</td>
+                <td className="px-4 py-3 text-center text-slate-300 text-[11px]">{p.cantidad}</td>
+                <td className="px-4 py-3 text-slate-400 text-[11px] capitalize">{p.sucursal_origen}</td>
+                <td className="px-4 py-3 text-[11px] text-slate-500 whitespace-nowrap">{p.tipo_reporte}</td>
+                <td className="px-4 py-3"><Badge label={p.estado} variant={estadoToVariant(p.estado)} /></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+// ─── Tabla A Despachar — Activos ─────────────────────────────────────
+// Muestra pedidos donde la sucursal es origen, estados: Pendiente o Aprobado
+// Botón "Despachar" solo aparece para estado === "Aprobado"
+function TablaADespachar({
+  pedidos,
+  onDespachar,
+}: {
+  pedidos: HistorialPedido[];
+  onDespachar: (id: number) => Promise<void>;
+}) {
+  const [loadingId, setLoadingId] = useState<number | null>(null);
+
+  if (pedidos.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-10 text-slate-600 bg-slate-900 border border-slate-700/50 rounded-xl">
+        <Package className="w-8 h-8 mb-2 opacity-30" />
+        <p className="text-xs">No hay pedidos pendientes de despacho.</p>
+      </div>
+    );
+  }
+
+  const handleDespachar = async (id: number) => {
+    setLoadingId(id);
+    await onDespachar(id);
+    setLoadingId(null);
+  };
+
+  return (
+    <div className="rounded-xl border border-slate-700/50 overflow-hidden">
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="bg-slate-800/80 border-b border-slate-700">
+              {["Fecha", "Código", "Repuesto", "N° Caso", "Cant.", "Destino", "Tipo", "Estado", "Despachar"].map(h => (
+                <th key={h} className={`text-left px-4 py-3 text-[11px] font-semibold text-slate-400 uppercase tracking-widest whitespace-nowrap ${h === "Despachar" ? "text-center" : ""}`}>{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {pedidos.map((p, i) => (
+              <tr key={p.id} className={`border-b border-slate-800 hover:bg-slate-800/50 transition-colors ${i % 2 === 0 ? "bg-slate-900" : "bg-slate-900/50"}`}>
+                <td className="px-4 py-3 text-[11px] text-slate-400 whitespace-nowrap">{formatDate(p.fecha_pedido)}</td>
+                <td className="px-4 py-3 font-mono text-indigo-400 text-[11px]">{p.repuesto_codigo}</td>
+                <td className="px-4 py-3 text-[11px] text-slate-200 max-w-xs truncate" title={p.repuesto_nombre}>{p.repuesto_nombre}</td>
+                <td className="px-4 py-3 font-mono text-slate-300 text-[11px]">{p.numero_caso}</td>
+                <td className="px-4 py-3 text-center text-slate-300 text-[11px]">{p.cantidad}</td>
+                <td className="px-4 py-3 text-slate-400 text-[11px] capitalize">{p.tecnico_destino}</td>
+                <td className="px-4 py-3 text-[11px] text-slate-500 whitespace-nowrap">{p.tipo_reporte}</td>
+                <td className="px-4 py-3"><Badge label={p.estado} variant={estadoToVariant(p.estado)} /></td>
+                <td className="px-4 py-3 text-center">
+                  {p.estado === "Aprobado" ? (
+                    <button
+                      title="Marcar como despachado"
+                      onClick={() => handleDespachar(p.id)}
+                      disabled={loadingId === p.id}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 border border-emerald-500/20 text-[11px] font-semibold transition-colors disabled:opacity-50 animate-pulse hover:animate-none"
+                    >
+                      {loadingId === p.id
+                        ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        : <Send className="w-3.5 h-3.5" />
+                      }
+                      Despachar
+                    </button>
+                  ) : (
+                    <span className="text-[10px] text-slate-600 italic">
+                      {p.estado === "Pendiente" ? "Sin aprobar" : "—"}
+                    </span>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+// ─── Tabla A Despachar — Historial ───────────────────────────────────
+function TablaDespachadosHistorial({ pedidos }: { pedidos: HistorialPedido[] }) {
+  if (pedidos.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-10 text-slate-600 bg-slate-900 border border-slate-700/50 rounded-xl">
+        <Package className="w-8 h-8 mb-2 opacity-30" />
+        <p className="text-xs">Sin pedidos despachados en el historial.</p>
+      </div>
+    );
+  }
+  return (
+    <div className="rounded-xl border border-slate-700/50 overflow-hidden">
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="bg-slate-800/80 border-b border-slate-700">
+              {["Fecha", "Código", "Repuesto", "N° Caso", "Cant.", "Destino", "Tipo", "Estado"].map(h => (
+                <th key={h} className="text-left px-4 py-3 text-[11px] font-semibold text-slate-400 uppercase tracking-widest whitespace-nowrap">{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {pedidos.map((p, i) => (
+              <tr key={p.id} className={`border-b border-slate-800 hover:bg-slate-800/50 transition-colors ${i % 2 === 0 ? "bg-slate-900" : "bg-slate-900/50"}`}>
+                <td className="px-4 py-3 text-[11px] text-slate-400 whitespace-nowrap">{formatDate(p.fecha_pedido)}</td>
+                <td className="px-4 py-3 font-mono text-indigo-400 text-[11px]">{p.repuesto_codigo}</td>
+                <td className="px-4 py-3 text-[11px] text-slate-200 max-w-xs truncate" title={p.repuesto_nombre}>{p.repuesto_nombre}</td>
+                <td className="px-4 py-3 font-mono text-slate-300 text-[11px]">{p.numero_caso}</td>
+                <td className="px-4 py-3 text-center text-slate-300 text-[11px]">{p.cantidad}</td>
+                <td className="px-4 py-3 text-slate-400 text-[11px] capitalize">{p.tecnico_destino}</td>
+                <td className="px-4 py-3 text-[11px] text-slate-500 whitespace-nowrap">{p.tipo_reporte}</td>
+                <td className="px-4 py-3"><Badge label={p.estado} variant={estadoToVariant(p.estado)} /></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+
 
 // ─── Componente principal ─────────────────────────────────────
 export function HistorialTab({ historial, casosReposicion = [], isAdmin, ciudadUsuario, sucursales = [] }: HistorialTabProps) {
@@ -933,6 +1241,12 @@ export function HistorialTab({ historial, casosReposicion = [], isAdmin, ciudadU
   async function handleDelete(id: number) {
     setLocalHistorial(prev => prev.filter(p => p.id !== id));
     await eliminarPedidoAdmin(id);
+  }
+
+  // Acción de técnico: despachar (Enviado) o confirmar recepción (Finalizado)
+  async function handleActualizarEstadoTecnico(id: number, estado: "Enviado" | "Finalizado") {
+    setLocalHistorial(prev => prev.map(p => p.id === id ? { ...p, estado } : p));
+    await actualizarEstadoPedidoTecnico(id, estado);
   }
 
   // ────────────────────────── SERVER ACTIONS CASOS REPOSICIÓN
@@ -1005,6 +1319,7 @@ export function HistorialTab({ historial, casosReposicion = [], isAdmin, ciudadU
         <VistaTecnico
           historial={localHistorial}
           ciudadUsuario={ciudadUsuario}
+          onActualizarEstadoTecnico={handleActualizarEstadoTecnico}
         />
       )}
 
