@@ -2,17 +2,13 @@
 
 import { useState, useTransition } from "react";
 import {
-  RefreshCw, Download, ChevronDown, Package, Truck, ArrowLeftRight,
-  CheckCircle2, Loader2,
+  RefreshCw, Download, Package, Truck, ArrowLeftRight,
+  CheckCircle2, Loader2, Edit, X, Check
 } from "lucide-react";
 import { Badge, estadoToVariant } from "@/components/ui/Badge";
 import { formatDate } from "@/lib/utils";
-import { calcularTipoReporte } from "@/lib/transferencias";
-import { actualizarEstadoPedido, exportarHistorialCSV } from "@/app/(dashboard)/inventario/historial-actions";
+import { actualizarEstadoPedido, exportarHistorialCSV, editarPedidoAdmin } from "@/app/(dashboard)/inventario/historial-actions";
 import type { HistorialPedido, EstadoPedido, TipoReporte } from "@/types/database.types";
-
-// ─── Tipos de estado del pipeline ────────────────────────────
-const ESTADOS_PIPELINE: EstadoPedido[] = ["Pendiente", "Aprobado", "Enviado", "Recibido"];
 
 interface HistorialTabProps {
   historial: HistorialPedido[];
@@ -20,50 +16,106 @@ interface HistorialTabProps {
   ciudadUsuario: string;
 }
 
-// ─── Componente de Selector de Estado (solo admin) ───────────
-function SelectorEstado({
+// ─── Modal Editar Pedido ─────────────────────────────────────
+function ModalEditarPedido({
   pedido,
-  onActualizar,
+  onClose,
+  onSave
 }: {
   pedido: HistorialPedido;
-  onActualizar: (id: number, estado: EstadoPedido) => Promise<void>;
+  onClose: () => void;
+  onSave: (id: number, datos: Partial<HistorialPedido>) => Promise<void>;
 }) {
-  const [isPending, startTransition] = useTransition();
-  const opciones = ESTADOS_PIPELINE;
+  const [formData, setFormData] = useState({
+    fecha_pedido: new Date(pedido.fecha_pedido).toISOString().slice(0, 16),
+    repuesto_codigo: pedido.repuesto_codigo,
+    repuesto_nombre: pedido.repuesto_nombre,
+    numero_caso: pedido.numero_caso,
+    cantidad: pedido.cantidad,
+    sucursal_origen: pedido.sucursal_origen,
+    tecnico_destino: pedido.tecnico_destino,
+    tipo_reporte: pedido.tipo_reporte,
+  });
+  const [loading, setLoading] = useState(false);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    await onSave(pedido.id, {
+      ...formData,
+      fecha_pedido: new Date(formData.fecha_pedido).toISOString(),
+      cantidad: Number(formData.cantidad)
+    });
+    setLoading(false);
+    onClose();
+  };
 
   return (
-    <div className="relative flex items-center gap-1">
-      <Badge label={pedido.estado} variant={estadoToVariant(pedido.estado)} />
-      <div className="relative group">
-        <button
-          type="button"
-          disabled={isPending}
-          className="p-0.5 text-slate-500 hover:text-slate-300 transition-colors disabled:opacity-40"
-          title="Cambiar estado"
-        >
-          {isPending
-            ? <Loader2 className="w-3 h-3 animate-spin" />
-            : <ChevronDown className="w-3 h-3" />
-          }
-        </button>
-        {/* Dropdown */}
-        <div className="absolute right-0 top-full mt-1 z-50 hidden group-hover:block
-                        bg-slate-900 border border-slate-700 rounded-xl shadow-2xl min-w-44 py-1">
-          {opciones.map((e) => (
-            <button
-              key={e}
-              type="button"
-              onClick={() => startTransition(() => onActualizar(pedido.id, e))}
-              className={`w-full text-left px-3 py-2 text-xs transition-colors
-                ${pedido.estado === e
-                  ? "text-indigo-300 bg-indigo-600/15 font-semibold"
-                  : "text-slate-400 hover:text-slate-200 hover:bg-slate-800"
-                }`}
-            >
-              {e}
-            </button>
-          ))}
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4">
+      <div className="w-full max-w-md bg-slate-900 border border-slate-700/60 rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95">
+        <div className="px-6 py-4 border-b border-slate-800 flex justify-between items-center bg-slate-800/50">
+          <h3 className="text-sm font-semibold text-slate-200 flex items-center gap-2">
+            <Edit className="w-4 h-4 text-indigo-400" />
+            Editar Solicitud #{pedido.id}
+          </h3>
+          <button onClick={onClose} className="text-slate-500 hover:text-slate-300 transition-colors">
+            <X className="w-5 h-5" />
+          </button>
         </div>
+        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1">
+              <label className="text-xs text-slate-400">Fecha Pedido</label>
+              <input type="datetime-local" required name="fecha_pedido" value={formData.fecha_pedido} onChange={handleChange} className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-xs text-slate-200 focus:ring-1 focus:ring-indigo-500" />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs text-slate-400">N° Caso</label>
+              <input type="text" required name="numero_caso" value={formData.numero_caso} onChange={handleChange} className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-xs text-slate-200 focus:ring-1 focus:ring-indigo-500" />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1">
+              <label className="text-xs text-slate-400">Código</label>
+              <input type="text" required name="repuesto_codigo" value={formData.repuesto_codigo} onChange={handleChange} className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-xs text-slate-200 font-mono focus:ring-1 focus:ring-indigo-500" />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs text-slate-400">Cantidad</label>
+              <input type="number" required min={1} name="cantidad" value={formData.cantidad} onChange={handleChange} className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-xs text-slate-200 focus:ring-1 focus:ring-indigo-500" />
+            </div>
+          </div>
+          <div className="space-y-1">
+            <label className="text-xs text-slate-400">Nombre Repuesto</label>
+            <input type="text" required name="repuesto_nombre" value={formData.repuesto_nombre} onChange={handleChange} className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-xs text-slate-200 focus:ring-1 focus:ring-indigo-500" />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1">
+              <label className="text-xs text-slate-400">Origen (Solicita a)</label>
+              <input type="text" required name="sucursal_origen" value={formData.sucursal_origen} onChange={handleChange} className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-xs text-slate-200 focus:ring-1 focus:ring-indigo-500" />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs text-slate-400">Destino (Recibe)</label>
+              <input type="text" required name="tecnico_destino" value={formData.tecnico_destino} onChange={handleChange} className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-xs text-slate-200 focus:ring-1 focus:ring-indigo-500" />
+            </div>
+          </div>
+          <div className="space-y-1">
+             <label className="text-xs text-slate-400">Tipo de Reporte</label>
+              <select name="tipo_reporte" value={formData.tipo_reporte} onChange={handleChange} className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-xs text-slate-200 focus:ring-1 focus:ring-indigo-500">
+                <option value="Abastecimiento">Abastecimiento</option>
+                <option value="Reposición">Reposición</option>
+                <option value="Envío Interno">Envío Interno</option>
+              </select>
+          </div>
+          <div className="pt-2 flex justify-end gap-2 border-t border-slate-800 mt-4 pt-4">
+            <button type="button" onClick={onClose} className="px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-xs font-semibold text-slate-300 transition-colors">Cancelar</button>
+            <button type="submit" disabled={loading} className="px-5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-semibold flex items-center justify-center gap-2 transition-colors disabled:opacity-50">
+              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Guardar Cambios"}
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   );
@@ -75,15 +127,18 @@ function TablaPedidos({
   isAdmin,
   mostrarOrigen = true,
   mostrarDestino = true,
-  onActualizar,
+  onActualizarEstado,
+  onEditarPedido
 }: {
   pedidos: HistorialPedido[];
   isAdmin: boolean;
   mostrarOrigen?: boolean;
   mostrarDestino?: boolean;
-  onActualizar?: (id: number, estado: EstadoPedido) => Promise<void>;
+  onActualizarEstado?: (id: number, estado: EstadoPedido) => Promise<void>;
+  onEditarPedido?: (pedido: HistorialPedido) => void;
 }) {
   const [pag, setPag] = useState(0);
+  const [isPending, startTransition] = useTransition();
   const POR_PAG = 15;
   const total = pedidos.length;
   const paginas = Math.ceil(total / POR_PAG);
@@ -99,6 +154,7 @@ function TablaPedidos({
   }
 
   const headers = [
+    ...(isAdmin ? ["Acciones"] : []),
     "Fecha",
     "Código",
     "Repuesto",
@@ -120,7 +176,7 @@ function TablaPedidos({
                 {headers.map((h) => (
                   <th
                     key={h}
-                    className="text-left px-4 py-3 text-xs font-semibold text-slate-400 uppercase tracking-widest whitespace-nowrap"
+                    className="text-left px-4 py-3 text-[11px] font-semibold text-slate-400 uppercase tracking-widest whitespace-nowrap"
                   >
                     {h}
                   </th>
@@ -134,26 +190,51 @@ function TablaPedidos({
                   className={`border-b border-slate-800 hover:bg-slate-800/50 transition-colors
                     ${i % 2 === 0 ? "bg-slate-900" : "bg-slate-900/50"}`}
                 >
-                  <td className="px-4 py-3 text-xs text-slate-400 whitespace-nowrap">{formatDate(p.fecha_pedido)}</td>
-                  <td className="px-4 py-3 font-mono text-indigo-400 text-xs">{p.repuesto_codigo}</td>
-                  <td className="px-4 py-3 text-slate-200 max-w-xs truncate">{p.repuesto_nombre}</td>
-                  <td className="px-4 py-3 font-mono text-slate-300 text-xs">{p.numero_caso}</td>
-                  <td className="px-4 py-3 text-center text-slate-300">{p.cantidad}</td>
+                  {isAdmin && onActualizarEstado && onEditarPedido && (
+                     <td className="px-4 py-3 whitespace-nowrap">
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            title="Aprobar"
+                            onClick={() => startTransition(() => onActualizarEstado(p.id, "Aprobado"))}
+                            disabled={isPending || p.estado !== "Pendiente"}
+                            className="p-1.5 rounded bg-green-500/10 text-green-500 hover:bg-green-500/20 transition-colors disabled:opacity-30 border border-green-500/20"
+                          >
+                            <Check className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            title="Editar"
+                            onClick={() => onEditarPedido(p)}
+                            className="p-1.5 rounded bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 transition-colors border border-blue-500/20"
+                          >
+                            <Edit className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            title="Rechazar"
+                            onClick={() => startTransition(() => onActualizarEstado(p.id, "Rechazado"))}
+                            disabled={isPending || p.estado === "Rechazado" || p.estado === "Aprobado"}
+                            className="p-1.5 rounded bg-red-500/10 text-red-500 hover:bg-red-500/20 transition-colors disabled:opacity-30 border border-red-500/20"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                     </td>
+                  )}
+                  <td className="px-4 py-3 text-[11px] text-slate-400 whitespace-nowrap">{formatDate(p.fecha_pedido)}</td>
+                  <td className="px-4 py-3 font-mono text-indigo-400 text-[11px]">{p.repuesto_codigo}</td>
+                  <td className="px-4 py-3 text-[11px] text-slate-200 max-w-xs truncate" title={p.repuesto_nombre}>{p.repuesto_nombre}</td>
+                  <td className="px-4 py-3 font-mono text-slate-300 text-[11px]">{p.numero_caso}</td>
+                  <td className="px-4 py-3 text-center text-slate-300 text-[11px]">{p.cantidad}</td>
                   {mostrarOrigen && (
-                    <td className="px-4 py-3 text-slate-400 text-xs capitalize">{p.sucursal_origen}</td>
+                    <td className="px-4 py-3 text-slate-400 text-[11px] capitalize">{p.sucursal_origen}</td>
                   )}
                   {mostrarDestino && (
-                    <td className="px-4 py-3 text-slate-400 text-xs capitalize">{p.tecnico_destino}</td>
+                    <td className="px-4 py-3 text-slate-400 text-[11px] capitalize">{p.tecnico_destino}</td>
                   )}
-                  <td className="px-4 py-3 text-xs text-slate-500 whitespace-nowrap">
+                  <td className="px-4 py-3 text-[11px] text-slate-500 whitespace-nowrap">
                     {p.tipo_reporte}
                   </td>
                   <td className="px-4 py-3">
-                    {isAdmin && onActualizar ? (
-                      <SelectorEstado pedido={p} onActualizar={onActualizar} />
-                    ) : (
-                      <Badge label={p.estado} variant={estadoToVariant(p.estado)} />
-                    )}
+                    <Badge label={p.estado} variant={estadoToVariant(p.estado)} />
                   </td>
                 </tr>
               ))}
@@ -194,7 +275,7 @@ function ExportBtn({
   ciudadUsuario,
   label,
 }: {
-  filtro: "todos" | "realizados" | "recibidos" | TipoReporte;
+  filtro: "todos" | "realizados" | "recibidos" | TipoReporte | "aprobaciones";
   ciudadUsuario: string;
   label: string;
 }) {
@@ -203,6 +284,7 @@ function ExportBtn({
 
   function descargar() {
     startTransition(async () => {
+      // @ts-ignore
       const { csv, error } = await exportarHistorialCSV(filtro, ciudadUsuario);
       if (error || !csv) {
         setFeedback(error ?? "Error desconocido");
@@ -247,51 +329,55 @@ function ExportBtn({
 function VistaAdmin({
   historial,
   ciudadUsuario,
-  onActualizar,
+  onActualizarEstado,
+  onEditarPedido
 }: {
   historial: HistorialPedido[];
   ciudadUsuario: string;
-  onActualizar: (id: number, estado: EstadoPedido) => Promise<void>;
+  onActualizarEstado: (id: number, estado: EstadoPedido) => Promise<void>;
+  onEditarPedido: (pedido: HistorialPedido) => void;
 }) {
-  const tabs: { id: TipoReporte | "todos"; label: string; icon: React.ReactNode }[] = [
-    { id: "todos",         label: "Todos",            icon: <CheckCircle2 className="w-3.5 h-3.5" /> },
+  const tabs: { id: TipoReporte | "aprobaciones"; label: string; icon: React.ReactNode }[] = [
+    { id: "aprobaciones",  label: "Aprobaciones",     icon: <CheckCircle2 className="w-3.5 h-3.5" /> },
     { id: "Abastecimiento", label: "Abastecimiento",   icon: <Package className="w-3.5 h-3.5" /> },
     { id: "Reposición",    label: "Reposiciones",      icon: <ArrowLeftRight className="w-3.5 h-3.5" /> },
     { id: "Envío Interno", label: "Envíos Internos",   icon: <Truck className="w-3.5 h-3.5" /> },
   ];
-  const [activeTab, setActiveTab] = useState<TipoReporte | "todos">("todos");
+  const [activeTab, setActiveTab] = useState<TipoReporte | "aprobaciones">("aprobaciones");
 
+  // Aprobaciones = Muestra Todo lo "Pendiente". Las otras pestañas muestran lo que NO sea Pendiente de su tipo.
   const pedidosFiltrados =
-    activeTab === "todos"
-      ? historial
-      : historial.filter((p) => p.tipo_reporte.toLowerCase() === activeTab.toLowerCase());
+    activeTab === "aprobaciones"
+      ? historial.filter(p => p.estado === "Pendiente")
+      : historial.filter((p) => p.tipo_reporte.toLowerCase() === activeTab.toLowerCase() && p.estado !== "Pendiente" && p.estado !== "Rechazado");
 
   return (
     <div className="space-y-4">
       {/* Tabs */}
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex gap-1 border-b border-slate-800 w-full">
-          {tabs.map((t) => (
-            <button
-              key={t.id}
-              onClick={() => setActiveTab(t.id)}
-              className={`flex items-center gap-1.5 px-4 py-2 text-xs font-semibold transition-all border-b-2 -mb-px
-                ${activeTab === t.id
-                  ? "border-indigo-500 text-indigo-300"
-                  : "border-transparent text-slate-500 hover:text-slate-300"}`}
-            >
-              {t.icon}
-              {t.label}
-              <span className="ml-1 px-1.5 py-0.5 rounded-full bg-slate-800 text-slate-500 text-[10px]">
-                {activeTab === t.id
-                  ? pedidosFiltrados.length
-                  : t.id === "todos"
-                    ? historial.length
-                    : historial.filter((p) => p.tipo_reporte.toLowerCase() === t.id.toLowerCase()).length
-                }
-              </span>
-            </button>
-          ))}
+          {tabs.map((t) => {
+            const count = t.id === "aprobaciones" 
+               ? historial.filter(p => p.estado === "Pendiente").length 
+               : historial.filter(p => p.tipo_reporte.toLowerCase() === t.id.toLowerCase() && p.estado !== "Pendiente" && p.estado !== "Rechazado").length;
+            
+            return (
+              <button
+                key={t.id}
+                onClick={() => setActiveTab(t.id)}
+                className={`flex items-center gap-1.5 px-4 py-2 text-xs font-semibold transition-all border-b-2 -mb-px
+                  ${activeTab === t.id
+                    ? "border-indigo-500 text-indigo-300 bg-indigo-500/10"
+                    : "border-transparent text-slate-500 hover:text-slate-300 hover:bg-slate-800/50"}`}
+              >
+                {t.icon}
+                {t.label}
+                <span className={`ml-1 px-1.5 py-0.5 rounded-full text-[10px] ${activeTab === t.id ? "bg-indigo-500/20 text-indigo-300" : "bg-slate-800 text-slate-500"}`}>
+                  {count}
+                </span>
+              </button>
+            )
+          })}
         </div>
         <div className="flex justify-end w-full -mt-2">
           <ExportBtn filtro={activeTab} ciudadUsuario={ciudadUsuario} label="Exportar CSV" />
@@ -300,7 +386,8 @@ function VistaAdmin({
       <TablaPedidos
         pedidos={pedidosFiltrados}
         isAdmin
-        onActualizar={onActualizar}
+        onActualizarEstado={onActualizarEstado}
+        onEditarPedido={onEditarPedido}
       />
     </div>
   );
@@ -364,9 +451,16 @@ function VistaTecnico({
 
 // ─── Componente principal ─────────────────────────────────────
 export function HistorialTab({ historial, isAdmin, ciudadUsuario }: HistorialTabProps) {
-  // Función de actualización de estado (admin) con optimistic flush
-  async function handleActualizar(id: number, estado: EstadoPedido) {
+  const [pedidoToEdit, setPedidoToEdit] = useState<HistorialPedido | null>(null);
+
+  // Función de actualización de estado (admin) 
+  async function handleActualizarEstado(id: number, estado: EstadoPedido) {
     await actualizarEstadoPedido(id, estado);
+  }
+
+  // Función de edición completa (admin)
+  async function handleSaveEdicion(id: number, datos: Partial<HistorialPedido>) {
+    await editarPedidoAdmin(id, datos);
   }
 
   return (
@@ -375,7 +469,7 @@ export function HistorialTab({ historial, isAdmin, ciudadUsuario }: HistorialTab
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-sm font-semibold text-slate-300">
-            {isAdmin ? "📋 Panel de Auditoría" : "📦 Mi Historial"}
+            {isAdmin ? "📋 Aprobaciones e Historial" : "📦 Mi Historial"}
           </h2>
           <p className="text-xs text-slate-600 mt-0.5">
             {isAdmin
@@ -399,13 +493,22 @@ export function HistorialTab({ historial, isAdmin, ciudadUsuario }: HistorialTab
         <VistaAdmin
           historial={historial}
           ciudadUsuario={ciudadUsuario}
-          onActualizar={handleActualizar}
+          onActualizarEstado={handleActualizarEstado}
+          onEditarPedido={(p) => setPedidoToEdit(p)}
         />
       ) : (
         <VistaTecnico
           historial={historial}
           ciudadUsuario={ciudadUsuario}
         />
+      )}
+
+      {pedidoToEdit && (
+         <ModalEditarPedido
+            pedido={pedidoToEdit}
+            onClose={() => setPedidoToEdit(null)}
+            onSave={handleSaveEdicion}
+         />
       )}
     </div>
   );

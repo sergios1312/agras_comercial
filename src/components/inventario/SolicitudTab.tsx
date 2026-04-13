@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect } from "react";
+import { useActionState, useEffect, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { Trash2, ShoppingCart, Loader2, AlertCircle, CheckCircle2 } from "lucide-react";
 import { esNumeroCasoValido } from "@/lib/utils";
@@ -41,6 +41,7 @@ export function SolicitudTab({
   catalogo, sucursales, sucursalOrigen, isAdmin, carritoProps
 }: SolicitudTabProps) {
   const [state, formAction] = useActionState(submitPedido, initialState);
+  const [sedeDestino, setSedeDestino] = useState(isAdmin ? "" : sucursalOrigen);
   const { carrito, setCarrito, clearCarrito } = carritoProps;
 
   // Derivamos si la solicitud entera es "Sin stock" basado en las sedes elegidas
@@ -80,12 +81,45 @@ export function SolicitudTab({
         <form action={formAction} className="space-y-4">
           <input type="hidden" name="carrito" value={JSON.stringify(carrito)} />
           <input type="hidden" name="tipo_solicitud" value={tipoSolicitud} />
+          <input type="hidden" name="sede_destino" value={sedeDestino || sucursalOrigen} />
+
+          {/* Selector de Sede de Destino */}
+          <div className="bg-slate-900/50 border border-slate-700/60 p-4 rounded-xl flex flex-col sm:flex-row items-start sm:items-center gap-4">
+            <div className="flex-1">
+              <label className="text-xs font-semibold uppercase tracking-wider text-slate-400 block mb-1">
+                Sede de destino del pedido:
+              </label>
+              {isAdmin ? (
+                <select
+                  value={sedeDestino}
+                  onChange={(e) => setSedeDestino(e.target.value)}
+                  className="w-full sm:w-64 px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm text-slate-200 focus:ring-1 focus:ring-indigo-500"
+                  required
+                >
+                  <option value="">Seleccione una sede...</option>
+                  {sucursales.map(s => (
+                    <option key={s} value={s}>{s}</option>
+                  ))}
+                </select>
+              ) : (
+                <div className="w-full sm:w-64 px-3 py-2 bg-slate-800/80 border border-slate-700/50 rounded-lg text-sm text-slate-300 cursor-not-allowed">
+                  {sucursalOrigen}
+                </div>
+              )}
+            </div>
+            {isAdmin && !sedeDestino && (
+              <p className="text-xs text-amber-500 font-medium">Por favor, selecciona una sede para continuar.</p>
+            )}
+          </div>
 
           <div className="rounded-xl border border-slate-700 overflow-hidden bg-slate-900/50">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="bg-slate-800/80 border-b border-slate-700">
+                    {isAdmin && (
+                      <th className="text-center px-1.5 py-3 text-[11px] font-semibold text-slate-400 uppercase tracking-widest w-12 border-r border-slate-700/50" title="Venta">V</th>
+                    )}
                     <th className="text-left px-3 py-3 text-[11px] font-semibold text-slate-400 uppercase tracking-widest min-w-[100px]">Código</th>
                     <th className="text-left px-3 py-3 text-[11px] font-semibold text-slate-400 uppercase tracking-widest min-w-[150px]">Nombre</th>
                     <th className="text-center px-2 py-3 text-[11px] font-semibold text-slate-400 uppercase tracking-widest w-16">N° Caso</th>
@@ -97,9 +131,6 @@ export function SolicitudTab({
                         {s}
                       </th>
                     ))}
-                    {isAdmin && (
-                      <th className="text-center px-2 py-3 text-[11px] font-semibold text-slate-400 uppercase tracking-widest w-12 border-l border-slate-700/50">Venta</th>
-                    )}
                     <th className="text-center px-2 py-3 text-slate-400 w-10"></th>
                   </tr>
                 </thead>
@@ -117,6 +148,16 @@ export function SolicitudTab({
 
                     return (
                       <tr key={item.id} className={`border-b border-slate-800 transition-colors ${index % 2 === 0 ? "bg-slate-900" : "bg-slate-900/50"}`}>
+                        {isAdmin && (
+                          <td className="px-2 py-2 text-center border-r border-slate-700/50">
+                            <input
+                              type="checkbox"
+                              checked={item.es_venta}
+                              onChange={(e) => actualizarItem(item.id, "es_venta", e.target.checked)}
+                              className="rounded border-slate-600 text-indigo-500 focus:ring-indigo-500 w-3.5 h-3.5"
+                            />
+                          </td>
+                        )}
                         <td className="px-3 py-3 font-mono text-indigo-400 text-[11px] min-w-[100px] whitespace-nowrap">{item.codigo}</td>
                         <td className="px-3 py-3 text-slate-200">
                           <p className="text-[11px] truncate max-w-[160px]" title={item.nombre}>{item.nombre}</p>
@@ -174,16 +215,6 @@ export function SolicitudTab({
                             </td>
                           );
                         })}
-                        {isAdmin && (
-                          <td className="px-2 py-2 text-center border-l border-slate-700/50">
-                            <input
-                              type="checkbox"
-                              checked={item.es_venta}
-                              onChange={(e) => actualizarItem(item.id, "es_venta", e.target.checked)}
-                              className="rounded border-slate-600 text-indigo-500 focus:ring-indigo-500"
-                            />
-                          </td>
-                        )}
                         <td className="px-2 py-2 text-center">
                           <button
                             type="button"

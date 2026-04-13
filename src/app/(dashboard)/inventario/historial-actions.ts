@@ -35,6 +35,35 @@ export async function actualizarEstadoPedido(
   return { error: null };
 }
 
+// ─── editarPedidoAdmin ────────────────────────────────────────
+/**
+ * Permite al ADMIN editar todos los campos de un pedido.
+ */
+export async function editarPedidoAdmin(
+  id: number,
+  datos: Partial<Omit<HistorialPedido, "id">>
+): Promise<{ error: string | null }> {
+  const supabase = await createClient();
+
+  const user = await getSession();
+  if (!user) return { error: "Sesión expirada." };
+
+  const isAdmin = user.role === "admin";
+  if (!isAdmin) return { error: "Solo el administrador puede editar pedidos de forma completa." };
+
+  const rawClient = supabase as unknown as any;
+  const { error } = await rawClient
+    .from("historial_pedidos")
+    .update(datos)
+    .eq("id", id);
+
+  if (error) return { error: `Error al actualizar: ${error.message}` };
+
+  revalidatePath("/inventario");
+  return { error: null };
+}
+
+
 // ─── exportarHistorialCSV ─────────────────────────────────────
 /**
  * Genera un string CSV en memoria con los pedidos filtrados.

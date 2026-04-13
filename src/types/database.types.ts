@@ -17,7 +17,8 @@ export type EstadoPedido =
   | "Pendiente"
   | "Aprobado"
   | "Enviado"
-  | "Recibido";
+  | "Recibido"
+  | "Rechazado";
 
 export type TipoSolicitud = "Consumo normal" | "Solicitud/Reserva sin stock";
 

@@ -33,6 +33,7 @@ export async function submitPedido(
 
   const sucursalOrigen = user.ciudad ?? "desconocido";
   const emailPrefix = user.usuario;
+  const sedeDestino = (formData.get("sede_destino") as string) || sucursalOrigen;
 
   // Parsear el carrito desde el formulario
   const carritoRaw = formData.get("carrito") as string;
@@ -95,7 +96,7 @@ export async function submitPedido(
   const estado: EstadoPedido = "Pendiente";
 
   const inserts = carrito.map((item) => ({
-    tecnico_destino: emailPrefix, // El técnico que recibe (quien solicita)
+    tecnico_destino: sedeDestino, // Ahora utiliza la sede de destino seleccionada (o propia)
     sucursal_origen: item.sucursal_destino || "Oficina Central", // De dónde viene el repuesto
     repuesto_codigo: item.codigo,
     repuesto_nombre: item.nombre,
