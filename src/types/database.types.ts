@@ -77,6 +77,15 @@ export interface HistorialPedido {
   fecha_pedido: string;
 }
 
+// ─── Tabla: casos_reposicion ─────────────────────────────────
+export interface CasoReposicion {
+  id: number;
+  fecha: string;
+  codigo_caso: string;
+  serie_equipo: string;
+  ubicacion: string;
+}
+
 // ─── Tipos UI ─────────────────────────────────────────────────
 
 /** Ítem dentro del carrito de pedidos (estado en memoria) */
@@ -128,6 +137,11 @@ export interface Database {
         Row: HistorialPedido;
         Insert: Omit<HistorialPedido, "id" | "fecha_pedido">;
         Update: Partial<Omit<HistorialPedido, "id">>;
+      };
+      casos_reposicion: {
+        Row: CasoReposicion;
+        Insert: Omit<CasoReposicion, "id" | "fecha">;
+        Update: Partial<Omit<CasoReposicion, "id">>;
       };
     };
     Views: Record<string, never>;

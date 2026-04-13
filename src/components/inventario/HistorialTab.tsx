@@ -1,17 +1,26 @@
 "use client";
 
-import { useState, useTransition, useEffect } from "react";
+import React, { useState, useTransition, useEffect } from "react";
 import {
   RefreshCw, Download, Package, Truck, ArrowLeftRight,
-  CheckCircle2, Loader2, Edit, X, Check, Trash2, Send
+  CheckCircle2, Loader2, Edit, X, Check, Trash2, Send, ChevronDown, ChevronRight, Plus
 } from "lucide-react";
 import { Badge, estadoToVariant } from "@/components/ui/Badge";
 import { formatDate } from "@/lib/utils";
-import { actualizarEstadoPedido, exportarHistorialCSV, editarPedidoAdmin, eliminarPedidoAdmin } from "@/app/(dashboard)/inventario/historial-actions";
-import type { HistorialPedido, EstadoPedido, TipoReporte } from "@/types/database.types";
+import { 
+  actualizarEstadoPedido, 
+  exportarHistorialCSV, 
+  editarPedidoAdmin, 
+  eliminarPedidoAdmin,
+  crearCasoReposicion,
+  editarCasoReposicion,
+  eliminarCasoReposicion
+} from "@/app/(dashboard)/inventario/historial-actions";
+import type { HistorialPedido, EstadoPedido, TipoReporte, CasoReposicion } from "@/types/database.types";
 
 interface HistorialTabProps {
   historial: HistorialPedido[];
+  casosReposicion?: CasoReposicion[]; // Opcional para vista tecnico
   isAdmin: boolean;
   ciudadUsuario: string;
   sucursales?: string[];
@@ -92,7 +101,7 @@ function ModalEditarPedido({
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4">
-      <div className="w-full max-w-md bg-slate-900 border border-slate-700/60 rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 max-h-screen overflow-y-auto">
+      <div className="w-full max-w-md bg-slate-900 border border-slate-700/60 rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 max-h-[90vh] overflow-y-auto">
         <div className="px-6 py-4 border-b border-slate-800 flex justify-between items-center bg-slate-800/50 sticky top-0 z-10 backdrop-blur-sm">
           <h3 className="text-sm font-semibold text-slate-200 flex items-center gap-2">
             <Edit className="w-4 h-4 text-indigo-400" />
@@ -172,6 +181,243 @@ function ModalEditarPedido({
   );
 }
 
+// ─── Modal Caso Reposición ──────────────────────────────────
+function ModalCasoReposicion({
+  casoToEdit,
+  sucursales,
+  onClose,
+  onSave,
+  onDelete
+}: {
+  casoToEdit?: CasoReposicion | null;
+  sucursales: string[];
+  onClose: () => void;
+  onSave: (id: number | null, datos: any) => Promise<void>;
+  onDelete: (id: number) => Promise<void>;
+}) {
+  const [formData, setFormData] = useState({
+    codigo_caso: casoToEdit?.codigo_caso || "",
+    serie_equipo: casoToEdit?.serie_equipo || "",
+    ubicacion: casoToEdit?.ubicacion || "",
+  });
+  const [loading, setLoading] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    await onSave(casoToEdit ? casoToEdit.id : null, formData);
+    setLoading(false);
+    onClose();
+  };
+
+  const handleDelete = async () => {
+    if (!casoToEdit) return;
+    if (!window.confirm("¿Seguro que deseas eliminar este caso? Los repuestos vinculados perderán la relación.")) return;
+    setIsDeleting(true);
+    await onDelete(casoToEdit.id);
+    setIsDeleting(false);
+    onClose();
+  };
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4">
+      <div className="w-full max-w-md bg-slate-900 border border-slate-700/60 rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95">
+        <div className="px-6 py-4 border-b border-slate-800 flex justify-between items-center bg-slate-800/50">
+          <h3 className="text-sm font-semibold text-slate-200 flex items-center gap-2">
+            <Package className="w-4 h-4 text-blue-400" />
+            {casoToEdit ? "Editar Caso de Reposición" : "Crear Caso de Reposición"}
+          </h3>
+          <button onClick={onClose} className="text-slate-500 hover:text-slate-300 transition-colors">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          <div className="space-y-1">
+            <label className="text-xs text-slate-400">Código de Caso (Identificador único)</label>
+            <input 
+              type="text" 
+              required 
+              maxLength={20}
+              value={formData.codigo_caso} 
+              onChange={e => setFormData({...formData, codigo_caso: e.target.value.trim()})} 
+              className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-xs text-slate-200 focus:ring-1 focus:ring-blue-500 uppercase" 
+              placeholder="Ej: 1234"
+            />
+          </div>
+          <div className="space-y-1">
+            <label className="text-xs text-slate-400">Serie del equipo</label>
+            <input 
+              type="text" 
+              required 
+              value={formData.serie_equipo} 
+              onChange={e => setFormData({...formData, serie_equipo: e.target.value})} 
+              className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-xs text-slate-200 focus:ring-1 focus:ring-blue-500 uppercase" 
+            />
+          </div>
+          <div className="space-y-1">
+            <label className="text-xs text-slate-400">Ubicación</label>
+            <select 
+              required 
+              value={formData.ubicacion} 
+              onChange={e => setFormData({...formData, ubicacion: e.target.value})} 
+              className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-xs text-slate-200 focus:ring-1 focus:ring-blue-500"
+            >
+              <option value="">Seleccione sede...</option>
+              {sucursales.map(s => <option key={s} value={s}>{s}</option>)}
+            </select>
+          </div>
+          <div className="pt-2 flex justify-between items-center border-t border-slate-800 mt-4 pt-4">
+            {casoToEdit ? (
+              <button type="button" onClick={handleDelete} disabled={isDeleting} className="flex items-center gap-1.5 px-3 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-500 rounded-lg text-xs font-semibold transition-colors disabled:opacity-50 border border-red-500/20">
+                {isDeleting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                Eliminar
+              </button>
+            ) : <div/>}
+            <div className="flex gap-2">
+              <button type="button" onClick={onClose} className="px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-xs font-semibold text-slate-300 transition-colors">Cancelar</button>
+              <button type="submit" disabled={loading} className="px-5 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-semibold flex items-center justify-center gap-2 transition-colors disabled:opacity-50">
+                {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Guardar"}
+              </button>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// ─── Tabla Expandible de Casos de Reposición ────────────────
+function TablaCasosReposicion({
+  casos, repuestosTotales, sucursales, onCreate, onEdit
+}: {
+  casos: CasoReposicion[],
+  repuestosTotales: HistorialPedido[],
+  sucursales: string[],
+  onCreate: () => void,
+  onEdit: (caso: CasoReposicion) => void
+}) {
+  const [expandedRows, setExpandedRows] = useState<Record<number, boolean>>({});
+
+  const toggleRow = (id: number) => setExpandedRows(prev => ({...prev, [id]: !prev[id]}));
+
+  if (casos.length === 0) {
+    return (
+      <div className="space-y-3">
+        <div className="flex justify-between items-center mb-2">
+           <h3 className="text-xs uppercase text-slate-400 font-bold mb-0 tracking-wider flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-blue-500"></span> Casos de reposición
+           </h3>
+           <button onClick={onCreate} className="flex items-center gap-1 bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors">
+              <Plus className="w-3.5 h-3.5"/> Crear caso
+           </button>
+        </div>
+        <div className="flex flex-col items-center justify-center py-12 text-slate-600 bg-slate-900 border border-slate-700/50 rounded-xl">
+          <Package className="w-10 h-10 mb-3 opacity-30" />
+          <p className="text-sm">No hay casos de reposición creados.</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-2">
+       <div className="flex justify-between items-center mb-2">
+         <h3 className="text-xs uppercase text-slate-400 font-bold mb-0 tracking-wider flex items-center gap-2">
+           <span className="w-2 h-2 rounded-full bg-blue-500"></span> Casos de reposición
+         </h3>
+         <button onClick={onCreate} className="flex items-center gap-1 bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors shadow-lg shadow-blue-500/20">
+            <Plus className="w-3.5 h-3.5"/> Crear caso
+         </button>
+       </div>
+       <div className="rounded-xl border border-slate-700/50 overflow-hidden">
+         <table className="w-full text-sm">
+           <thead>
+             <tr className="bg-slate-800/80 border-b border-slate-700">
+               <th className="w-10 px-2 py-3 text-center"></th>
+               <th className="text-left px-4 py-3 text-[11px] font-semibold text-slate-400 uppercase">Acciones</th>
+               <th className="text-left px-4 py-3 text-[11px] font-semibold text-slate-400 uppercase">Fecha Creado</th>
+               <th className="text-left px-4 py-3 text-[11px] font-semibold text-slate-400 uppercase">Código de Caso</th>
+               <th className="text-left px-4 py-3 text-[11px] font-semibold text-slate-400 uppercase">Serie de Equipo</th>
+               <th className="text-left px-4 py-3 text-[11px] font-semibold text-slate-400 uppercase">Ubicación</th>
+             </tr>
+           </thead>
+           <tbody>
+             {casos.map((caso, i) => {
+               const isExpanded = expandedRows[caso.id];
+               // Filtramos todos los repuestos (independientemente del estado) que estén linkeados a este codigo_caso
+               const repuestosAsignados = repuestosTotales.filter(r => r.caso_reposicion && r.caso_reposicion.trim() === caso.codigo_caso.trim());
+               
+               return (
+                 <React.Fragment key={caso.id}>
+                   <tr className={`border-b border-slate-800 transition-colors ${i % 2 === 0 ? "bg-slate-900" : "bg-slate-900/50"}`}>
+                     <td className="px-2 py-3 text-center">
+                       <button onClick={() => toggleRow(caso.id)} className="p-1 rounded-md hover:bg-slate-700 text-slate-400 hover:text-slate-200 transition-colors">
+                         {isExpanded ? <ChevronDown className="w-4 h-4"/> : <ChevronRight className="w-4 h-4"/>}
+                       </button>
+                     </td>
+                     <td className="px-4 py-3">
+                       <button onClick={() => onEdit(caso)} className="p-1.5 rounded bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 transition-colors border border-blue-500/20" title="Editar Caso">
+                         <Edit className="w-3.5 h-3.5" />
+                       </button>
+                     </td>
+                     <td className="px-4 py-3 text-[11px] text-slate-400 whitespace-nowrap">{formatDate(caso.fecha)}</td>
+                     <td className="px-4 py-3 font-mono text-blue-400 font-bold tracking-wider">{caso.codigo_caso}</td>
+                     <td className="px-4 py-3 text-slate-200 tracking-wider text-[11px]">{caso.serie_equipo}</td>
+                     <td className="px-4 py-3 text-slate-400 text-[11px]">{caso.ubicacion}</td>
+                   </tr>
+                   {isExpanded && (
+                     <tr>
+                       <td colSpan={6} className="bg-slate-950/80 p-0 border-b border-slate-800">
+                         <div className="p-4 pl-12">
+                           <h4 className="text-[10px] uppercase font-semibold text-slate-500 mb-2 border-b border-slate-800 pb-1 w-fit">
+                             Repuestos vinculados al caso {caso.codigo_caso}
+                           </h4>
+                           {repuestosAsignados.length > 0 ? (
+                             <table className="w-full text-left">
+                               <thead>
+                                 <tr>
+                                   <th className="px-2 py-1.5 text-[10px] text-slate-500 font-medium whitespace-nowrap">Fecha P.</th>
+                                   <th className="px-2 py-1.5 text-[10px] text-slate-500 font-medium">Código</th>
+                                   <th className="px-2 py-1.5 text-[10px] text-slate-500 font-medium">Nombre de Repuesto</th>
+                                   <th className="px-2 py-1.5 text-[10px] text-slate-500 font-medium">Cant.</th>
+                                   <th className="px-2 py-1.5 text-[10px] text-slate-500 font-medium">N° Caso del Pedido</th>
+                                   <th className="px-2 py-1.5 text-[10px] text-slate-500 font-medium">Estado</th>
+                                 </tr>
+                               </thead>
+                               <tbody className="bg-slate-900/50 rounded-lg">
+                                 {repuestosAsignados.map(r => (
+                                   <tr key={r.id} className="border-b border-slate-800/50 last:border-0 hover:bg-slate-800/30">
+                                     <td className="px-2 py-2 text-[10px] text-slate-400 whitespace-nowrap">{formatDate(r.fecha_pedido)}</td>
+                                     <td className="px-2 py-2 font-mono text-[10px] text-indigo-400">{r.repuesto_codigo}</td>
+                                     <td className="px-2 py-2 text-[10px] text-slate-300 truncate max-w-[200px]" title={r.repuesto_nombre}>{r.repuesto_nombre}</td>
+                                     <td className="px-2 py-2 text-[10px] text-slate-300 text-center">{r.cantidad}</td>
+                                     <td className="px-2 py-2 text-[10px] text-slate-400 font-mono">{r.numero_caso}</td>
+                                     <td className="px-2 py-2"><Badge label={r.estado} variant={estadoToVariant(r.estado)} /></td>
+                                   </tr>
+                                 ))}
+                               </tbody>
+                             </table>
+                           ) : (
+                             <div className="bg-slate-900 border border-slate-800 rounded px-3 py-2 inline-flex items-center gap-2">
+                               <Package className="w-3.5 h-3.5 text-slate-500"/>
+                               <span className="text-[11px] text-slate-500">Ningún repuesto ha sido despachado o asignado a este código de caso.</span>
+                             </div>
+                           )}
+                         </div>
+                       </td>
+                     </tr>
+                   )}
+                 </React.Fragment>
+               )
+             })}
+           </tbody>
+         </table>
+       </div>
+    </div>
+  )
+}
+
 // ─── Tabla de pedidos reutilizable ────────────────────────────
 function TablaPedidos({
   pedidos,
@@ -180,7 +426,8 @@ function TablaPedidos({
   mostrarDestino = true,
   ocultarTipo = false,
   isReposicion = false,
-  isPedidosActuales = false, // Modo especial para mostrar la columna 'Despachado',
+  isPedidosActuales = false, // Modo especial para mostrar la columna 'Despachado' y validaciones,
+  validCasos = [], // Para validar despachos
   onActualizarEstado,
   onEditarPedido,
   onUpdateCasoReposicion
@@ -192,6 +439,7 @@ function TablaPedidos({
   ocultarTipo?: boolean;
   isReposicion?: boolean;
   isPedidosActuales?: boolean;
+  validCasos?: string[];
   onActualizarEstado?: (id: number, estado: EstadoPedido) => Promise<void>;
   onEditarPedido?: (pedido: HistorialPedido) => void;
   onUpdateCasoReposicion?: (id: number, val: string) => void;
@@ -245,97 +493,110 @@ function TablaPedidos({
               </tr>
             </thead>
             <tbody>
-              {slice.map((p, i) => (
-                <tr
-                  key={p.id}
-                  className={`border-b border-slate-800 hover:bg-slate-800/50 transition-colors
-                    ${i % 2 === 0 ? "bg-slate-900" : "bg-slate-900/50"}`}
-                >
-                  {isAdmin && onActualizarEstado && onEditarPedido && (
-                     <td className="px-4 py-3 whitespace-nowrap">
-                        <div className="flex items-center justify-center gap-1.5">
-                          {p.estado === "Pendiente" && (
+              {slice.map((p, i) => {
+                const hasValidCaso = p.caso_reposicion && p.caso_reposicion.trim().length > 0;
+                // Opcional: Verificacion rigurosa si el caso_reposicion existe de verdad. 
+                // Segun instrucciones: "no permitira despachar si no se le ha asignado previamente su codigo"
+                // Implementaremos restricion estricta comprobando si p.caso_reposicion esta en validCasos.
+                const isStrictlyValid = validCasos.includes((p.caso_reposicion || "").trim());
+
+                return (
+                  <tr
+                    key={p.id}
+                    className={`border-b border-slate-800 hover:bg-slate-800/50 transition-colors
+                      ${i % 2 === 0 ? "bg-slate-900" : "bg-slate-900/50"}`}
+                  >
+                    {isAdmin && onActualizarEstado && onEditarPedido && (
+                      <td className="px-4 py-3 whitespace-nowrap">
+                          <div className="flex items-center justify-center gap-1.5">
+                            {p.estado === "Pendiente" && (
+                              <button
+                                title="Aprobar"
+                                onClick={() => startTransition(() => onActualizarEstado(p.id, "Aprobado"))}
+                                disabled={isPending}
+                                className="p-1.5 rounded bg-green-500/10 text-green-500 hover:bg-green-500/20 transition-colors disabled:opacity-30 border border-green-500/20"
+                              >
+                                <Check className="w-3.5 h-3.5" />
+                              </button>
+                            )}
                             <button
-                              title="Aprobar"
-                              onClick={() => startTransition(() => onActualizarEstado(p.id, "Aprobado"))}
-                              disabled={isPending}
-                              className="p-1.5 rounded bg-green-500/10 text-green-500 hover:bg-green-500/20 transition-colors disabled:opacity-30 border border-green-500/20"
+                              title="Editar"
+                              onClick={() => onEditarPedido(p)}
+                              className="p-1.5 rounded bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 transition-colors border border-blue-500/20"
                             >
-                              <Check className="w-3.5 h-3.5" />
+                              <Edit className="w-3.5 h-3.5" />
                             </button>
-                          )}
-                          <button
-                            title="Editar"
-                            onClick={() => onEditarPedido(p)}
-                            className="p-1.5 rounded bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 transition-colors border border-blue-500/20"
-                          >
-                            <Edit className="w-3.5 h-3.5" />
-                          </button>
-                          {p.estado === "Pendiente" && (
-                            <button
-                              title="Rechazar"
-                              onClick={() => startTransition(() => onActualizarEstado(p.id, "Rechazado"))}
-                              disabled={isPending}
-                              className="p-1.5 rounded bg-red-500/10 text-red-500 hover:bg-red-500/20 transition-colors disabled:opacity-30 border border-red-500/20"
-                            >
-                              <X className="w-3.5 h-3.5" />
-                            </button>
-                          )}
-                        </div>
-                     </td>
-                  )}
-                  <td className="px-4 py-3 text-[11px] text-slate-400 whitespace-nowrap">{formatDate(p.fecha_pedido)}</td>
-                  <td className="px-4 py-3 font-mono text-indigo-400 text-[11px]">{p.repuesto_codigo}</td>
-                  <td className="px-4 py-3 text-[11px] text-slate-200 max-w-xs truncate" title={p.repuesto_nombre}>{p.repuesto_nombre}</td>
-                  <td className="px-4 py-3 font-mono text-slate-300 text-[11px]">{p.numero_caso}</td>
-                  {isReposicion && (
+                            {p.estado === "Pendiente" && (
+                              <button
+                                title="Rechazar"
+                                onClick={() => startTransition(() => onActualizarEstado(p.id, "Rechazado"))}
+                                disabled={isPending}
+                                className="p-1.5 rounded bg-red-500/10 text-red-500 hover:bg-red-500/20 transition-colors disabled:opacity-30 border border-red-500/20"
+                              >
+                                <X className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+                          </div>
+                      </td>
+                    )}
+                    <td className="px-4 py-3 text-[11px] text-slate-400 whitespace-nowrap">{formatDate(p.fecha_pedido)}</td>
+                    <td className="px-4 py-3 font-mono text-indigo-400 text-[11px]">{p.repuesto_codigo}</td>
+                    <td className="px-4 py-3 text-[11px] text-slate-200 max-w-xs truncate" title={p.repuesto_nombre}>{p.repuesto_nombre}</td>
+                    <td className="px-4 py-3 font-mono text-slate-300 text-[11px]">{p.numero_caso}</td>
+                    {isReposicion && (
+                      <td className="px-4 py-3">
+                        <input 
+                          type="text" 
+                          maxLength={4} // En la base si se cambia desde panel quiza son mas de 4, pero aqui se formatea al teclear
+                          defaultValue={p.caso_reposicion || ""}
+                          onBlur={(e) => {
+                            const val = e.target.value.replace(/[^0-9a-zA-Z]/g, '').slice(0, 20); // allow alphanumeric and up to 20 length to match real world
+                            e.target.value = val;
+                            if (onUpdateCasoReposicion && val !== (p.caso_reposicion || "")) {
+                              onUpdateCasoReposicion(p.id, val);
+                            }
+                          }}
+                          className={`w-20 bg-slate-800 border rounded p-1 text-[11px] text-amber-200 font-mono focus:ring-1 focus:ring-amber-500 text-center ${p.caso_reposicion && !isStrictlyValid ? 'border-red-500 ring-1 ring-red-500' : 'border-amber-900/50'}`}
+                          placeholder="Código"
+                          title="Tipea el código del caso y clica fuera para guardar."
+                        />
+                      </td>
+                    )}
+                    <td className="px-4 py-3 text-center text-slate-300 text-[11px]">{p.cantidad}</td>
+                    {mostrarOrigen && (
+                      <td className="px-4 py-3 text-slate-400 text-[11px] capitalize">{p.sucursal_origen}</td>
+                    )}
+                    {mostrarDestino && (
+                      <td className="px-4 py-3 text-slate-400 text-[11px] capitalize">{p.tecnico_destino}</td>
+                    )}
+                    {!ocultarTipo && (
+                      <td className="px-4 py-3 text-[11px] text-slate-500 whitespace-nowrap">
+                        {p.tipo_reporte}
+                      </td>
+                    )}
                     <td className="px-4 py-3">
-                      <input 
-                        type="text" 
-                        maxLength={4} 
-                        defaultValue={p.caso_reposicion || ""}
-                        onBlur={(e) => {
-                          const val = e.target.value.replace(/[^0-9]/g, '').slice(0, 4);
-                          e.target.value = val;
-                          if (onUpdateCasoReposicion && val !== (p.caso_reposicion || "")) {
-                            onUpdateCasoReposicion(p.id, val);
-                          }
-                        }}
-                        className="w-16 bg-slate-800 border border-amber-900/50 rounded p-1 text-[11px] text-amber-200 font-mono focus:ring-1 focus:ring-amber-500 text-center"
-                        placeholder="----"
-                        title="Tipea y desmarca para guardar"
-                      />
+                      <Badge label={p.estado} variant={estadoToVariant(p.estado)} />
                     </td>
-                  )}
-                  <td className="px-4 py-3 text-center text-slate-300 text-[11px]">{p.cantidad}</td>
-                  {mostrarOrigen && (
-                    <td className="px-4 py-3 text-slate-400 text-[11px] capitalize">{p.sucursal_origen}</td>
-                  )}
-                  {mostrarDestino && (
-                    <td className="px-4 py-3 text-slate-400 text-[11px] capitalize">{p.tecnico_destino}</td>
-                  )}
-                  {!ocultarTipo && (
-                    <td className="px-4 py-3 text-[11px] text-slate-500 whitespace-nowrap">
-                      {p.tipo_reporte}
-                    </td>
-                  )}
-                  <td className="px-4 py-3">
-                    <Badge label={p.estado} variant={estadoToVariant(p.estado)} />
-                  </td>
-                  {isPedidosActuales && isAdmin && onActualizarEstado && (
-                    <td className="px-4 py-3 text-center whitespace-nowrap">
-                      <button
-                        title="Marcar como Despachado"
-                        onClick={() => startTransition(() => onActualizarEstado(p.id, "Enviado"))}
-                        disabled={isPending}
-                        className="p-1.5 rounded-full bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20 transition-colors disabled:opacity-30 border border-emerald-500/20 inline-flex items-center justify-center animate-pulse hover:animate-none"
-                      >
-                        <Send className="w-3.5 h-3.5 ml-0.5" />
-                      </button>
-                    </td>
-                  )}
-                </tr>
-              ))}
+                    {isPedidosActuales && isAdmin && onActualizarEstado && (
+                      <td className="px-4 py-3 text-center whitespace-nowrap">
+                        <button
+                          title={isReposicion && !isStrictlyValid ? "Debe asignar un código de caso válido primero." : "Marcar como Despachado"}
+                          onClick={() => startTransition(() => onActualizarEstado(p.id, "Enviado"))}
+                          disabled={isPending || (isReposicion && !isStrictlyValid)}
+                          className={`p-1.5 rounded-full inline-flex items-center justify-center transition-colors border
+                            ${isReposicion && !isStrictlyValid 
+                               ? 'bg-slate-800 text-slate-600 border-slate-700 cursor-not-allowed opacity-50' 
+                               : 'bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20 border-emerald-500/20 animate-pulse hover:animate-none'
+                            }
+                          `}
+                        >
+                          <Send className="w-3.5 h-3.5 ml-0.5" />
+                        </button>
+                      </td>
+                    )}
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -426,16 +687,26 @@ function ExportBtn({
 // ─── Vista Admin ──────────────────────────────────────────────
 function VistaAdmin({
   historial,
+  casosReposicion,
   ciudadUsuario,
+  sucursales,
   onActualizarEstado,
   onEditarPedido,
-  onUpdateCasoReposicion
+  onUpdateCasoReposicion,
+  onCrearCasoReposicion,
+  onEditarCasoReposicion,
+  onEliminarCasoReposicion
 }: {
   historial: HistorialPedido[];
+  casosReposicion: CasoReposicion[];
   ciudadUsuario: string;
+  sucursales: string[];
   onActualizarEstado: (id: number, estado: EstadoPedido) => Promise<void>;
   onEditarPedido: (pedido: HistorialPedido) => void;
   onUpdateCasoReposicion: (id: number, val: string) => void;
+  onCrearCasoReposicion: (datos: any) => Promise<void>;
+  onEditarCasoReposicion: (id: number, datos: any) => Promise<void>;
+  onEliminarCasoReposicion: (id: number) => Promise<void>;
 }) {
   const tabs: { id: TipoReporte | "aprobaciones"; label: string; icon: React.ReactNode }[] = [
     { id: "aprobaciones",  label: "Aprobaciones",     icon: <CheckCircle2 className="w-3.5 h-3.5" /> },
@@ -444,6 +715,20 @@ function VistaAdmin({
     { id: "Envío Interno", label: "Envíos Internos",   icon: <Truck className="w-3.5 h-3.5" /> },
   ];
   const [activeTab, setActiveTab] = useState<TipoReporte | "aprobaciones">("aprobaciones");
+
+  // Handlers para el Modal de Caso Reposición
+  const [showModalCaso, setShowModalCaso] = useState(false);
+  const [casoToEdit, setCasoToEdit] = useState<CasoReposicion | null>(null);
+
+  const handleSaveCaso = async (id: number | null, datos: any) => {
+    if (id) {
+       await onEditarCasoReposicion(id, datos);
+    } else {
+       await onCrearCasoReposicion(datos);
+    }
+  };
+
+  const validCasos = casosReposicion.map(c => c.codigo_caso.trim());
 
   return (
     <div className="space-y-4">
@@ -488,24 +773,38 @@ function VistaAdmin({
         />
       ) : (
         <div className="space-y-8">
-          {/* TABLA 1: PEDIDOS ACTUALES (Solo "Aprobado") */}
+          {/* TABLA 1: PEDIDOS ACTUALES (Repuestos por despachar) */}
           <div>
             <h3 className="text-xs uppercase text-slate-400 font-bold mb-3 tracking-wider flex items-center gap-2">
-               <span className="w-2 h-2 rounded-full bg-indigo-500"></span> Letra por despachar (Actuales)
+               <span className="w-2 h-2 rounded-full bg-indigo-500"></span> Repuestos por despachar
             </h3>
             <TablaPedidos 
               pedidos={historial.filter(p => p.tipo_reporte.toLowerCase() === activeTab.toLowerCase() && p.estado === "Aprobado")}
               isAdmin
               ocultarTipo={true}
               isReposicion={activeTab === "Reposición"}
-              isPedidosActuales={true} // Habilita el check 'Despachado'
+              isPedidosActuales={true} // Habilita el check 'Despachado' y validaciones de strict dispatch
+              validCasos={validCasos}
               onActualizarEstado={onActualizarEstado}
               onEditarPedido={onEditarPedido}
               onUpdateCasoReposicion={onUpdateCasoReposicion}
             />
           </div>
 
-          {/* TABLA 2: HISTORIAL DE PEDIDOS (Solo "Enviado", "Recibido") */}
+          {/* TABLA 2: CASOS DE REPOSICION (Solo si la pestaña es Reposición) */}
+          {activeTab === "Reposición" && (
+            <div>
+              <TablaCasosReposicion
+                 casos={casosReposicion}
+                 repuestosTotales={historial}
+                 sucursales={sucursales}
+                 onCreate={() => { setCasoToEdit(null); setShowModalCaso(true); }}
+                 onEdit={(caso) => { setCasoToEdit(caso); setShowModalCaso(true); }}
+              />
+            </div>
+          )}
+
+          {/* TABLA 3: HISTORIAL DE PEDIDOS (Solo "Enviado", "Recibido") */}
           <div>
             <h3 className="text-xs uppercase text-slate-400 font-bold mb-3 tracking-wider flex items-center gap-2">
                <span className="w-2 h-2 rounded-full bg-emerald-500"></span> Historial de pedidos
@@ -522,6 +821,17 @@ function VistaAdmin({
             />
           </div>
         </div>
+      )}
+
+      {/* Modal Casos Reposicion */}
+      {showModalCaso && (
+         <ModalCasoReposicion
+            casoToEdit={casoToEdit}
+            sucursales={sucursales}
+            onClose={() => setShowModalCaso(false)}
+            onSave={handleSaveCaso}
+            onDelete={onEliminarCasoReposicion}
+         />
       )}
     </div>
   );
@@ -584,38 +894,67 @@ function VistaTecnico({
 }
 
 // ─── Componente principal ─────────────────────────────────────
-export function HistorialTab({ historial, isAdmin, ciudadUsuario, sucursales = [] }: HistorialTabProps) {
+export function HistorialTab({ historial, casosReposicion = [], isAdmin, ciudadUsuario, sucursales = [] }: HistorialTabProps) {
   const [pedidoToEdit, setPedidoToEdit] = useState<HistorialPedido | null>(null);
   
-  // Optimistic UI state
+  // Optimistic UI states
   const [localHistorial, setLocalHistorial] = useState<HistorialPedido[]>(historial);
+  const [localCasos, setLocalCasos] = useState<CasoReposicion[]>(casosReposicion);
 
   useEffect(() => {
     setLocalHistorial(historial);
-  }, [historial]);
+    setLocalCasos(casosReposicion);
+  }, [historial, casosReposicion]);
 
-  // Función de actualización de estado (admin) 
+  // Función de actualización de estado de repuesto (admin) 
   async function handleActualizarEstado(id: number, estado: EstadoPedido) {
     setLocalHistorial(prev => prev.map(p => p.id === id ? { ...p, estado } : p));
     await actualizarEstadoPedido(id, estado);
   }
 
-  // Función de edición completa (admin)
+  // Edit in-line repuesto completo
   async function handleSaveEdicion(id: number, datos: Partial<HistorialPedido>) {
     setLocalHistorial(prev => prev.map(p => p.id === id ? { ...p, ...datos } : p));
     await editarPedidoAdmin(id, datos);
   }
 
-  // Edit in-line del caso reposicion
+  // Edit in-line del caso reposicion EN EL REPUESTO (Vincular)
   async function handleUpdateCasoReposicion(id: number, caso_reposicion: string) {
     setLocalHistorial(prev => prev.map(p => p.id === id ? { ...p, caso_reposicion } : p));
     await editarPedidoAdmin(id, { caso_reposicion });
   }
 
-  // Función para eliminar solicitud
+  // Eliminar repuesto
   async function handleDelete(id: number) {
     setLocalHistorial(prev => prev.filter(p => p.id !== id));
     await eliminarPedidoAdmin(id);
+  }
+
+  // ────────────────────────── SERVER ACTIONS CASOS REPOSICIÓN
+  async function handleCrearCaso(datos: Omit<CasoReposicion, "id" | "fecha">) {
+    // Optimistic create (fake ID and date)
+    const fakeId = Date.now();
+    const fakeDate = new Date().toISOString();
+    setLocalCasos(prev => [{ ...datos, id: fakeId, fecha: fakeDate }, ...prev]);
+    const { error } = await crearCasoReposicion(datos);
+    if (error) {
+       alert(error);
+       setLocalCasos(casosReposicion); // Revert
+    }
+  }
+
+  async function handleEditarCaso(id: number, datos: Partial<Omit<CasoReposicion, "id" | "fecha">>) {
+    setLocalCasos(prev => prev.map(c => c.id === id ? { ...c, ...datos } : c));
+    const { error } = await editarCasoReposicion(id, datos);
+    if (error) {
+       alert(error);
+       setLocalCasos(casosReposicion); // Revert
+    }
+  }
+
+  async function handleEliminarCaso(id: number) {
+    setLocalCasos(prev => prev.filter(c => c.id !== id));
+    await eliminarCasoReposicion(id);
   }
 
   return (
@@ -647,10 +986,15 @@ export function HistorialTab({ historial, isAdmin, ciudadUsuario, sucursales = [
       {isAdmin ? (
         <VistaAdmin
           historial={localHistorial}
+          casosReposicion={localCasos}
           ciudadUsuario={ciudadUsuario}
+          sucursales={sucursales}
           onActualizarEstado={handleActualizarEstado}
           onEditarPedido={(p) => setPedidoToEdit(p)}
           onUpdateCasoReposicion={handleUpdateCasoReposicion}
+          onCrearCasoReposicion={handleCrearCaso}
+          onEditarCasoReposicion={handleEditarCaso}
+          onEliminarCasoReposicion={handleEliminarCaso}
         />
       ) : (
         <VistaTecnico

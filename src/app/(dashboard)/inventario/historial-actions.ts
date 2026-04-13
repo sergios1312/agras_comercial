@@ -174,3 +174,71 @@ export async function exportarHistorialCSV(
 
   return { csv, error: null };
 }
+
+// ─── CRUD: Casos de Reposición ────────────────────────────────
+
+export async function crearCasoReposicion(
+  datos: Omit<import("@/types/database.types").CasoReposicion, "id" | "fecha">
+): Promise<{ error: string | null }> {
+  const supabase = await createClient();
+
+  const user = await getSession();
+  if (!user || user.role !== "admin") return { error: "No autorizado." };
+
+  const rawClient = supabase as unknown as any;
+  const { error } = await rawClient
+    .from("casos_reposicion")
+    .insert([datos]);
+
+  if (error) {
+    if (error.code === "23505") return { error: "El código de caso ya existe." };
+    return { error: `Error al crear: ${error.message}` };
+  }
+
+  revalidatePath("/inventario");
+  return { error: null };
+}
+
+export async function editarCasoReposicion(
+  id: number,
+  datos: Partial<Omit<import("@/types/database.types").CasoReposicion, "id" | "fecha">>
+): Promise<{ error: string | null }> {
+  const supabase = await createClient();
+
+  const user = await getSession();
+  if (!user || user.role !== "admin") return { error: "No autorizado." };
+
+  const rawClient = supabase as unknown as any;
+  const { error } = await rawClient
+    .from("casos_reposicion")
+    .update(datos)
+    .eq("id", id);
+
+  if (error) {
+    if (error.code === "23505") return { error: "El código de caso ya existe." };
+    return { error: `Error al editar: ${error.message}` };
+  }
+
+  revalidatePath("/inventario");
+  return { error: null };
+}
+
+export async function eliminarCasoReposicion(
+  id: number
+): Promise<{ error: string | null }> {
+  const supabase = await createClient();
+
+  const user = await getSession();
+  if (!user || user.role !== "admin") return { error: "No autorizado." };
+
+  const rawClient = supabase as unknown as any;
+  const { error } = await rawClient
+    .from("casos_reposicion")
+    .delete()
+    .eq("id", id);
+
+  if (error) return { error: `Error al eliminar: ${error.message}` };
+
+  revalidatePath("/inventario");
+  return { error: null };
+}

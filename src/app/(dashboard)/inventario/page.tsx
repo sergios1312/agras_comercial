@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
 import type { Metadata } from "next";
 import { InventarioClientWrapper } from "@/components/inventario/InventarioClientWrapper";
-import type { RepuestoConStock, HistorialPedido, InventarioRow } from "@/types/database.types";
+import type { RepuestoConStock, HistorialPedido, InventarioRow, CasoReposicion } from "@/types/database.types";
 import { Search, Package, History } from "lucide-react";
 import { SUCURSALES_DATA } from "@/lib/constants";
 
@@ -27,12 +27,15 @@ export default async function InventarioPage() {
 
   // ─── Fetch de datos en paralelo (Recursivo para tablas grandes) ─────
   // Nota: fetchAll maneja el bucle de 1000 en 1000 automáticamente
-  const [repuestos, sucursalesRes, inventario, historial] = await Promise.all([
+  const [repuestos, sucursalesRes, inventario, historial, casosReposicion] = await Promise.all([
     fetchAll<import("@/types/database.types").Repuesto>(supabase.from("repuestos").select("*")),
     supabase.from("sucursales").select("id, nombre_ciudad"),
     fetchAll<InventarioRow>(supabase.from("inventario").select("id, repuesto_id, sucursal_id, cantidad")),
     fetchAll<HistorialPedido>(
       supabase.from("historial_pedidos").select("*").order("fecha_pedido", { ascending: false })
+    ),
+    fetchAll<CasoReposicion>(
+      supabase.from("casos_reposicion").select("*").order("fecha", { ascending: false })
     ),
   ]);
 
@@ -68,6 +71,7 @@ export default async function InventarioPage() {
         sucursalOrigen={sucursalOrigen}
         isAdmin={isAdmin}
         historial={historial}
+        casosReposicion={casosReposicion}
         ciudadUsuario={ciudadUsuario}
       />
     </div>
