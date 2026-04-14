@@ -62,27 +62,30 @@ export async function submitPedido(
   const tipoSolicitud = formData.get("tipo_solicitud") as string;
   const esSinStock = tipoSolicitud === "Solicitud/Reserva sin stock";
 
-  // ─── Validación de configuración de pedidos (server-side) ──
-  const configPedidos = await getConfigPedidos();
-  for (const item of carrito) {
-    const tipo = calcularTipoReporte(item.sucursal_destino);
-    if (tipo === "Abastecimiento" && !configPedidos.abastecimiento) {
-      return {
-        error: "No está permitido realizar pedidos de Abastecimiento por el momento.",
-        success: null,
-      };
-    }
-    if (tipo === "Envío Interno" && !configPedidos.internos) {
-      return {
-        error: "No está permitido realizar Pedidos Internos (entre sucursales) por el momento.",
-        success: null,
-      };
-    }
-    if (tipo === "Reposición" && !configPedidos.reposicion) {
-      return {
-        error: "No está permitido realizar Reposiciones (sin stock) por el momento.",
-        success: null,
-      };
+  // ─── Validación de configuración de pedidos (solo usuarios no-admin) ──
+  const isUserAdmin = user.role === "admin";
+  if (!isUserAdmin) {
+    const configPedidos = await getConfigPedidos();
+    for (const item of carrito) {
+      const tipo = calcularTipoReporte(item.sucursal_destino);
+      if (tipo === "Abastecimiento" && !configPedidos.abastecimiento) {
+        return {
+          error: "No está permitido realizar pedidos de Abastecimiento por el momento.",
+          success: null,
+        };
+      }
+      if (tipo === "Envío Interno" && !configPedidos.internos) {
+        return {
+          error: "No está permitido realizar Pedidos Internos (entre sucursales) por el momento.",
+          success: null,
+        };
+      }
+      if (tipo === "Reposición" && !configPedidos.reposicion) {
+        return {
+          error: "No está permitido realizar Reposiciones (sin stock) por el momento.",
+          success: null,
+        };
+      }
     }
   }
 

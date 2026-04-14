@@ -50,8 +50,9 @@ export function SolicitudTab({
   const isAnySinStock = carrito.some(i => i.sucursal_destino === "SIN_STOCK");
   const tipoSolicitud = isAnySinStock ? "Solicitud/Reserva sin stock" : "Consumo normal";
 
-  // ── Detección de tipo de pedido bloqueado ────────────────────
+  // ── Detección de tipo de pedido bloqueado (solo usuarios no-admin) ──
   function getMensajeBloqueo(): string | null {
+    if (isAdmin) return null; // Los admins no están sujetos a estas restricciones
     for (const item of carrito) {
       const tipo = calcularTipoReporte(item.sucursal_destino);
       if (tipo === "Abastecimiento" && !configPedidos.abastecimiento) {
