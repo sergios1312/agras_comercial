@@ -77,7 +77,12 @@ export interface HistorialPedido {
   tipo_reporte: string;
   estado: EstadoPedido;
   fecha_pedido: string;
+  // Fechas de trazabilidad (se rellenan automáticamente al cambiar estado)
+  fecha_aprobacion?: string | null;
+  fecha_envio?: string | null;
+  fecha_recepcion?: string | null;
 }
+
 
 // ─── Tabla: casos_reposicion ─────────────────────────────────
 export interface CasoReposicion {

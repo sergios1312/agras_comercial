@@ -1,4 +1,5 @@
 import { createClient } from "@/utils/supabase/server";
+import { createAdminClient } from "@/utils/supabase/admin";
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
 import type { Metadata } from "next";
@@ -15,6 +16,7 @@ export const metadata: Metadata = {
 };
 
 export default async function InventarioPage() {
+  // Cliente normal: solo para verificar sesión (usa ANON_KEY + cookies)
   const supabase = await createClient();
 
   // Verificar sesión
@@ -25,19 +27,23 @@ export default async function InventarioPage() {
   const ciudadUsuario = user.ciudad ?? sucursalOrigen;
   const isAdmin = user.role === "admin";
 
+  // Cliente admin: bypasea RLS para que cualquier rol pueda leer todos los datos
+  const db = createAdminClient();
+
   // ─── Fetch de datos en paralelo (Recursivo para tablas grandes) ─────
   // Nota: fetchAll maneja el bucle de 1000 en 1000 automáticamente
   const [repuestos, sucursalesRes, inventario, historial, casosReposicion] = await Promise.all([
-    fetchAll<import("@/types/database.types").Repuesto>(supabase.from("repuestos").select("*")),
-    supabase.from("sucursales").select("id, nombre_ciudad"),
-    fetchAll<InventarioRow>(supabase.from("inventario").select("id, repuesto_id, sucursal_id, cantidad")),
+    fetchAll<import("@/types/database.types").Repuesto>(db.from("repuestos").select("*")),
+    db.from("sucursales").select("id, nombre_ciudad"),
+    fetchAll<InventarioRow>(db.from("inventario").select("id, repuesto_id, sucursal_id, cantidad")),
     fetchAll<HistorialPedido>(
-      supabase.from("historial_pedidos").select("*").order("fecha_pedido", { ascending: false })
+      db.from("historial_pedidos").select("*").order("fecha_pedido", { ascending: false })
     ),
     fetchAll<CasoReposicion>(
-      supabase.from("casos_reposicion").select("*").order("fecha", { ascending: false })
+      db.from("casos_reposicion").select("*").order("fecha", { ascending: false })
     ),
   ]);
+
 
   const sucursales = (sucursalesRes.data as unknown as import("@/types/database.types").Sucursal[]) ?? [];
 

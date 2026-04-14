@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import { Badge, estadoToVariant } from "@/components/ui/Badge";
 import { formatDate } from "@/lib/utils";
+import { FechasPopover } from "@/components/inventario/FechasPopover";
 import { 
   actualizarEstadoPedido, 
   actualizarEstadoPedidoTecnico,
@@ -427,11 +428,12 @@ function TablaPedidos({
   mostrarDestino = true,
   ocultarTipo = false,
   isReposicion = false,
-  isPedidosActuales = false, // Modo especial para mostrar la columna 'Despachado' y validaciones,
-  validCasos = [], // Para validar despachos
+  isPedidosActuales = false,
+  validCasos = [],
   onActualizarEstado,
   onEditarPedido,
-  onUpdateCasoReposicion
+  onUpdateCasoReposicion,
+  onFechasUpdated,
 }: {
   pedidos: HistorialPedido[];
   isAdmin: boolean;
@@ -444,6 +446,7 @@ function TablaPedidos({
   onActualizarEstado?: (id: number, estado: EstadoPedido) => Promise<void>;
   onEditarPedido?: (pedido: HistorialPedido) => void;
   onUpdateCasoReposicion?: (id: number, val: string) => void;
+  onFechasUpdated?: (id: number, fechas: Partial<HistorialPedido>) => void;
 }) {
   const [pag, setPag] = useState(0);
   const POR_PAG = 15;
@@ -543,7 +546,9 @@ function TablaPedidos({
                           </div>
                       </td>
                     )}
-                    <td className="px-4 py-3 text-[11px] text-slate-400 whitespace-nowrap">{formatDate(p.fecha_pedido)}</td>
+                    <td className="px-4 py-3">
+                      <FechasPopover pedido={p} isAdmin={isAdmin} onFechasUpdated={onFechasUpdated} />
+                    </td>
                     <td className="px-4 py-3 font-mono text-indigo-400 text-[11px]">{p.repuesto_codigo}</td>
                     <td className="px-4 py-3 text-[11px] text-slate-200 max-w-xs truncate" title={p.repuesto_nombre}>{p.repuesto_nombre}</td>
                     <td className="px-4 py-3 font-mono text-slate-300 text-[11px]">{p.numero_caso}</td>
@@ -701,7 +706,8 @@ function VistaAdmin({
   onUpdateCasoReposicion,
   onCrearCasoReposicion,
   onEditarCasoReposicion,
-  onEliminarCasoReposicion
+  onEliminarCasoReposicion,
+  onFechasUpdated,
 }: {
   historial: HistorialPedido[];
   casosReposicion: CasoReposicion[];
@@ -713,6 +719,7 @@ function VistaAdmin({
   onCrearCasoReposicion: (datos: any) => Promise<void>;
   onEditarCasoReposicion: (id: number, datos: any) => Promise<void>;
   onEliminarCasoReposicion: (id: number) => Promise<void>;
+  onFechasUpdated: (id: number, fechas: Partial<HistorialPedido>) => void;
 }) {
   const tabs: { id: TipoReporte | "aprobaciones"; label: string; icon: React.ReactNode }[] = [
     { id: "aprobaciones",  label: "Aprobaciones",     icon: <CheckCircle2 className="w-3.5 h-3.5" /> },
@@ -776,6 +783,7 @@ function VistaAdmin({
           isAdmin
           onActualizarEstado={onActualizarEstado}
           onEditarPedido={onEditarPedido}
+          onFechasUpdated={onFechasUpdated}
         />
       ) : (
         <div className="space-y-8">
@@ -789,11 +797,12 @@ function VistaAdmin({
               isAdmin
               ocultarTipo={true}
               isReposicion={activeTab === "Reposición"}
-              isPedidosActuales={true} // Habilita el check 'Despachado' y validaciones de strict dispatch
+              isPedidosActuales={true}
               validCasos={validCasos}
               onActualizarEstado={onActualizarEstado}
               onEditarPedido={onEditarPedido}
               onUpdateCasoReposicion={onUpdateCasoReposicion}
+              onFechasUpdated={onFechasUpdated}
             />
           </div>
 
@@ -824,6 +833,7 @@ function VistaAdmin({
               onActualizarEstado={onActualizarEstado}
               onEditarPedido={onEditarPedido}
               onUpdateCasoReposicion={onUpdateCasoReposicion}
+              onFechasUpdated={onFechasUpdated}
             />
           </div>
         </div>
@@ -855,34 +865,47 @@ function VistaTecnico({
 }) {
   const [activeTab, setActiveTab] = useState<"misPedidos" | "aDespachar">("misPedidos");
 
+  // Normalizar ciudad para comparación case-insensitive
+  const ciudadNorm = ciudadUsuario.toLowerCase().trim();
+
   // ── MIS PEDIDOS: pedidos donde esta sucursal es el destino (ella recibe)
-  const misPedidosTodos = historial.filter((p) => p.tecnico_destino === ciudadUsuario);
+  // Comparación case-insensitive para cubrir datos históricos con capitalización distinta
+  const misPedidosTodos = historial.filter(
+    (p) => p.tecnico_destino.toLowerCase().trim() === ciudadNorm
+  );
   // Activos: estados que no son terminales
   const misPedidosActivos = misPedidosTodos.filter(
     (p) => p.estado === "Pendiente" || p.estado === "Aprobado" || p.estado === "Enviado"
   );
-  // Historial: Finalizado
+  // Historial: Finalizado o Rechazado
   const misPedidosHistorial = misPedidosTodos.filter(
     (p) => p.estado === "Finalizado" || p.estado === "Rechazado"
   );
 
   // ── A DESPACHAR: pedidos donde esta sucursal es el origen (ella despacha) y el destino es distinto
   const aDespacharTodos = historial.filter(
-    (p) => p.sucursal_origen === ciudadUsuario && p.tecnico_destino !== ciudadUsuario
+    (p) =>
+      p.sucursal_origen.toLowerCase().trim() === ciudadNorm &&
+      p.tecnico_destino.toLowerCase().trim() !== ciudadNorm
   );
   // Pedidos a realizar: estados activos (Aprobado, Pendiente)
   const aDespacharActivos = aDespacharTodos.filter(
     (p) => p.estado === "Pendiente" || p.estado === "Aprobado"
   );
-  // Historial de pedidos despachados: Enviado, Recibido, Finalizado
+  // Historial de pedidos despachados: Enviado, Recibido, Finalizado, Rechazado
   const aDespacharHistorial = aDespacharTodos.filter(
-    (p) => p.estado === "Enviado" || p.estado === "Recibido" || p.estado === "Finalizado" || p.estado === "Rechazado"
+    (p) =>
+      p.estado === "Enviado" ||
+      p.estado === "Recibido" ||
+      p.estado === "Finalizado" ||
+      p.estado === "Rechazado"
   );
 
   const counts = {
     misPedidos: misPedidosTodos.length,
     aDespachar: aDespacharTodos.length,
   };
+
 
   return (
     <div className="space-y-4">
@@ -1007,7 +1030,9 @@ function TablaMisPedidos({
           <tbody>
             {pedidos.map((p, i) => (
               <tr key={p.id} className={`border-b border-slate-800 hover:bg-slate-800/50 transition-colors ${i % 2 === 0 ? "bg-slate-900" : "bg-slate-900/50"}`}>
-                <td className="px-4 py-3 text-[11px] text-slate-400 whitespace-nowrap">{formatDate(p.fecha_pedido)}</td>
+                <td className="px-4 py-3">
+                  <FechasPopover pedido={p} isAdmin={false} onFechasUpdated={undefined} />
+                </td>
                 <td className="px-4 py-3 font-mono text-indigo-400 text-[11px]">{p.repuesto_codigo}</td>
                 <td className="px-4 py-3 text-[11px] text-slate-200 max-w-xs truncate" title={p.repuesto_nombre}>{p.repuesto_nombre}</td>
                 <td className="px-4 py-3 font-mono text-slate-300 text-[11px]">{p.numero_caso}</td>
@@ -1068,7 +1093,9 @@ function TablaMisPedidosHistorial({ pedidos }: { pedidos: HistorialPedido[] }) {
           <tbody>
             {pedidos.map((p, i) => (
               <tr key={p.id} className={`border-b border-slate-800 hover:bg-slate-800/50 transition-colors ${i % 2 === 0 ? "bg-slate-900" : "bg-slate-900/50"}`}>
-                <td className="px-4 py-3 text-[11px] text-slate-400 whitespace-nowrap">{formatDate(p.fecha_pedido)}</td>
+                <td className="px-4 py-3">
+                  <FechasPopover pedido={p} isAdmin={false} onFechasUpdated={undefined} />
+                </td>
                 <td className="px-4 py-3 font-mono text-indigo-400 text-[11px]">{p.repuesto_codigo}</td>
                 <td className="px-4 py-3 text-[11px] text-slate-200 max-w-xs truncate" title={p.repuesto_nombre}>{p.repuesto_nombre}</td>
                 <td className="px-4 py-3 font-mono text-slate-300 text-[11px]">{p.numero_caso}</td>
@@ -1126,7 +1153,9 @@ function TablaADespachar({
           <tbody>
             {pedidos.map((p, i) => (
               <tr key={p.id} className={`border-b border-slate-800 hover:bg-slate-800/50 transition-colors ${i % 2 === 0 ? "bg-slate-900" : "bg-slate-900/50"}`}>
-                <td className="px-4 py-3 text-[11px] text-slate-400 whitespace-nowrap">{formatDate(p.fecha_pedido)}</td>
+                <td className="px-4 py-3">
+                  <FechasPopover pedido={p} isAdmin={false} onFechasUpdated={undefined} />
+                </td>
                 <td className="px-4 py-3 font-mono text-indigo-400 text-[11px]">{p.repuesto_codigo}</td>
                 <td className="px-4 py-3 text-[11px] text-slate-200 max-w-xs truncate" title={p.repuesto_nombre}>{p.repuesto_nombre}</td>
                 <td className="px-4 py-3 font-mono text-slate-300 text-[11px]">{p.numero_caso}</td>
@@ -1187,7 +1216,9 @@ function TablaDespachadosHistorial({ pedidos }: { pedidos: HistorialPedido[] }) 
           <tbody>
             {pedidos.map((p, i) => (
               <tr key={p.id} className={`border-b border-slate-800 hover:bg-slate-800/50 transition-colors ${i % 2 === 0 ? "bg-slate-900" : "bg-slate-900/50"}`}>
-                <td className="px-4 py-3 text-[11px] text-slate-400 whitespace-nowrap">{formatDate(p.fecha_pedido)}</td>
+                <td className="px-4 py-3">
+                  <FechasPopover pedido={p} isAdmin={false} onFechasUpdated={undefined} />
+                </td>
                 <td className="px-4 py-3 font-mono text-indigo-400 text-[11px]">{p.repuesto_codigo}</td>
                 <td className="px-4 py-3 text-[11px] text-slate-200 max-w-xs truncate" title={p.repuesto_nombre}>{p.repuesto_nombre}</td>
                 <td className="px-4 py-3 font-mono text-slate-300 text-[11px]">{p.numero_caso}</td>
@@ -1247,6 +1278,11 @@ export function HistorialTab({ historial, casosReposicion = [], isAdmin, ciudadU
   async function handleActualizarEstadoTecnico(id: number, estado: "Enviado" | "Finalizado") {
     setLocalHistorial(prev => prev.map(p => p.id === id ? { ...p, estado } : p));
     await actualizarEstadoPedidoTecnico(id, estado);
+  }
+
+  // Actualización optimista de fechas (admin)
+  function handleFechasUpdated(id: number, fechas: Partial<HistorialPedido>) {
+    setLocalHistorial(prev => prev.map(p => p.id === id ? { ...p, ...fechas } : p));
   }
 
   // ────────────────────────── SERVER ACTIONS CASOS REPOSICIÓN
@@ -1314,6 +1350,7 @@ export function HistorialTab({ historial, casosReposicion = [], isAdmin, ciudadU
           onCrearCasoReposicion={handleCrearCaso}
           onEditarCasoReposicion={handleEditarCaso}
           onEliminarCasoReposicion={handleEliminarCaso}
+          onFechasUpdated={handleFechasUpdated}
         />
       ) : (
         <VistaTecnico

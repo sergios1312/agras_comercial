@@ -33,7 +33,16 @@ export async function submitPedido(
 
   const sucursalOrigen = user.ciudad ?? "desconocido";
   const emailPrefix = user.usuario;
-  const sedeDestino = (formData.get("sede_destino") as string) || sucursalOrigen;
+  // IMPORTANTE: sede_destino llega como user.usuario (lowercase, ej: "chiclayo")
+  // pero historial_pedidos requiere user.ciudad (ej: "Chiclayo") para consistencia.
+  // Si el form envía un valor distinto a sucursalOrigen, usamos ese valor tal cual
+  // (solo aplica cuando admin selecciona una sede destino diferente).
+  // Para técnicos de sucursal, sedeDestino SIEMPRE debe ser user.ciudad.
+  const rawSedeDestino = (formData.get("sede_destino") as string) || "";
+  const sedeDestino = rawSedeDestino && rawSedeDestino !== user.usuario
+    ? rawSedeDestino   // admin eligió una sede destino diferente → respetar
+    : sucursalOrigen;  // técnico de sucursal → usar user.ciudad (capitalización correcta)
+
 
   // Parsear el carrito desde el formulario
   const carritoRaw = formData.get("carrito") as string;

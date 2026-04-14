@@ -6,11 +6,20 @@ import { getSession } from "@/lib/auth";
 import { calcularTipoReporte } from "@/lib/transferencias";
 import type { EstadoPedido, HistorialPedido, TipoReporte } from "@/types/database.types";
 
+// ─── Utilidad: fecha correspondiente al estado ────────────────────────
+function fechaParaEstado(estado: string): Record<string, string> {
+  const ahora = new Date().toISOString();
+  if (estado === "Aprobado")  return { fecha_aprobacion: ahora };
+  if (estado === "Enviado")   return { fecha_envio: ahora };
+  if (estado === "Recibido" || estado === "Finalizado") return { fecha_recepcion: ahora };
+  return {};
+}
+
 // ─── actualizarEstadoPedidoTecnico ───────────────────────────────────
 /**
  * Permite a un TÉCNICO de sucursal cambiar el estado de un pedido
  * a "Enviado" (despachar) o "Finalizado" (confirmar recepción).
- * NO requiere ser admin. Solo puede mover a esos dos estados.
+ * Auto-graba la fecha correspondiente al nuevo estado.
  */
 export async function actualizarEstadoPedidoTecnico(
   id: number,
@@ -24,7 +33,7 @@ export async function actualizarEstadoPedidoTecnico(
   const rawClient = supabase as unknown as any;
   const { error } = await rawClient
     .from("historial_pedidos")
-    .update({ estado: nuevoEstado })
+    .update({ estado: nuevoEstado, ...fechaParaEstado(nuevoEstado) })
     .eq("id", id);
 
   if (error) return { error: `Error al actualizar: ${error.message}` };
@@ -36,7 +45,7 @@ export async function actualizarEstadoPedidoTecnico(
 // ─── actualizarEstadoPedido ───────────────────────────────────
 /**
  * Permite al ADMIN cambiar el estado de un pedido en historial_pedidos.
- * Protección: verifica que el usuario sea admin antes del UPDATE.
+ * Auto-graba la fecha correspondiente al nuevo estado.
  */
 export async function actualizarEstadoPedido(
   id: number,
@@ -53,10 +62,51 @@ export async function actualizarEstadoPedido(
   const rawClient = supabase as unknown as any;
   const { error } = await rawClient
     .from("historial_pedidos")
-    .update({ estado: nuevoEstado })
+    .update({ estado: nuevoEstado, ...fechaParaEstado(nuevoEstado) })
     .eq("id", id);
 
   if (error) return { error: `Error al actualizar: ${error.message}` };
+
+  revalidatePath("/inventario");
+  return { error: null };
+}
+
+// ─── editarFechasPedido ───────────────────────────────────────
+/**
+ * Permite al ADMIN editar manualmente las fechas de trazabilidad de un pedido.
+ * Solo accesible para admins.
+ */
+export async function editarFechasPedido(
+  id: number,
+  fechas: {
+    fecha_pedido?: string | null;
+    fecha_aprobacion?: string | null;
+    fecha_envio?: string | null;
+    fecha_recepcion?: string | null;
+  }
+): Promise<{ error: string | null }> {
+  const supabase = await createClient();
+
+  const user = await getSession();
+  if (!user) return { error: "Sesión expirada." };
+
+  const isAdmin = user.role === "admin";
+  if (!isAdmin) return { error: "Solo el administrador puede editar fechas." };
+
+  // Filtrar campos undefined para no sobrescribir con null involuntariamente
+  const payload: Record<string, string | null> = {};
+  if (fechas.fecha_pedido    !== undefined) payload.fecha_pedido    = fechas.fecha_pedido    ?? null;
+  if (fechas.fecha_aprobacion !== undefined) payload.fecha_aprobacion = fechas.fecha_aprobacion ?? null;
+  if (fechas.fecha_envio     !== undefined) payload.fecha_envio     = fechas.fecha_envio     ?? null;
+  if (fechas.fecha_recepcion !== undefined) payload.fecha_recepcion  = fechas.fecha_recepcion ?? null;
+
+  const rawClient = supabase as unknown as any;
+  const { error } = await rawClient
+    .from("historial_pedidos")
+    .update(payload)
+    .eq("id", id);
+
+  if (error) return { error: `Error al editar fechas: ${error.message}` };
 
   revalidatePath("/inventario");
   return { error: null };
