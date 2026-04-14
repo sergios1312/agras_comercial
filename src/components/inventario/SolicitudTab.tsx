@@ -2,10 +2,11 @@
 
 import { useActionState, useEffect, useState } from "react";
 import { useFormStatus } from "react-dom";
-import { Trash2, ShoppingCart, Loader2, AlertCircle, CheckCircle2 } from "lucide-react";
+import { Trash2, ShoppingCart, Loader2, AlertCircle, CheckCircle2, Ban } from "lucide-react";
 import { esNumeroCasoValido } from "@/lib/utils";
 import { submitPedido, type PedidoState } from "@/app/(dashboard)/inventario/actions";
-import type { RepuestoConStock, ItemCarrito } from "@/types/database.types";
+import type { RepuestoConStock, ItemCarrito, ConfigPedidos } from "@/types/database.types";
+import { calcularTipoReporte } from "@/lib/transferencias";
 
 interface SolicitudTabProps {
   catalogo: RepuestoConStock[];
@@ -17,6 +18,7 @@ interface SolicitudTabProps {
     setCarrito: React.Dispatch<React.SetStateAction<ItemCarrito[]>>;
     clearCarrito: () => void;
   };
+  configPedidos: ConfigPedidos;
 }
 
 function SubmitBtn() {
@@ -38,7 +40,7 @@ function SubmitBtn() {
 const initialState: PedidoState = { error: null, success: null };
 
 export function SolicitudTab({
-  catalogo, sucursales, sucursalOrigen, isAdmin, carritoProps
+  catalogo, sucursales, sucursalOrigen, isAdmin, carritoProps, configPedidos
 }: SolicitudTabProps) {
   const [state, formAction] = useActionState(submitPedido, initialState);
   const [sedeDestino, setSedeDestino] = useState(isAdmin ? "" : sucursalOrigen);
@@ -47,6 +49,25 @@ export function SolicitudTab({
   // Derivamos si la solicitud entera es "Sin stock" basado en las sedes elegidas
   const isAnySinStock = carrito.some(i => i.sucursal_destino === "SIN_STOCK");
   const tipoSolicitud = isAnySinStock ? "Solicitud/Reserva sin stock" : "Consumo normal";
+
+  // ── Detección de tipo de pedido bloqueado ────────────────────
+  function getMensajeBloqueo(): string | null {
+    for (const item of carrito) {
+      const tipo = calcularTipoReporte(item.sucursal_destino);
+      if (tipo === "Abastecimiento" && !configPedidos.abastecimiento) {
+        return "No está permitido realizar pedidos de Abastecimiento por el momento.";
+      }
+      if (tipo === "Envío Interno" && !configPedidos.internos) {
+        return "No está permitido realizar Pedidos Internos (entre sucursales) por el momento.";
+      }
+      if (tipo === "Reposición" && !configPedidos.reposicion) {
+        return "No está permitido realizar Reposiciones (sin stock) por el momento.";
+      }
+    }
+    return null;
+  }
+
+  const mensajeBloqueo = getMensajeBloqueo();
 
   useEffect(() => {
     if (state.success) clearCarrito();
@@ -232,6 +253,17 @@ export function SolicitudTab({
             </div>
           </div>
 
+          {/* Banner de bloqueo por Admin */}
+          {mensajeBloqueo && (
+            <div className="flex items-start gap-3 p-4 bg-red-950/40 border border-red-500/40 rounded-xl">
+              <Ban className="w-5 h-5 text-red-400 shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm font-bold text-red-300 mb-0.5">Tipo de pedido inhabilitado</p>
+                <p className="text-sm text-red-400">{mensajeBloqueo}</p>
+              </div>
+            </div>
+          )}
+
           {/* Feedback del Server Action */}
           {state.error && (
             <div className="flex items-start gap-2 p-3 bg-red-900/30 border border-red-500/30 rounded-xl">
@@ -248,7 +280,14 @@ export function SolicitudTab({
 
           <div className="flex items-center justify-between pt-2">
             <p className="text-sm font-medium text-slate-400">{carrito.length} repuesto(s) listos para solicitar</p>
-            <SubmitBtn />
+            {mensajeBloqueo ? (
+              <div className="flex items-center gap-2 px-6 py-2.5 bg-slate-800 border border-red-500/30 text-red-400 text-sm font-semibold rounded-xl cursor-not-allowed opacity-70">
+                <Ban className="w-4 h-4" />
+                Pedido bloqueado
+              </div>
+            ) : (
+              <SubmitBtn />
+            )}
           </div>
         </form>
       )}

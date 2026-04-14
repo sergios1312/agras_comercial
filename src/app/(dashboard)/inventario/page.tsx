@@ -9,6 +9,7 @@ import { Search, Package, History } from "lucide-react";
 import { SUCURSALES_DATA } from "@/lib/constants";
 
 import { fetchAll } from "@/lib/db";
+import { getConfigPedidos } from "@/app/(dashboard)/inventario/config-actions";
 
 export const metadata: Metadata = {
   title: "Solicitudes de Repuestos",
@@ -32,7 +33,7 @@ export default async function InventarioPage() {
 
   // ─── Fetch de datos en paralelo (Recursivo para tablas grandes) ─────
   // Nota: fetchAll maneja el bucle de 1000 en 1000 automáticamente
-  const [repuestos, sucursalesRes, inventario, historial, casosReposicion] = await Promise.all([
+  const [repuestos, sucursalesRes, inventario, historial, casosReposicion, configPedidos] = await Promise.all([
     fetchAll<import("@/types/database.types").Repuesto>(db.from("repuestos").select("*")),
     db.from("sucursales").select("id, nombre_ciudad"),
     fetchAll<InventarioRow>(db.from("inventario").select("id, repuesto_id, sucursal_id, cantidad")),
@@ -42,6 +43,7 @@ export default async function InventarioPage() {
     fetchAll<CasoReposicion>(
       db.from("casos_reposicion").select("*").order("fecha", { ascending: false })
     ),
+    getConfigPedidos(),
   ]);
 
 
@@ -79,6 +81,7 @@ export default async function InventarioPage() {
         historial={historial}
         casosReposicion={casosReposicion}
         ciudadUsuario={ciudadUsuario}
+        configPedidos={configPedidos}
       />
     </div>
   );

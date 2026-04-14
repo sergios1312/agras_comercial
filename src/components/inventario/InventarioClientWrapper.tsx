@@ -5,8 +5,9 @@ import { Tabs } from "@/components/ui/Tabs";
 import { CatalogoTab } from "@/components/inventario/CatalogoTab";
 import { SolicitudTab } from "@/components/inventario/SolicitudTab";
 import { HistorialTab } from "@/components/inventario/HistorialTab";
+import { AdminConfigPanel } from "@/components/inventario/AdminConfigPanel";
 import { Search, Package, History } from "lucide-react";
-import type { RepuestoConStock, HistorialPedido, ItemCarrito, CasoReposicion } from "@/types/database.types";
+import type { RepuestoConStock, HistorialPedido, ItemCarrito, CasoReposicion, ConfigPedidos } from "@/types/database.types";
 import { generarIdTemporal } from "@/lib/utils";
 
 interface InventarioClientWrapperProps {
@@ -17,6 +18,7 @@ interface InventarioClientWrapperProps {
   historial: HistorialPedido[];
   casosReposicion: CasoReposicion[];
   ciudadUsuario: string;
+  configPedidos: ConfigPedidos;
 }
 
 export function InventarioClientWrapper({
@@ -26,7 +28,8 @@ export function InventarioClientWrapper({
   isAdmin,
   historial,
   casosReposicion,
-  ciudadUsuario
+  ciudadUsuario,
+  configPedidos
 }: InventarioClientWrapperProps) {
   const [carrito, setCarrito] = useState<ItemCarrito[]>([]);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -71,6 +74,13 @@ export function InventarioClientWrapper({
 
   return (
     <>
+      {/* Panel de control (solo admins) */}
+      {isAdmin && (
+        <div className="mb-4">
+          <AdminConfigPanel configInicial={configPedidos} />
+        </div>
+      )}
+
       <Tabs tabs={tabs} defaultTab="catalogo">
         <CatalogoTab 
           catalogo={catalogo} 
@@ -87,6 +97,7 @@ export function InventarioClientWrapper({
             setCarrito,
             clearCarrito
           }}
+          configPedidos={configPedidos}
         />
         <HistorialTab
           historial={historial}

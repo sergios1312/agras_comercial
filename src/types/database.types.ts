@@ -93,6 +93,21 @@ export interface CasoReposicion {
   ubicacion: string;
 }
 
+// ─── Tabla: configuracion_sistema ────────────────────────────
+export interface ConfiguracionSistema {
+  id: number;
+  clave: string;
+  valor: string;
+  updated_at: string;
+}
+
+/** Estado de habilitación de cada tipo de pedido */
+export interface ConfigPedidos {
+  abastecimiento: boolean; // pedidos_abastecimiento → destino Lima
+  internos: boolean;       // pedidos_internos → Envío Interno
+  reposicion: boolean;     // pedidos_reposicion → Sin Stock
+}
+
 // ─── Tipos UI ─────────────────────────────────────────────────
 
 /** Ítem dentro del carrito de pedidos (estado en memoria) */

@@ -7,6 +7,8 @@ import type { ItemCarrito, EstadoPedido } from "@/types/database.types";
 import { esNumeroCasoValido } from "@/lib/utils";
 import { enviarNotificacionPedido } from "@/lib/email";
 import { calcularTipoReporte } from "@/lib/transferencias";
+import { getConfigPedidos } from "@/app/(dashboard)/inventario/config-actions";
+
 
 export interface PedidoState {
   error: string | null;
@@ -60,7 +62,32 @@ export async function submitPedido(
   const tipoSolicitud = formData.get("tipo_solicitud") as string;
   const esSinStock = tipoSolicitud === "Solicitud/Reserva sin stock";
 
+  // ─── Validación de configuración de pedidos (server-side) ──
+  const configPedidos = await getConfigPedidos();
+  for (const item of carrito) {
+    const tipo = calcularTipoReporte(item.sucursal_destino);
+    if (tipo === "Abastecimiento" && !configPedidos.abastecimiento) {
+      return {
+        error: "No está permitido realizar pedidos de Abastecimiento por el momento.",
+        success: null,
+      };
+    }
+    if (tipo === "Envío Interno" && !configPedidos.internos) {
+      return {
+        error: "No está permitido realizar Pedidos Internos (entre sucursales) por el momento.",
+        success: null,
+      };
+    }
+    if (tipo === "Reposición" && !configPedidos.reposicion) {
+      return {
+        error: "No está permitido realizar Reposiciones (sin stock) por el momento.",
+        success: null,
+      };
+    }
+  }
+
   // ─── Validaciones por ítem ─────────────────────────────────
+
   for (const item of carrito) {
     // Regla 3: N° caso de 4 dígitos obligatorio (excepto ventas)
     if (!item.es_venta && !esNumeroCasoValido(item.numero_caso)) {
