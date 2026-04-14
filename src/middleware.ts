@@ -5,7 +5,7 @@ export function middleware(request: NextRequest) {
   const sessionCookie = request.cookies.get("sede_session")?.value;
 
   // Rutas del dashboard que requieren autenticación
-  const protectedPaths = ["/inventario", "/casos", "/estadisticas"];
+  const protectedPaths = ["/inventario", "/casos", "/estadisticas", "/administrador"];
   const isProtectedPath = protectedPaths.some((path) =>
     pathname.startsWith(path)
   );
