@@ -276,7 +276,9 @@ export function EstadisticasDashboard({
   const [estadoFiltro, setEstadoFiltro] = useState<EstadoFiltro>("TODOS");
   const [sucursalFiltro, setSucursalFiltro] = useState<string>("");
   const [garantiaFiltro, setGarantiaFiltro] = useState<string>("");   // F3
-  const [periodoFiltro, setPeriodoFiltro] = useState<string>("");
+  const [periodoFiltro, setPeriodoFiltro] = useState<string[]>([]);
+  const [ingresoFiltro, setIngresoFiltro] = useState<string>("");
+  const [openPeriodo, setOpenPeriodo] = useState<boolean>(false);
   const [estadoCasoFiltro, setEstadoCasoFiltro] = useState<string>(""); // F5
   const [tipoFiltro, setTipoFiltro] = useState<string>("");
   const [binSize, setBinSize] = useState<number>(5);
@@ -311,13 +313,15 @@ export function EstadisticasDashboard({
       if (!matchEstado(c)) return false;
       if (sucursalFiltro && c.sucursal !== sucursalFiltro) return false;
       if (garantiaFiltro && c.garantia !== garantiaFiltro) return false;
-      if (periodoFiltro && !periodoDesact && c.periodoMensual !== periodoFiltro) return false;
+      if (periodoFiltro.length > 0 && !periodoDesact && (!c.periodoMensual || !periodoFiltro.includes(c.periodoMensual))) return false;
+      if (ingresoFiltro === "INGRESADOS" && !c.fechaIngreso) return false;
+      if (ingresoFiltro === "NO INGRESADOS" && c.fechaIngreso) return false;
       if (estadoCasoFiltro && c.estadoCaso !== estadoCasoFiltro) return false;
       if (tipoFiltro && c.tipoTrabajo !== tipoFiltro) return false;
       return true;
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [casos, estadoFiltro, sucursalFiltro, garantiaFiltro, periodoFiltro, periodoDesact, estadoCasoFiltro, tipoFiltro]
+    [casos, estadoFiltro, sucursalFiltro, garantiaFiltro, periodoFiltro, periodoDesact, estadoCasoFiltro, tipoFiltro, ingresoFiltro]
   );
 
   // ── PieDistribucion: ignora F1 (para ver todas las sucursales) ─
@@ -326,20 +330,22 @@ export function EstadisticasDashboard({
     casos.filter((c) => {
       if (!matchEstado(c)) return false;
       if (garantiaFiltro && c.garantia !== garantiaFiltro) return false;
-      if (periodoFiltro && !periodoDesact && c.periodoMensual !== periodoFiltro) return false;
+      if (periodoFiltro.length > 0 && !periodoDesact && (!c.periodoMensual || !periodoFiltro.includes(c.periodoMensual))) return false;
+      if (ingresoFiltro === "INGRESADOS" && !c.fechaIngreso) return false;
+      if (ingresoFiltro === "NO INGRESADOS" && c.fechaIngreso) return false;
       if (estadoCasoFiltro && c.estadoCaso !== estadoCasoFiltro) return false;
       if (tipoFiltro && c.tipoTrabajo !== tipoFiltro) return false;
       return true;
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [casos, estadoFiltro, garantiaFiltro, periodoFiltro, periodoDesact, estadoCasoFiltro, tipoFiltro]
+    [casos, estadoFiltro, garantiaFiltro, periodoFiltro, periodoDesact, estadoCasoFiltro, tipoFiltro, ingresoFiltro]
   );
 
   // ── TablaResumenSucursal: SOLO F4 (Periodo) ──────────────────
   // Fotografia del mes general, ignora todo lo demás
   const casosResumen = useMemo(() =>
     casos.filter((c) => {
-      if (periodoFiltro && c.periodoMensual !== periodoFiltro) return false;
+      if (periodoFiltro.length > 0 && (!c.periodoMensual || !periodoFiltro.includes(c.periodoMensual))) return false;
       return true;
     }),
     [casos, periodoFiltro]
@@ -349,7 +355,7 @@ export function EstadisticasDashboard({
   const casosEficiencia = useMemo(() =>
     casos.filter((c) => {
       if (sucursalFiltro && c.sucursal !== sucursalFiltro) return false;
-      if (periodoFiltro && c.periodoMensual !== periodoFiltro) return false;
+      if (periodoFiltro.length > 0 && (!c.periodoMensual || !periodoFiltro.includes(c.periodoMensual))) return false;
       if (tipoFiltro && c.tipoTrabajo !== tipoFiltro) return false;
       return true;
     }),
@@ -371,7 +377,7 @@ export function EstadisticasDashboard({
   const casosSucursalSemaforo = useMemo(() =>
     casos.filter((c) => {
       if (garantiaFiltro && c.garantia !== garantiaFiltro) return false;
-      if (periodoFiltro && c.periodoMensual !== periodoFiltro) return false;
+      if (periodoFiltro.length > 0 && (!c.periodoMensual || !periodoFiltro.includes(c.periodoMensual))) return false;
       if (tipoFiltro && c.tipoTrabajo !== tipoFiltro) return false;
       return true;
     }),
@@ -381,7 +387,7 @@ export function EstadisticasDashboard({
   // ── Tab Demora/Garantía: F4, F5, F6. Ignora F1, F3 ─────────
   const casosDemoraSucursal = useMemo(() =>
     casos.filter((c) => {
-      if (periodoFiltro && c.periodoMensual !== periodoFiltro) return false;
+      if (periodoFiltro.length > 0 && (!c.periodoMensual || !periodoFiltro.includes(c.periodoMensual))) return false;
       if (estadoCasoFiltro && c.estadoCaso !== estadoCasoFiltro) return false;
       if (tipoFiltro && c.tipoTrabajo !== tipoFiltro) return false;
       return true;
@@ -392,7 +398,7 @@ export function EstadisticasDashboard({
   // ── Tab Demora/TipoTrabajo: F4, F5. Ignora F1, F3, F6 ───────
   const casosDemoraTabajo = useMemo(() =>
     casos.filter((c) => {
-      if (periodoFiltro && c.periodoMensual !== periodoFiltro) return false;
+      if (periodoFiltro.length > 0 && (!c.periodoMensual || !periodoFiltro.includes(c.periodoMensual))) return false;
       if (estadoCasoFiltro && c.estadoCaso !== estadoCasoFiltro) return false;
       return true;
     }),
@@ -404,7 +410,7 @@ export function EstadisticasDashboard({
     casos.filter((c) => {
       if (sucursalFiltro && c.sucursal !== sucursalFiltro) return false;
       if (garantiaFiltro && c.garantia !== garantiaFiltro) return false;
-      if (periodoFiltro && c.periodoMensual !== periodoFiltro) return false;
+      if (periodoFiltro.length > 0 && (!c.periodoMensual || !periodoFiltro.includes(c.periodoMensual))) return false;
       return true;
     }),
     [casos, sucursalFiltro, garantiaFiltro, periodoFiltro]
@@ -415,7 +421,7 @@ export function EstadisticasDashboard({
     casos.filter((c) => {
       if (sucursalFiltro && c.sucursal !== sucursalFiltro) return false;
       if (garantiaFiltro && c.garantia !== garantiaFiltro) return false;
-      if (periodoFiltro && c.periodoMensual !== periodoFiltro) return false;
+      if (periodoFiltro.length > 0 && (!c.periodoMensual || !periodoFiltro.includes(c.periodoMensual))) return false;
       if (tipoFiltro && c.tipoTrabajo !== tipoFiltro) return false;
       return true;
     }),
@@ -428,7 +434,7 @@ export function EstadisticasDashboard({
     casos.filter((c) => {
       if (sucursalFiltro && c.sucursal !== sucursalFiltro) return false;
       if (garantiaFiltro && c.garantia !== garantiaFiltro) return false;
-      if (periodoFiltro && c.periodoMensual !== periodoFiltro) return false;
+      if (periodoFiltro.length > 0 && (!c.periodoMensual || !periodoFiltro.includes(c.periodoMensual))) return false;
       return true;
     }),
     [casos, sucursalFiltro, garantiaFiltro, periodoFiltro]
@@ -483,7 +489,7 @@ export function EstadisticasDashboard({
     [casosHeatmap]
   );
 
-  const hayFiltros = estadoFiltro !== "TODOS" || sucursalFiltro || garantiaFiltro || periodoFiltro || estadoCasoFiltro || tipoFiltro;
+  const hayFiltros = estadoFiltro !== "TODOS" || sucursalFiltro || garantiaFiltro || periodoFiltro.length > 0 || estadoCasoFiltro || ingresoFiltro || tipoFiltro;
 
   return (
     <div className="space-y-6">
@@ -496,7 +502,7 @@ export function EstadisticasDashboard({
           </div>
           {hayFiltros && (
             <button
-              onClick={() => { setEstadoFiltro("TODOS"); setSucursalFiltro(""); setGarantiaFiltro(""); setPeriodoFiltro(""); setEstadoCasoFiltro(""); setTipoFiltro(""); }}
+              onClick={() => { setEstadoFiltro("TODOS"); setSucursalFiltro(""); setGarantiaFiltro(""); setPeriodoFiltro([]); setEstadoCasoFiltro(""); setTipoFiltro(""); setIngresoFiltro(""); }}
               className="px-3 py-1 rounded-lg text-xs font-medium border border-slate-600 text-slate-500 hover:text-slate-200 hover:border-slate-400 transition-all"
             >
               ✕ Limpiar filtros
@@ -544,18 +550,52 @@ export function EstadisticasDashboard({
             <option value="SIN GARANTIA">SIN GARANTIA</option>
           </select>
 
-          {/* F4: Periodo */}
+                    {/* F4: Periodo (Multi-select) */}
+          <div className="relative">
+            <button
+              type="button"
+              disabled={periodoDesact}
+              onClick={() => setOpenPeriodo(!openPeriodo)}
+              className={`px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-xs flex items-center justify-between min-w-[140px] focus:outline-none focus:ring-1 focus:ring-indigo-500 transition-opacity
+                ${periodoDesact ? "opacity-40 cursor-not-allowed text-slate-600" : "text-slate-300"}`}
+            >
+              <span className="truncate pr-2">
+                {periodoDesact ? "Periodo (inactivo)" : periodoFiltro.length > 0 ? `${periodoFiltro.length} seleccionado(s)` : "Todos los periodos"}
+              </span>
+              <span className="text-[10px] opacity-70">▼</span>
+            </button>
+            {openPeriodo && !periodoDesact && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setOpenPeriodo(false)} />
+                <div className="absolute top-full mt-1 z-50 bg-slate-800 border border-slate-700 rounded-lg shadow-xl py-1 w-48 max-h-60 overflow-y-auto">
+                  {periodosDisponibles.map((p) => (
+                    <label key={p} className="flex items-center px-3 py-1.5 hover:bg-slate-700/50 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        className="mr-2 rounded border-slate-600 bg-slate-900 accent-indigo-500"
+                        checked={periodoFiltro.includes(p)}
+                        onChange={(e) => {
+                          if (e.target.checked) setPeriodoFiltro((prev) => [...prev, p]);
+                          else setPeriodoFiltro((prev) => prev.filter((item) => item !== p));
+                        }}
+                      />
+                      <span className="text-xs text-slate-300">{p}</span>
+                    </label>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* F7: Ingreso */}
           <select
-            value={periodoFiltro}
-            onChange={(e) => setPeriodoFiltro(e.target.value)}
-            disabled={periodoDesact}
-            className={`px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500 transition-opacity
-              ${periodoDesact ? "opacity-40 cursor-not-allowed text-slate-600" : "text-slate-300"}`}
+            value={ingresoFiltro}
+            onChange={(e) => setIngresoFiltro(e.target.value)}
+            className="px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-xs text-slate-300 focus:outline-none focus:ring-1 focus:ring-indigo-500"
           >
-            <option value="">{periodoDesact ? "Periodo (inactivo)" : "Todos los periodos"}</option>
-            {periodosDisponibles.map((p) => (
-              <option key={p} value={p}>{p}</option>
-            ))}
+            <option value="">Ingreso (Todos)</option>
+            <option value="INGRESADOS">Ingresados</option>
+            <option value="NO INGRESADOS">No ingresados</option>
           </select>
 
           {/* F5: Estado de Caso */}

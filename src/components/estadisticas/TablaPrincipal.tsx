@@ -31,6 +31,7 @@ export function TablaPrincipal({ casos }: Props) {
               <th className="text-left px-3 py-2.5 text-slate-400 font-semibold uppercase tracking-widest">N°</th>
               <th className="text-left px-3 py-2.5 text-slate-400 font-semibold uppercase tracking-widest">Estado</th>
               <th className="text-left px-3 py-2.5 text-slate-400 font-semibold uppercase tracking-widest">Sucursal</th>
+              <th className="text-left px-3 py-2.5 text-slate-400 font-semibold uppercase tracking-widest">Cliente</th>
               <th className="text-left px-3 py-2.5 text-slate-400 font-semibold uppercase tracking-widest">Tipo Trabajo</th>
               <th className="text-left px-3 py-2.5 text-slate-400 font-semibold uppercase tracking-widest">Ingreso</th>
               <th className="text-left px-3 py-2.5 text-slate-400 font-semibold uppercase tracking-widest">Salida</th>
@@ -41,7 +42,7 @@ export function TablaPrincipal({ casos }: Props) {
           <tbody>
             {casos.map((c) => (
               <tr key={c.id} className="border-t border-slate-800 hover:bg-slate-800/40 transition-colors">
-                <td className="px-3 py-2 text-slate-400 font-mono">{c.id}</td>
+                <td className="px-3 py-2 text-slate-400 font-mono">{c.numeracionCaso}</td>
                 <td className="px-3 py-2">
                   <span className={`px-2 py-0.5 rounded-full text-xs font-medium border
                     ${c.estadoGeneral === "CERRADO"
@@ -51,6 +52,7 @@ export function TablaPrincipal({ casos }: Props) {
                   </span>
                 </td>
                 <td className="px-3 py-2 text-slate-300">{c.sucursal}</td>
+                <td className="px-3 py-2 text-slate-400 max-w-[180px] truncate">{c.cliente || "—"}</td>
                 <td className="px-3 py-2 text-slate-400 max-w-[180px] truncate">{c.tipoTrabajo || "—"}</td>
                 <td className="px-3 py-2 text-slate-400 font-mono">{formatFecha(c.fechaIngreso)}</td>
                 <td className="px-3 py-2 text-slate-400 font-mono">{formatFecha(c.fechaSalida)}</td>
