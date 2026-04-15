@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
 import { createClient } from "@/utils/supabase/server";
 import { getSession } from "@/lib/auth";
 import type { ItemCarrito, EstadoPedido } from "@/types/database.types";
@@ -199,10 +200,15 @@ export async function submitPedido(
 
   revalidatePath("/inventario");
 
-  // ── Notificación por email (async, no bloquea respuesta) ─────
-  // El error de email es silenciado internamente en enviarNotificacionPedido
+  // ── Notificación por email (async vía `after` de Next.js 15) ──
+  // El envío de SMTP tarda 2-4 segundos. Al envolverlo en `after`, 
+  // le decimos a Vercel que procese esto DESPUÉS de enviarle la 
+  // respuesta final al usuario, cortando la demora a cero.
   const solicitanteStr = user.usuario ?? "desconocido";
-  void enviarNotificacionPedido(solicitanteStr, sedeDestino, carrito, esSinStock, configPedidos.modo_prueba);
+  const modoPrueba = configPedidos.modo_prueba;
+  after(() => {
+    void enviarNotificacionPedido(solicitanteStr, sedeDestino, carrito, esSinStock, modoPrueba);
+  });
 
   return {
     error: null,
