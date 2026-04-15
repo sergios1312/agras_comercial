@@ -92,8 +92,7 @@ export async function submitPedido(
     }
   }
 
-  // ─── Validaciones por ítem ─────────────────────────────────
-
+  // ─── Validación de ítems (reglas sin DB) ────────────────────
   for (const item of carrito) {
     // Regla 3: N° caso de 4 dígitos obligatorio (excepto ventas)
     if (!item.es_venta && !esNumeroCasoValido(item.numero_caso)) {
@@ -111,34 +110,49 @@ export async function submitPedido(
       };
     }
 
-    // Regla 1: En consumo normal, validar stock
-    if (!esSinStock && !item.es_venta) {
-      if (!item.sucursal_destino) {
-        return { error: `Debes seleccionar una sede de destino para "${item.nombre}".`, success: null };
-      }
-      
+    // Regla 1: En consumo normal verificar que hay sede seleccionada
+    if (!esSinStock && !item.es_venta && !item.sucursal_destino) {
+      return { error: `Debes seleccionar una sede de destino para "${item.nombre}".`, success: null };
+    }
+  }
+
+  // ─── Validación de stock en LOTE (1 sola consulta) ──────────
+  // Recopilamos todos los inv_ids de ítems que necesitan validación de stock.
+  if (!esSinStock) {
+    const itemsConStock = carrito.filter(i => !i.es_venta && i.sucursal_destino);
+
+    // Mapa invId → item para poder reportar el nombre al fallar
+    const invIdAItem = new Map<number, ItemCarrito>();
+    for (const item of itemsConStock) {
       const invId = item.inv_ids?.[item.sucursal_destino];
-      
       if (!invId) {
         return {
           error: `Stock insuficiente para "${item.nombre}". Disponible: 0, pedido: ${item.cantidad}.`,
           success: null,
         };
       }
+      invIdAItem.set(invId, item);
+    }
 
-      // Consultar stock actual (validación en servidor, no en cliente)
-      const { data: invData } = await supabase
+    if (invIdAItem.size > 0) {
+      // UNA sola consulta para todos los ítems
+      const { data: stocks } = await supabase
         .from("inventario")
         .select("id, cantidad")
-        .eq("id", invId)
-        .single();
+        .in("id", [...invIdAItem.keys()]);
 
-      const inv = invData as unknown as { id: number; cantidad: number } | null;
-      if (!inv || inv.cantidad < item.cantidad) {
-        return {
-          error: `Stock insuficiente para "${item.nombre}". Disponible: ${inv?.cantidad ?? 0}, pedido: ${item.cantidad}.`,
-          success: null,
-        };
+      const stockMap = new Map(
+        (stocks as unknown as { id: number; cantidad: number }[] ?? []).map(r => [r.id, r.cantidad])
+      );
+
+      for (const [invId, item] of invIdAItem) {
+        const disponible = stockMap.get(invId) ?? 0;
+        if (disponible < item.cantidad) {
+          return {
+            error: `Stock insuficiente para "${item.nombre}". Disponible: ${disponible}, pedido: ${item.cantidad}.`,
+            success: null,
+          };
+        }
       }
     }
   }
@@ -169,19 +183,18 @@ export async function submitPedido(
     return { error: `Error al registrar el pedido: ${insertError.message}`, success: null };
   }
 
-  // ─── Descuento de inventario (solo consumo normal y no modo prueba) ─
+  // ─── Descuento de inventario en PARALELO (no modo prueba) ───
   if (!esSinStock && !configPedidos.modo_prueba) {
-    for (const item of carrito.filter((i) => !i.es_venta)) {
-      const invIds = (item as unknown as any).inv_ids as Record<string, number> | undefined;
-      const invId = invIds?.[item.sucursal_destino];
-      if (invId) {
+    const updates = carrito
+      .filter(i => !i.es_venta)
+      .flatMap(item => {
+        const invId = (item.inv_ids as Record<string, number> | undefined)?.[item.sucursal_destino];
+        if (!invId) return [];
         const stockNuevo = item.stock_disponible - item.cantidad;
-        await rawClient
-          .from("inventario")
-          .update({ cantidad: stockNuevo })
-          .eq("id", invId);
-      }
-    }
+        return [rawClient.from("inventario").update({ cantidad: stockNuevo }).eq("id", invId)];
+      });
+    // Todos los UPDATEs en paralelo — un solo roundtrip de latencia
+    await Promise.all(updates);
   }
 
   revalidatePath("/inventario");
