@@ -10,6 +10,7 @@ const CONFIG_DEFAULT: ConfigPedidos = {
   abastecimiento: true,
   internos: true,
   reposicion: true,
+  modo_prueba: false,
 };
 
 /**
@@ -23,7 +24,7 @@ export async function getConfigPedidos(): Promise<ConfigPedidos> {
     const { data, error } = await (db as unknown as any)
       .from("configuracion_sistema")
       .select("clave, valor")
-      .in("clave", ["pedidos_abastecimiento", "pedidos_internos", "pedidos_reposicion"]);
+      .in("clave", ["pedidos_abastecimiento", "pedidos_internos", "pedidos_reposicion", "modo_prueba"]);
 
     if (error || !data) return CONFIG_DEFAULT;
 
@@ -34,6 +35,7 @@ export async function getConfigPedidos(): Promise<ConfigPedidos> {
       abastecimiento: map["pedidos_abastecimiento"] ?? true,
       internos: map["pedidos_internos"] ?? true,
       reposicion: map["pedidos_reposicion"] ?? true,
+      modo_prueba: map["modo_prueba"] ?? false,
     };
   } catch {
     return CONFIG_DEFAULT;
@@ -46,7 +48,7 @@ export async function getConfigPedidos(): Promise<ConfigPedidos> {
  * Solo puede ser llamado por admins.
  */
 export async function updateConfigPedido(
-  clave: "pedidos_abastecimiento" | "pedidos_internos" | "pedidos_reposicion",
+  clave: "pedidos_abastecimiento" | "pedidos_internos" | "pedidos_reposicion" | "modo_prueba",
   habilitado: boolean
 ): Promise<{ error: string | null }> {
   const user = await getSession();
@@ -65,7 +67,14 @@ export async function updateConfigPedido(
 
     if (error) return { error: error.message };
 
+    // Acción especial: Limpiar registros si apagan modo prueba
+    if (clave === "modo_prueba" && !habilitado) {
+      // Usamos db admin para poder borrar donde sea
+      await (db as unknown as any).from("historial_pedidos_prueba").delete().neq('id', -1); // deletes all rows
+    }
+
     revalidatePath("/inventario");
+    revalidatePath("/administrador"); // Importante
     return { error: null };
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : "Error desconocido";

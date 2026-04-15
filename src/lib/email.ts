@@ -9,7 +9,6 @@ import {
   agruparPorSucursal,
   resolverReceptorPedido,
   generarCuerpoEmailHTML,
-  MODO_PRUEBA_EMAIL,
 } from "@/lib/transferencias";
 import { SUCURSALES_DATA } from "@/lib/constants";
 
@@ -37,24 +36,25 @@ const ADMIN_EMAIL =
  * Implementa el motor inteligente de correos descrito en la spec:
  * 1. Agrupa los ítems del carrito por sucursal_destino (batching)
  * 2. Para cada grupo → resuelve TO + CC con resolverReceptorPedido()
- * 3. Si MODO_PRUEBA_EMAIL=true → redirige TODO solo a ADMIN_EMAIL
+ * 3. Si modoPrueba=true → redirige TODO solo a ADMIN_EMAIL
  * 4. Genera el HTML del email y lo envía
  * 5. Errores de email son silenciados (NO bloquean el pedido)
  */
 export async function enviarNotificacionPedido(
   sucursalOrigen: string,
   carrito: ItemCarrito[],
-  esSinStock: boolean
+  esSinStock: boolean,
+  modoPrueba: boolean = false
 ): Promise<void> {
   try {
     const grupos = agruparPorSucursal(carrito);
 
     const envios = [...grupos.entries()].map(async ([destino, items]) => {
-      const { to, cc } = resolverReceptorPedido(destino || null);
+      const { to, cc } = resolverReceptorPedido(destino || null, modoPrueba);
 
       // Override táctico: modo prueba → solo al admin
-      const toFinal   = MODO_PRUEBA_EMAIL ? ADMIN_EMAIL : to;
-      const ccFinal   = MODO_PRUEBA_EMAIL ? [] : cc.filter(Boolean);
+      const toFinal   = modoPrueba ? ADMIN_EMAIL : to;
+      const ccFinal   = modoPrueba ? [] : cc.filter(Boolean);
 
       const grupoEsSinStock = esSinStock || !destino;
       const html = generarCuerpoEmailHTML(
@@ -65,7 +65,7 @@ export async function enviarNotificacionPedido(
         grupoEsSinStock
       );
 
-      const asunto = MODO_PRUEBA_EMAIL
+      const asunto = modoPrueba
         ? `[PRUEBA] Solicitud de repuestos — ${sucursalOrigen} → ${destino || "Sin Stock"} (${items.length} ítems)`
         : `📦 Solicitud de repuestos — ${sucursalOrigen} → ${destino || "Sin Stock"} (${items.length} ítems)`;
 
@@ -77,7 +77,7 @@ export async function enviarNotificacionPedido(
         html,
       });
 
-      if (MODO_PRUEBA_EMAIL) {
+      if (modoPrueba) {
         console.log(
           `[EMAIL PRUEBA] Destino real: ${to} → redirigido a ${ADMIN_EMAIL} | ${items.length} ítems para "${destino || "Sin Stock"}"`
         );

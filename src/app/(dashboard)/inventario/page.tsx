@@ -31,20 +31,32 @@ export default async function InventarioPage() {
   // Cliente admin: bypasea RLS para que cualquier rol pueda leer todos los datos
   const db = createAdminClient();
 
+  // Primero buscamos la configuración para saber si debemos traer las pruebas
+  const configPedidos = await getConfigPedidos();
+
   // ─── Fetch de datos en paralelo (Recursivo para tablas grandes) ─────
   // Nota: fetchAll maneja el bucle de 1000 en 1000 automáticamente
-  const [repuestos, sucursalesRes, inventario, historial, casosReposicion, configPedidos] = await Promise.all([
+  const [repuestos, sucursalesRes, inventario, historialOriginal, historialPrueba, casosReposicion] = await Promise.all([
     fetchAll<import("@/types/database.types").Repuesto>(db.from("repuestos").select("*")),
     db.from("sucursales").select("id, nombre_ciudad"),
     fetchAll<InventarioRow>(db.from("inventario").select("id, repuesto_id, sucursal_id, cantidad")),
     fetchAll<HistorialPedido>(
       db.from("historial_pedidos").select("*").order("fecha_pedido", { ascending: false })
     ),
+    configPedidos.modo_prueba 
+      ? fetchAll<HistorialPedido>(db.from("historial_pedidos_prueba").select("*").order("fecha_pedido", { ascending: false }))
+      : Promise.resolve([]),
     fetchAll<CasoReposicion>(
       db.from("casos_reposicion").select("*").order("fecha", { ascending: false })
     ),
-    getConfigPedidos(),
   ]);
+
+  // Si hay modo prueba, combinamos. Las pruebas tendrán prioridad visual si las ordenamos después.
+  // Pero para mantener el orden cronológico general, las concatenamos y reordenamos.
+  let historial = [...historialOriginal, ...historialPrueba];
+  if (configPedidos.modo_prueba && historialPrueba.length > 0) {
+    historial.sort((a, b) => new Date(b.fecha_pedido).getTime() - new Date(a.fecha_pedido).getTime());
+  }
 
 
   const sucursales = (sucursalesRes.data as unknown as import("@/types/database.types").Sucursal[]) ?? [];

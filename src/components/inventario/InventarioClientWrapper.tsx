@@ -34,6 +34,34 @@ export function InventarioClientWrapper({
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   const agregarAlCarrito = useCallback((r: RepuestoConStock) => {
+    // Selección automática de sede con mayor stock
+    const stockObj = r.stock_por_sucursal || {};
+    let maxStock = 0;
+    let sedesMax: string[] = [];
+    
+    for (const sede of Object.keys(stockObj)) {
+      const stockVal = stockObj[sede] ?? 0;
+      if (stockVal > maxStock) {
+        maxStock = stockVal;
+        sedesMax = [sede];
+      } else if (stockVal === maxStock && stockVal > 0) {
+        sedesMax.push(sede);
+      }
+    }
+
+    let defaultSede = "";
+    if (maxStock === 0) {
+      defaultSede = "SIN_STOCK";
+    } else {
+      const limaBranch = sedesMax.find(s => s.toLowerCase().includes("lima"));
+      if (limaBranch) {
+        defaultSede = limaBranch;
+      } else {
+        sedesMax.sort((a, b) => a.localeCompare(b));
+        defaultSede = sedesMax[0];
+      }
+    }
+
     const newItem: ItemCarrito = {
       id: generarIdTemporal(),
       repuesto_id: r.id,
@@ -42,9 +70,9 @@ export function InventarioClientWrapper({
       nombre_traducido: r.nombre_traducido ?? "",
       cantidad: 1,
       numero_caso: "",
-      sucursal_destino: "",
+      sucursal_destino: defaultSede,
       es_venta: false,
-      stock_disponible: 0,
+      stock_disponible: maxStock,
       inv_ids: r.inv_ids,
     };
     

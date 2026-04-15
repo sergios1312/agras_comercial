@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Settings2, Loader2, Truck, ArrowLeftRight, PackageX, CheckCircle2, XCircle } from "lucide-react";
+import { Settings2, Loader2, Truck, ArrowLeftRight, PackageX, CheckCircle2, XCircle, Beaker } from "lucide-react";
 import { updateConfigPedido } from "@/app/(dashboard)/inventario/config-actions";
 import type { ConfigPedidos } from "@/types/database.types";
 
@@ -9,7 +9,7 @@ interface AdminConfigPanelProps {
   configInicial: ConfigPedidos;
 }
 
-type ClaveConfig = "pedidos_abastecimiento" | "pedidos_internos" | "pedidos_reposicion";
+type ClaveConfig = "pedidos_abastecimiento" | "pedidos_internos" | "pedidos_reposicion" | "modo_prueba";
 
 interface SwitchItem {
   clave: ClaveConfig;
@@ -47,6 +47,15 @@ const SWITCHES: SwitchItem[] = [
     descripcion: "Solicitudes sin stock (requieren compra/importación)",
     icon: <PackageX className="w-4 h-4" />,
     colorActivo: "bg-amber-500",
+    colorInactivo: "bg-slate-600",
+  },
+  {
+    clave: "modo_prueba",
+    campo: "modo_prueba",
+    label: "Modo Prueba (Global)",
+    descripcion: "Pruebas sin afectar el historial real. Correos van a sergio.araujo@quetalcompra.com. ¡Se borra todo al apagar!",
+    icon: <Beaker className="w-4 h-4" />,
+    colorActivo: "bg-pink-500",
     colorInactivo: "bg-slate-600",
   },
 ];

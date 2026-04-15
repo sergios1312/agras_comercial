@@ -31,16 +31,33 @@ export default async function CasosPage() {
     );
   }
 
+  // Obtener configuración para ver si modo prueba está activo
+  const { getConfigPedidos } = await import("@/app/(dashboard)/inventario/config-actions");
+  const configPedidos = await getConfigPedidos();
+
   // Obtener fecha de la base de casos crudos directamente desde el archivo
   const fechaCasos = obtenerFechaCasos();
 
-  // Cargar todos los pedidos agrupados
-  const { data } = await supabase
+  // Cargar todos los pedidos reales
+  const { data: historialOriginal } = await supabase
     .from("historial_pedidos")
     .select("*")
     .order("fecha_pedido", { ascending: false });
 
-  const pedidos = (data ?? []) as HistorialPedido[];
+  let pedidos = (historialOriginal ?? []) as HistorialPedido[];
+
+  // Si hay modo prueba, traemos también las de prueba
+  if (configPedidos.modo_prueba) {
+    const { data: historialPrueba } = await supabase
+      .from("historial_pedidos_prueba")
+      .select("*");
+      
+    if (historialPrueba && historialPrueba.length > 0) {
+      pedidos = [...pedidos, ...(historialPrueba as HistorialPedido[])].sort(
+        (a, b) => new Date(b.fecha_pedido).getTime() - new Date(a.fecha_pedido).getTime()
+      );
+    }
+  }
 
   // KPIs globales
   const total = pedidos.length;

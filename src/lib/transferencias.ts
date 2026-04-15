@@ -9,11 +9,6 @@ import type { ItemCarrito } from "@/types/database.types";
 // ─── Tipos ───────────────────────────────────────────────────
 export type TipoReporte = "Abastecimiento" | "Reposición" | "Envío Interno";
 
-// ─── Constante de modo prueba ─────────────────────────────────
-// En true: todos los emails se redirigen solo a Sergio (admin@)
-// Cambiar a false cuando el sistema pase a producción real
-export const MODO_PRUEBA_EMAIL = true;
-
 // ─── Resolución de correos desde SUCURSALES_DATA ─────────────
 function getCorreo(usuario: string): string {
   return SUCURSALES_DATA.find((s) => s.usuario === usuario)?.correo ?? "";
@@ -40,16 +35,20 @@ export function calcularTipoReporte(destino: string | null | undefined): TipoRep
 
 /**
  * resolverReceptorPedido()
- * Devuelve el TO y CC según las reglas de enrutamiento de la spec.
- *
- * Sin Stock (Reposición)  → TO: Sergio, CC: [Jesus]
- * Lima (Abastecimiento)   → TO: Wilber, CC: [Jesus, Sergio]
- * Interna                 → TO: técnico de la sucursal, CC: [Jesus, Sergio]
+ * Devuelve el TO y CC según las reglas de enrutamiento de la spec y si es modo prueba.
  */
-export function resolverReceptorPedido(destino: string | null | undefined): {
+export function resolverReceptorPedido(
+  destino: string | null | undefined, 
+  modoPrueba: boolean = false
+): {
   to: string;
   cc: string[];
 } {
+  // Si está en modo prueba, forzar correos a Sergio
+  if (modoPrueba) {
+    return { to: SERGIO, cc: [] };
+  }
+
   const tipo = calcularTipoReporte(destino);
 
   if (tipo === "Reposición") {

@@ -64,8 +64,10 @@ export async function submitPedido(
 
   // ─── Validación de configuración de pedidos (solo usuarios no-admin) ──
   const isUserAdmin = user.role === "admin";
+  const configPedidos = await getConfigPedidos();
+
   if (!isUserAdmin) {
-    const configPedidos = await getConfigPedidos();
+
     for (const item of carrito) {
       const tipo = calcularTipoReporte(item.sucursal_destino);
       if (tipo === "Abastecimiento" && !configPedidos.abastecimiento) {
@@ -156,17 +158,18 @@ export async function submitPedido(
 
   // Casting a unknown antes de any para evitar advertencias de tipos si fuera necesario
   const rawClient = supabase as unknown as any;
+  const tablaDestino = configPedidos.modo_prueba ? "historial_pedidos_prueba" : "historial_pedidos";
 
   const { error: insertError } = await rawClient
-    .from("historial_pedidos")
+    .from(tablaDestino)
     .insert(inserts);
 
   if (insertError) {
     return { error: `Error al registrar el pedido: ${insertError.message}`, success: null };
   }
 
-  // ─── Descuento de inventario (solo consumo normal, no venta) ─
-  if (!esSinStock) {
+  // ─── Descuento de inventario (solo consumo normal y no modo prueba) ─
+  if (!esSinStock && !configPedidos.modo_prueba) {
     for (const item of carrito.filter((i) => !i.es_venta)) {
       const invIds = (item as unknown as any).inv_ids as Record<string, number> | undefined;
       const invId = invIds?.[item.sucursal_destino];
@@ -184,7 +187,7 @@ export async function submitPedido(
 
   // ── Notificación por email (async, no bloquea respuesta) ─────
   // El error de email es silenciado internamente en enviarNotificacionPedido
-  void enviarNotificacionPedido(sucursalOrigen, carrito, esSinStock);
+  void enviarNotificacionPedido(sucursalOrigen, carrito, esSinStock, configPedidos.modo_prueba);
 
   return {
     error: null,

@@ -106,6 +106,7 @@ export interface ConfigPedidos {
   abastecimiento: boolean; // pedidos_abastecimiento → destino Lima
   internos: boolean;       // pedidos_internos → Envío Interno
   reposicion: boolean;     // pedidos_reposicion → Sin Stock
+  modo_prueba: boolean;    // modo_prueba → Guardo en tabla prueba
 }
 
 // ─── Tipos UI ─────────────────────────────────────────────────
@@ -156,6 +157,11 @@ export interface Database {
         Update: Partial<Omit<InventarioRow, "id">>;
       };
       historial_pedidos: {
+        Row: HistorialPedido;
+        Insert: Omit<HistorialPedido, "id" | "fecha_pedido">;
+        Update: Partial<Omit<HistorialPedido, "id">>;
+      };
+      historial_pedidos_prueba: {
         Row: HistorialPedido;
         Insert: Omit<HistorialPedido, "id" | "fecha_pedido">;
         Update: Partial<Omit<HistorialPedido, "id">>;
