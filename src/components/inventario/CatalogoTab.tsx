@@ -58,7 +58,8 @@ export function CatalogoTab({ catalogo, sucursales, onAddCarrito }: CatalogoTabP
   const descargarCatalogoCSV = useCallback(() => {
     const headers = [
       "Código",
-      "Nombre",
+      "Nombre (ES)",
+      "Nombre (EN)",
       "SAP",
       "Modelos",
       "Precio",
@@ -70,7 +71,8 @@ export function CatalogoTab({ catalogo, sucursales, onAddCarrito }: CatalogoTabP
       const total = Object.values(r.stock_por_sucursal).reduce((acc, curr) => acc + (curr ?? 0), 0);
       return [
         r.codigo,
-        `"${(r.nombre_traducido || r.nombre).replace(/"/g, '""')}"`,
+        `"${(r.nombre_traducido || "").replace(/"/g, '""')}"`,
+        `"${(r.nombre || "").replace(/"/g, '""')}"`,
         r.codigo_sap || "",
         `"${(r.modelos_compatibles || "").replace(/"/g, '""')}"`,
         r.precio_venta != null ? r.precio_venta.toString() : "",
