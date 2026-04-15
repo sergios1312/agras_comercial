@@ -66,7 +66,7 @@ export function CatalogoTab({ catalogo, sucursales, onAddCarrito }: CatalogoTabP
       ...sucursales
     ];
 
-    const filas = resultados.map((r) => {
+    const filas = catalogo.map((r) => {
       const total = Object.values(r.stock_por_sucursal).reduce((acc, curr) => acc + (curr ?? 0), 0);
       return [
         r.codigo,
@@ -84,10 +84,10 @@ export function CatalogoTab({ catalogo, sucursales, onAddCarrito }: CatalogoTabP
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `importar_stock.csv`;
+    a.download = `catalogo_stock.csv`;
     a.click();
     URL.revokeObjectURL(url);
-  }, [resultados, sucursales]);
+  }, [catalogo, sucursales]);
 
   return (
     <div className="space-y-4">
@@ -125,7 +125,7 @@ export function CatalogoTab({ catalogo, sucursales, onAddCarrito }: CatalogoTabP
                        border border-slate-700 rounded-lg text-slate-300 font-medium transition-colors"
           >
             <Download className="w-3.5 h-3.5" />
-            Importar stock
+            Exportar Stock
           </button>
         </div>
         {config.lastUpdated && (
