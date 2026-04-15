@@ -19,7 +19,8 @@ export interface PedidoState {
  * submitPedido() — Server Action principal del módulo de inventario.
  * Implementa todas las reglas de negocio del Blueprint §3:
  *  1. Consumo normal: valida stock >= cantidad pedida para la sede seleccionada.
- *  2. Venta: solo permitido desde Lima. N° caso = "VENTA".
+ *  2. Venta: el repuesto DEBE provenir de Lima (sucursal_destino del ítem = Lima).
+ *     Cualquier sucursal puede solicitarlo, pero la sede de origen debe ser Lima.
  *  3. N° caso de exactamente 4 dígitos (excepto ventas).
  *  4. Sin stock: salta validación de inventario, estado = "Pendiente de abastecimiento".
  */
@@ -102,10 +103,10 @@ export async function submitPedido(
       };
     }
 
-    // Regla 2: Ventas solo desde Lima
-    if (item.es_venta && sucursalOrigen.toLowerCase() !== "lima") {
+    // Regla 2: Ventas solo cuando el repuesto proviene de Lima
+    if (item.es_venta && !item.sucursal_destino.toLowerCase().includes("lima")) {
       return {
-        error: `Las ventas solo pueden generarse desde Lima. Tu sucursal actual es "${sucursalOrigen}".`,
+        error: `Las ventas solo pueden realizarse cuando la sede de origen del repuesto es Lima. El ítem "${item.nombre}" tiene como origen "${item.sucursal_destino || 'Sin asignar'}".`,
         success: null,
       };
     }

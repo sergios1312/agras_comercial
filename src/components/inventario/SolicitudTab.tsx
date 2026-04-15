@@ -2,11 +2,13 @@
 
 import { useActionState, useEffect, useState } from "react";
 import { useFormStatus } from "react-dom";
-import { Trash2, ShoppingCart, Loader2, AlertCircle, CheckCircle2, Ban } from "lucide-react";
+import { Trash2, ShoppingCart, Loader2, AlertCircle, CheckCircle2, Ban, Eraser } from "lucide-react";
 import { esNumeroCasoValido } from "@/lib/utils";
 import { submitPedido, type PedidoState } from "@/app/(dashboard)/inventario/actions";
 import type { RepuestoConStock, ItemCarrito, ConfigPedidos } from "@/types/database.types";
 import { calcularTipoReporte } from "@/lib/transferencias";
+
+const LIMA_KEY = "lima"; // fragmento que debe estar en la sede Lima
 
 interface SolicitudTabProps {
   catalogo: RepuestoConStock[];
@@ -83,6 +85,17 @@ export function SolicitudTab({
       prev.map((item) => {
         if (item.id !== id) return item;
         const updated = { ...item, [campo]: valor };
+
+        if (campo === "es_venta" && valor === true) {
+          // Al marcar como venta, seleccionar automáticamente la primera sede que contenga "lima"
+          const sedeOrigen = sucursales.find(s => s.toLowerCase().includes(LIMA_KEY));
+          if (sedeOrigen) {
+            updated.sucursal_destino = sedeOrigen;
+            const repuesto = catalogo.find((r) => r.id === item.repuesto_id);
+            updated.stock_disponible = repuesto?.stock_por_sucursal[sedeOrigen] ?? 0;
+          }
+        }
+
         if (campo === "sucursal_destino") {
           if (valor === "SIN_STOCK") {
              updated.stock_disponible = 0;
@@ -139,9 +152,7 @@ export function SolicitudTab({
               <table className="w-full text-sm">
                 <thead>
                   <tr className="bg-slate-800/80 border-b border-slate-700">
-                    {isAdmin && (
-                      <th className="text-center px-1.5 py-3 text-[11px] font-semibold text-slate-400 uppercase tracking-widest w-12 border-r border-slate-700/50" title="Venta">V</th>
-                    )}
+                    <th className="text-center px-1.5 py-3 text-[11px] font-semibold text-slate-400 uppercase tracking-widest w-12 border-r border-slate-700/50" title="Venta">V</th>
                     <th className="text-left px-3 py-3 text-[11px] font-semibold text-slate-400 uppercase tracking-widest min-w-[100px]">Código</th>
                     <th className="text-left px-3 py-3 text-[11px] font-semibold text-slate-400 uppercase tracking-widest min-w-[150px]">Nombre</th>
                     <th className="text-center px-2 py-3 text-[11px] font-semibold text-slate-400 uppercase tracking-widest w-16">N° Caso</th>
@@ -170,8 +181,7 @@ export function SolicitudTab({
 
                     return (
                       <tr key={item.id} className={`border-b border-slate-800 transition-colors ${index % 2 === 0 ? "bg-slate-900" : "bg-slate-900/50"}`}>
-                        {isAdmin && (
-                          <td className="px-2 py-2 text-center border-r border-slate-700/50">
+                        <td className="px-2 py-2 text-center border-r border-slate-700/50">
                             <input
                               type="checkbox"
                               checked={item.es_venta}
@@ -179,12 +189,14 @@ export function SolicitudTab({
                               className="rounded border-slate-600 text-indigo-500 focus:ring-indigo-500 w-3.5 h-3.5"
                             />
                           </td>
-                        )}
                         <td className="px-3 py-3 font-mono text-indigo-400 text-[11px] min-w-[100px] whitespace-nowrap">{item.codigo}</td>
                         <td className="px-3 py-3 text-slate-200">
                           <p className="text-[11px] truncate max-w-[160px]" title={item.nombre}>{item.nombre}</p>
                           {!isValidDestination && <span className="text-[9px] text-red-500 mt-1 block">Selecciona origen</span>}
-                          {item.sucursal_destino && item.sucursal_destino !== "SIN_STOCK" && !stockSuficiente && (
+                          {item.es_venta && item.sucursal_destino && !item.sucursal_destino.toLowerCase().includes(LIMA_KEY) && (
+                            <span className="text-[9px] text-amber-400 mt-1 block">⚠ Origen debe ser Lima</span>
+                          )}
+                          {item.sucursal_destino && item.sucursal_destino !== "SIN_STOCK" && !item.es_venta && !stockSuficiente && (
                             <span className="text-[9px] text-red-400 mt-1 block">Stock Insuficiente (Hay: {item.stock_disponible})</span>
                           )}
                         </td>
@@ -280,7 +292,18 @@ export function SolicitudTab({
           )}
 
           <div className="flex items-center justify-between pt-2">
-            <p className="text-sm font-medium text-slate-400">{carrito.length} repuesto(s) listos para solicitar</p>
+            <div className="flex items-center gap-3">
+              <p className="text-sm font-medium text-slate-400">{carrito.length} repuesto(s) listos para solicitar</p>
+              <button
+                type="button"
+                onClick={clearCarrito}
+                title="Vaciar todo el carrito"
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-red-400 border border-red-500/30 rounded-lg hover:bg-red-500/10 transition-colors"
+              >
+                <Eraser className="w-3.5 h-3.5" />
+                Vaciar carrito
+              </button>
+            </div>
             {mensajeBloqueo ? (
               <div className="flex items-center gap-2 px-6 py-2.5 bg-slate-800 border border-red-500/30 text-red-400 text-sm font-semibold rounded-xl cursor-not-allowed opacity-70">
                 <Ban className="w-4 h-4" />

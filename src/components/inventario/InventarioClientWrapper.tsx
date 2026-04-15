@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { Tabs } from "@/components/ui/Tabs";
 import { CatalogoTab } from "@/components/inventario/CatalogoTab";
 import { SolicitudTab } from "@/components/inventario/SolicitudTab";
@@ -8,6 +8,8 @@ import { HistorialTab } from "@/components/inventario/HistorialTab";
 import { Search, Package, History } from "lucide-react";
 import type { RepuestoConStock, HistorialPedido, ItemCarrito, CasoReposicion, ConfigPedidos } from "@/types/database.types";
 import { generarIdTemporal } from "@/lib/utils";
+
+const CARRITO_STORAGE_KEY = "carrito_solicitudes";
 
 interface InventarioClientWrapperProps {
   catalogo: RepuestoConStock[];
@@ -30,8 +32,41 @@ export function InventarioClientWrapper({
   ciudadUsuario,
   configPedidos
 }: InventarioClientWrapperProps) {
-  const [carrito, setCarrito] = useState<ItemCarrito[]>([]);
+  // ── Carrito persistido en localStorage ──────────────────────
+  const [carrito, setCarritoState] = useState<ItemCarrito[]>([]);
+  const [carritoHidratado, setCarritoHidratado] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  // Hidratar desde localStorage al montar
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem(CARRITO_STORAGE_KEY);
+      if (stored) {
+        const parsed = JSON.parse(stored) as ItemCarrito[];
+        if (Array.isArray(parsed)) setCarritoState(parsed);
+      }
+    } catch {
+      /* storage no disponible o JSON inválido — ignora */
+    } finally {
+      setCarritoHidratado(true);
+    }
+  }, []);
+
+  // Persistir cada vez que cambia el carrito (solo después de hidratar)
+  useEffect(() => {
+    if (!carritoHidratado) return;
+    try {
+      localStorage.setItem(CARRITO_STORAGE_KEY, JSON.stringify(carrito));
+    } catch {
+      /* quota exceeded o modo privado — ignora */
+    }
+  }, [carrito, carritoHidratado]);
+
+  // Wrapper para que los escritores externos también persistan
+  const setCarrito: React.Dispatch<React.SetStateAction<ItemCarrito[]>> = useCallback(
+    (action) => setCarritoState(action),
+    []
+  );
 
   const agregarAlCarrito = useCallback((r: RepuestoConStock) => {
     // Selección automática de sede con mayor stock
@@ -86,7 +121,8 @@ export function InventarioClientWrapper({
   }, []);
 
   const clearCarrito = useCallback(() => {
-    setCarrito([]);
+    setCarritoState([]);
+    try { localStorage.removeItem(CARRITO_STORAGE_KEY); } catch { /* noop */ }
   }, []);
 
   const tabs = [
