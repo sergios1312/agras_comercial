@@ -9,6 +9,7 @@ import type { RepuestoConStock, ItemCarrito, ConfigPedidos } from "@/types/datab
 import { calcularTipoReporte } from "@/lib/transferencias";
 
 const LIMA_KEY = "lima"; // fragmento que debe estar en la sede Lima
+const SUBMIT_KEY = "pedido_enviando"; // flag anti-duplicación en sessionStorage
 
 interface SolicitudTabProps {
   catalogo: RepuestoConStock[];
@@ -23,18 +24,19 @@ interface SolicitudTabProps {
   configPedidos: ConfigPedidos;
 }
 
-function SubmitBtn() {
+function SubmitBtn({ isSubmitting }: { isSubmitting: boolean }) {
   const { pending } = useFormStatus();
+  const blocked = pending || isSubmitting;
   return (
     <button
       type="submit"
-      disabled={pending}
+      disabled={blocked}
       className="flex items-center gap-2 px-6 py-2.5 bg-indigo-600 hover:bg-indigo-500
                  text-white text-sm font-semibold rounded-xl transition-all duration-200
                  disabled:opacity-60 disabled:cursor-not-allowed shadow-lg shadow-indigo-600/20"
     >
-      {pending ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShoppingCart className="w-4 h-4" />}
-      {pending ? "Enviando..." : "🚀 Solicitar pedido"}
+      {blocked ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShoppingCart className="w-4 h-4" />}
+      {blocked ? "Enviando..." : "🚀 Solicitar pedido"}
     </button>
   );
 }
@@ -47,6 +49,19 @@ export function SolicitudTab({
   const [state, formAction] = useActionState(submitPedido, initialState);
   const [sedeDestino, setSedeDestino] = useState(isAdmin ? "" : sucursalOrigen);
   const { carrito, setCarrito, clearCarrito } = carritoProps;
+
+  // ── Anti-duplicación: persiste el estado "enviando" en sessionStorage ──
+  // Así el botón queda bloqueado aunque el usuario cambie de pestaña y el
+  // componente se desmonte/remonte antes de que el servidor responda.
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    try { return sessionStorage.getItem(SUBMIT_KEY) === "1"; } catch { return false; }
+  });
+
+  function handleSubmit() {
+    setIsSubmitting(true);
+    try { sessionStorage.setItem(SUBMIT_KEY, "1"); } catch { /* noop */ }
+  }
 
   // Derivamos si la solicitud entera es "Sin stock" basado en las sedes elegidas
   const isAnySinStock = carrito.some(i => i.sucursal_destino === "SIN_STOCK");
@@ -73,8 +88,13 @@ export function SolicitudTab({
   const mensajeBloqueo = getMensajeBloqueo();
 
   useEffect(() => {
-    if (state.success) clearCarrito();
-  }, [state.success, clearCarrito]);
+    if (state.success || state.error) {
+      // La acción del servidor terminó (éxito o error) → liberar bloqueo
+      setIsSubmitting(false);
+      try { sessionStorage.removeItem(SUBMIT_KEY); } catch { /* noop */ }
+      if (state.success) clearCarrito();
+    }
+  }, [state.success, state.error, clearCarrito]);
 
   function eliminarDelCarrito(id: string) {
     setCarrito((prev) => prev.filter((i) => i.id !== id));
@@ -113,7 +133,7 @@ export function SolicitudTab({
     <div className="space-y-6 pt-2">
       {/* Carrito */}
       {carrito.length > 0 && (
-        <form action={formAction} className="space-y-4">
+        <form action={formAction} onSubmit={handleSubmit} className="space-y-4">
           <input type="hidden" name="carrito" value={JSON.stringify(carrito)} />
           <input type="hidden" name="tipo_solicitud" value={tipoSolicitud} />
           <input type="hidden" name="sede_destino" value={sedeDestino || sucursalOrigen} />
@@ -310,7 +330,7 @@ export function SolicitudTab({
                 Pedido bloqueado
               </div>
             ) : (
-              <SubmitBtn />
+              <SubmitBtn isSubmitting={isSubmitting} />
             )}
           </div>
         </form>
