@@ -8,7 +8,7 @@ import type { RepuestoConStock, HistorialPedido, InventarioRow, CasoReposicion }
 import { Search, Package, History } from "lucide-react";
 import { SUCURSALES_DATA } from "@/lib/constants";
 
-import { fetchAll } from "@/lib/db";
+import { fetchAll, fetchAllParallel } from "@/lib/db";
 import { getConfigPedidos } from "@/app/(dashboard)/inventario/config-actions";
 
 export const metadata: Metadata = {
@@ -37,18 +37,14 @@ export default async function InventarioPage() {
   // ─── Fetch de datos en paralelo (Recursivo para tablas grandes) ─────
   // Nota: fetchAll maneja el bucle de 1000 en 1000 automáticamente
   const [repuestos, sucursalesRes, inventario, historialOriginal, historialPrueba, casosReposicion] = await Promise.all([
-    fetchAll<import("@/types/database.types").Repuesto>(db.from("repuestos").select("*")),
+    fetchAllParallel<import("@/types/database.types").Repuesto>(db, "repuestos", "*", "id"),
     db.from("sucursales").select("id, nombre_ciudad"),
-    fetchAll<InventarioRow>(db.from("inventario").select("id, repuesto_id, sucursal_id, cantidad")),
-    fetchAll<HistorialPedido>(
-      db.from("historial_pedidos").select("*").order("fecha_pedido", { ascending: false })
-    ),
+    fetchAllParallel<InventarioRow>(db, "inventario", "id, repuesto_id, sucursal_id, cantidad", "id"),
+    fetchAllParallel<HistorialPedido>(db, "historial_pedidos", "*", "fecha_pedido", false),
     configPedidos.modo_prueba 
-      ? fetchAll<HistorialPedido>(db.from("historial_pedidos_prueba").select("*").order("fecha_pedido", { ascending: false }))
+      ? fetchAllParallel<HistorialPedido>(db, "historial_pedidos_prueba", "*", "fecha_pedido", false)
       : Promise.resolve([]),
-    fetchAll<CasoReposicion>(
-      db.from("casos_reposicion").select("*").order("fecha", { ascending: false })
-    ),
+    fetchAllParallel<CasoReposicion>(db, "casos_reposicion", "*", "fecha", false),
   ]);
 
   // Si hay modo prueba, combinamos. Las pruebas tendrán prioridad visual si las ordenamos después.
