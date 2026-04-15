@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo, useTransition, useCallback } from "react";
-import { Search, Package2 } from "lucide-react";
+import { Search, Package2, Download } from "lucide-react";
 import { buscarRepuestos } from "@/lib/search";
 import { formatCurrency } from "@/lib/utils";
 import type { RepuestoConStock } from "@/types/database.types";
@@ -55,6 +55,40 @@ export function CatalogoTab({ catalogo, sucursales, onAddCarrito }: CatalogoTabP
     [catalogo, terminoActivo]
   );
 
+  const descargarCatalogoCSV = useCallback(() => {
+    const headers = [
+      "Código",
+      "Nombre",
+      "SAP",
+      "Modelos",
+      "Precio",
+      "Total",
+      ...sucursales
+    ];
+
+    const filas = resultados.map((r) => {
+      const total = Object.values(r.stock_por_sucursal).reduce((acc, curr) => acc + (curr ?? 0), 0);
+      return [
+        r.codigo,
+        `"${(r.nombre_traducido || r.nombre).replace(/"/g, '""')}"`,
+        r.codigo_sap || "",
+        `"${(r.modelos_compatibles || "").replace(/"/g, '""')}"`,
+        r.precio_venta != null ? r.precio_venta.toString() : "",
+        total.toString(),
+        ...sucursales.map(s => (r.stock_por_sucursal[s] ?? 0).toString())
+      ].join(",");
+    });
+
+    const csvContent = [headers.join(","), ...filas].join("\n");
+    const blob = new Blob(["\uFEFF" + csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `importar_stock.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }, [resultados, sucursales]);
+
   return (
     <div className="space-y-4">
       {/* Buscador */}
@@ -81,9 +115,19 @@ export function CatalogoTab({ catalogo, sucursales, onAddCarrito }: CatalogoTabP
 
       {/* Conteo de resultados y Fecha de actualización */}
       <div className="flex justify-between items-center text-xs text-slate-500">
-        <p>
-          {resultados.length} resultado(s){terminoActivo ? ` para "${terminoActivo}"` : ""}
-        </p>
+        <div className="flex items-center gap-4">
+          <p>
+            {resultados.length} resultado(s){terminoActivo ? ` para "${terminoActivo}"` : ""}
+          </p>
+          <button
+            onClick={descargarCatalogoCSV}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 
+                       border border-slate-700 rounded-lg text-slate-300 font-medium transition-colors"
+          >
+            <Download className="w-3.5 h-3.5" />
+            Importar stock
+          </button>
+        </div>
         {config.lastUpdated && (
           <p className="font-semibold text-indigo-400/80">
             Inventario actualizado el {config.lastUpdated}
