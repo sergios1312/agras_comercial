@@ -53,7 +53,8 @@ export default async function CasosPage() {
       .select("*");
       
     if (historialPrueba && historialPrueba.length > 0) {
-      pedidos = [...pedidos, ...(historialPrueba as HistorialPedido[])].sort(
+      const historialPruebaMarcado = (historialPrueba as HistorialPedido[]).map(p => ({ ...p, is_test: true }));
+      pedidos = [...pedidos, ...historialPruebaMarcado].sort(
         (a, b) => new Date(b.fecha_pedido).getTime() - new Date(a.fecha_pedido).getTime()
       );
     }

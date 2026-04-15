@@ -92,10 +92,10 @@ export function agruparPorSucursal(
  */
 export function generarCuerpoEmailHTML(
   solicitante: string,
-  sucursalOrigen: string,
-  destino: string | null,
+  origenRepuesto: string | null,
   items: ItemCarrito[],
-  esSinStock: boolean
+  esSinStock: boolean,
+  infoPrueba: { to: string, cc: string[] } | null = null
 ): string {
   const fecha = new Intl.DateTimeFormat("es-PE", {
     day: "2-digit",
@@ -105,7 +105,7 @@ export function generarCuerpoEmailHTML(
     minute: "2-digit",
   }).format(new Date());
 
-  const tipo = calcularTipoReporte(destino);
+  const tipo = calcularTipoReporte(origenRepuesto);
 
   const badgeSinStock = esSinStock
     ? `<div style="background:#fef3c7;border:1px solid #f59e0b;color:#92400e;padding:8px 14px;border-radius:6px;font-weight:600;margin-bottom:16px;">
@@ -144,12 +144,12 @@ export function generarCuerpoEmailHTML(
       ${badgeSinStock}
       <table style="width:100%;font-size:13px;color:#475569;">
         <tr>
-          <td style="padding:4px 0;"><strong>Solicitante:</strong></td>
-          <td style="padding:4px 0;">${solicitante} (${sucursalOrigen})</td>
+          <td style="padding:4px 0;"><strong>Origen del repuesto:</strong></td>
+          <td style="padding:4px 0;">${origenRepuesto ?? "Oficina Central (Sin Stock)"}</td>
         </tr>
         <tr>
-          <td style="padding:4px 0;"><strong>Destino:</strong></td>
-          <td style="padding:4px 0;">${destino ?? "Oficina Central (Sin Stock)"}</td>
+          <td style="padding:4px 0;"><strong>Destino (Solicitante):</strong></td>
+          <td style="padding:4px 0;">${solicitante}</td>
         </tr>
         <tr>
           <td style="padding:4px 0;"><strong>Tipo:</strong></td>
@@ -160,6 +160,14 @@ export function generarCuerpoEmailHTML(
           <td style="padding:4px 0;">${fecha}</td>
         </tr>
       </table>
+      ${infoPrueba 
+        ? `<div style="background:#e0e7ff;border:1px solid #6366f1;color:#3730a3;padding:12px;border-radius:6px;font-weight:600;margin-top:16px;">
+            🧪 MODO PRUEBA ACTIVO<br/>
+            <span style="font-weight:normal;font-size:12px;">El correo en modo normal llegaría a:<br/>
+            <strong>TO:</strong> ${infoPrueba.to}<br/>
+            <strong>CC:</strong> ${infoPrueba.cc.join(", ") || "Ninguno"}</span>
+           </div>`
+        : ""}
     </div>
 
     <!-- Tabla de repuestos -->

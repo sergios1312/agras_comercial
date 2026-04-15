@@ -134,7 +134,7 @@ export function FechasPopover({ pedido, isAdmin, onFechasUpdated }: FechasPopove
   ) {
     // Optimistic update
     onFechasUpdated?.(pedido.id, fechas);
-    await editarFechasPedido(pedido.id, fechas);
+    await editarFechasPedido(pedido.id, fechas, pedido.is_test);
   }
 
   const items: { label: string; value: string | null | undefined; icon: React.ReactNode; color: string }[] = [

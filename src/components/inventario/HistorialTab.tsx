@@ -1252,32 +1252,37 @@ export function HistorialTab({ historial, casosReposicion = [], isAdmin, ciudadU
 
   // Función de actualización de estado de repuesto (admin) 
   async function handleActualizarEstado(id: number, estado: EstadoPedido) {
+    const pedido = localHistorial.find(p => p.id === id);
     setLocalHistorial(prev => prev.map(p => p.id === id ? { ...p, estado } : p));
-    await actualizarEstadoPedido(id, estado);
+    await actualizarEstadoPedido(id, estado, pedido?.is_test);
   }
 
   // Edit in-line repuesto completo
   async function handleSaveEdicion(id: number, datos: Partial<HistorialPedido>) {
+    const pedido = localHistorial.find(p => p.id === id);
     setLocalHistorial(prev => prev.map(p => p.id === id ? { ...p, ...datos } : p));
-    await editarPedidoAdmin(id, datos);
+    await editarPedidoAdmin(id, datos, pedido?.is_test);
   }
 
   // Edit in-line del caso reposicion EN EL REPUESTO (Vincular)
   async function handleUpdateCasoReposicion(id: number, caso_reposicion: string) {
+    const pedido = localHistorial.find(p => p.id === id);
     setLocalHistorial(prev => prev.map(p => p.id === id ? { ...p, caso_reposicion } : p));
-    await editarPedidoAdmin(id, { caso_reposicion });
+    await editarPedidoAdmin(id, { caso_reposicion }, pedido?.is_test);
   }
 
   // Eliminar repuesto
   async function handleDelete(id: number) {
+    const pedido = localHistorial.find(p => p.id === id);
     setLocalHistorial(prev => prev.filter(p => p.id !== id));
-    await eliminarPedidoAdmin(id);
+    await eliminarPedidoAdmin(id, pedido?.is_test);
   }
 
   // Acción de técnico: despachar (Enviado) o confirmar recepción (Finalizado)
   async function handleActualizarEstadoTecnico(id: number, estado: "Enviado" | "Finalizado") {
+    const pedido = localHistorial.find(p => p.id === id);
     setLocalHistorial(prev => prev.map(p => p.id === id ? { ...p, estado } : p));
-    await actualizarEstadoPedidoTecnico(id, estado);
+    await actualizarEstadoPedidoTecnico(id, estado, pedido?.is_test);
   }
 
   // Actualización optimista de fechas (admin)

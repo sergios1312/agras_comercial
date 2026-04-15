@@ -187,7 +187,8 @@ export async function submitPedido(
 
   // ── Notificación por email (async, no bloquea respuesta) ─────
   // El error de email es silenciado internamente en enviarNotificacionPedido
-  void enviarNotificacionPedido(sucursalOrigen, carrito, esSinStock, configPedidos.modo_prueba);
+  const solicitanteStr = user.usuario ?? "desconocido";
+  void enviarNotificacionPedido(solicitanteStr, sedeDestino, carrito, esSinStock, configPedidos.modo_prueba);
 
   return {
     error: null,

@@ -81,6 +81,7 @@ export interface HistorialPedido {
   fecha_aprobacion?: string | null;
   fecha_envio?: string | null;
   fecha_recepcion?: string | null;
+  is_test?: boolean; // Bandera virtual para UI
 }
 
 

@@ -41,7 +41,8 @@ const ADMIN_EMAIL =
  * 5. Errores de email son silenciados (NO bloquean el pedido)
  */
 export async function enviarNotificacionPedido(
-  sucursalOrigen: string,
+  solicitante: string,
+  sedeDestinoFisico: string,
   carrito: ItemCarrito[],
   esSinStock: boolean,
   modoPrueba: boolean = false
@@ -58,16 +59,16 @@ export async function enviarNotificacionPedido(
 
       const grupoEsSinStock = esSinStock || !destino;
       const html = generarCuerpoEmailHTML(
-        sucursalOrigen,
-        sucursalOrigen,
+        `${solicitante} (${sedeDestinoFisico})`,
         destino || null,
         items,
-        grupoEsSinStock
+        grupoEsSinStock,
+        modoPrueba ? { to, cc } : null
       );
 
       const asunto = modoPrueba
-        ? `[PRUEBA] Solicitud de repuestos — ${sucursalOrigen} → ${destino || "Sin Stock"} (${items.length} ítems)`
-        : `📦 Solicitud de repuestos — ${sucursalOrigen} → ${destino || "Sin Stock"} (${items.length} ítems)`;
+        ? `[PRUEBA] Envío de repuestos — ${destino || "Sin Stock"} → ${sedeDestinoFisico} (${items.length} ítems)`
+        : `📦 Envío de repuestos — ${destino || "Sin Stock"} → ${sedeDestinoFisico} (${items.length} ítems)`;
 
       await transporter.sendMail({
         from: FROM,

@@ -23,7 +23,8 @@ function fechaParaEstado(estado: string): Record<string, string> {
  */
 export async function actualizarEstadoPedidoTecnico(
   id: number,
-  nuevoEstado: "Enviado" | "Finalizado"
+  nuevoEstado: "Enviado" | "Finalizado",
+  is_test: boolean = false
 ): Promise<{ error: string | null }> {
   const supabase = await createClient();
 
@@ -31,8 +32,9 @@ export async function actualizarEstadoPedidoTecnico(
   if (!user) return { error: "Sesión expirada." };
 
   const rawClient = supabase as unknown as any;
+  const tabla = is_test ? "historial_pedidos_prueba" : "historial_pedidos";
   const { error } = await rawClient
-    .from("historial_pedidos")
+    .from(tabla)
     .update({ estado: nuevoEstado, ...fechaParaEstado(nuevoEstado) })
     .eq("id", id);
 
@@ -49,7 +51,8 @@ export async function actualizarEstadoPedidoTecnico(
  */
 export async function actualizarEstadoPedido(
   id: number,
-  nuevoEstado: EstadoPedido
+  nuevoEstado: EstadoPedido,
+  is_test: boolean = false
 ): Promise<{ error: string | null }> {
   const supabase = await createClient();
 
@@ -60,8 +63,9 @@ export async function actualizarEstadoPedido(
   if (!isAdmin) return { error: "Solo el administrador puede cambiar estados." };
 
   const rawClient = supabase as unknown as any;
+  const tabla = is_test ? "historial_pedidos_prueba" : "historial_pedidos";
   const { error } = await rawClient
-    .from("historial_pedidos")
+    .from(tabla)
     .update({ estado: nuevoEstado, ...fechaParaEstado(nuevoEstado) })
     .eq("id", id);
 
@@ -83,7 +87,8 @@ export async function editarFechasPedido(
     fecha_aprobacion?: string | null;
     fecha_envio?: string | null;
     fecha_recepcion?: string | null;
-  }
+  },
+  is_test: boolean = false
 ): Promise<{ error: string | null }> {
   const supabase = await createClient();
 
@@ -101,8 +106,9 @@ export async function editarFechasPedido(
   if (fechas.fecha_recepcion !== undefined) payload.fecha_recepcion  = fechas.fecha_recepcion ?? null;
 
   const rawClient = supabase as unknown as any;
+  const tabla = is_test ? "historial_pedidos_prueba" : "historial_pedidos";
   const { error } = await rawClient
-    .from("historial_pedidos")
+    .from(tabla)
     .update(payload)
     .eq("id", id);
 
@@ -118,7 +124,8 @@ export async function editarFechasPedido(
  */
 export async function editarPedidoAdmin(
   id: number,
-  datos: Partial<Omit<HistorialPedido, "id">>
+  datos: Partial<Omit<HistorialPedido, "id">>,
+  is_test: boolean = false
 ): Promise<{ error: string | null }> {
   const supabase = await createClient();
 
@@ -129,8 +136,9 @@ export async function editarPedidoAdmin(
   if (!isAdmin) return { error: "Solo el administrador puede editar pedidos de forma completa." };
 
   const rawClient = supabase as unknown as any;
+  const tabla = is_test ? "historial_pedidos_prueba" : "historial_pedidos";
   const { error } = await rawClient
-    .from("historial_pedidos")
+    .from(tabla)
     .update(datos)
     .eq("id", id);
 
@@ -145,7 +153,8 @@ export async function editarPedidoAdmin(
  * Permite al ADMIN eliminar un pedido del historial por completo.
  */
 export async function eliminarPedidoAdmin(
-  id: number
+  id: number,
+  is_test: boolean = false
 ): Promise<{ error: string | null }> {
   const supabase = await createClient();
 
@@ -156,8 +165,9 @@ export async function eliminarPedidoAdmin(
   if (!isAdmin) return { error: "Solo el administrador puede eliminar pedidos." };
 
   const rawClient = supabase as unknown as any;
+  const tabla = is_test ? "historial_pedidos_prueba" : "historial_pedidos";
   const { error } = await rawClient
-    .from("historial_pedidos")
+    .from(tabla)
     .delete()
     .eq("id", id);
 

@@ -53,8 +53,9 @@ export default async function InventarioPage() {
 
   // Si hay modo prueba, combinamos. Las pruebas tendrán prioridad visual si las ordenamos después.
   // Pero para mantener el orden cronológico general, las concatenamos y reordenamos.
-  let historial = [...historialOriginal, ...historialPrueba];
-  if (configPedidos.modo_prueba && historialPrueba.length > 0) {
+  const historialPruebaMarcado = historialPrueba.map(p => ({ ...p, is_test: true }));
+  let historial = [...historialOriginal, ...historialPruebaMarcado];
+  if (configPedidos.modo_prueba && historialPruebaMarcado.length > 0) {
     historial.sort((a, b) => new Date(b.fecha_pedido).getTime() - new Date(a.fecha_pedido).getTime());
   }
 
