@@ -36,35 +36,48 @@ export function calcularTipoReporte(destino: string | null | undefined): TipoRep
 /**
  * resolverReceptorPedido()
  * Devuelve el TO y CC según las reglas de enrutamiento de la spec y si es modo prueba.
+ * 
+ * @param origenRepuesto Ubicación física de donde sale el repuesto (ej: "Lima", "Chiclayo")
+ * @param destinoSolicitante Sede que está pidiendo el repuesto (ej: "Ica")
  */
 export function resolverReceptorPedido(
-  destino: string | null | undefined, 
+  origenRepuesto: string | null | undefined, 
+  destinoSolicitante: string | null | undefined,
   modoPrueba: boolean = false
 ): {
   to: string;
   cc: string[];
 } {
-  // Si está en modo prueba, forzar correos a Sergio
-  if (modoPrueba) {
-    return { to: SERGIO, cc: [] };
-  }
+  // Si está en modo prueba, el motor de email lo redirigirá físicamente a Sergio,
+  // pero esta función debe devolver quiénes serían los destinatarios reales.
+  
+  const tipo = calcularTipoReporte(origenRepuesto);
 
-  const tipo = calcularTipoReporte(destino);
+  // 1. Obtener email del responsable de la sucursal solicitante (Destino físico final)
+  const sucSolicitante = SUCURSALES_DATA.find(
+    (s) => s.ciudad.toLowerCase() === (destinoSolicitante ?? "").toLowerCase()
+  );
+  const correoSolicitante = sucSolicitante?.correo;
 
   if (tipo === "Reposición") {
-    return { to: SERGIO, cc: [JESUS] };
+    // Si es reposición, el "To" es Sergio, y el solicitante va en CC junto a Jesus
+    return { to: SERGIO, cc: [JESUS, correoSolicitante].filter(Boolean) as string[] };
   }
 
   if (tipo === "Abastecimiento") {
-    return { to: WILBER, cc: [JESUS, SERGIO] };
+    // TO: Wilber (Almacen) + Responsable de la sucursal que recibe
+    const destinatarios = [WILBER, correoSolicitante].filter(Boolean) as string[];
+    return { to: destinatarios.join(", "), cc: [JESUS, SERGIO] };
   }
 
-  // Envío Interno → buscar técnico de la sucursal destino
-  const sucursal = SUCURSALES_DATA.find(
-    (s) => s.ciudad.toLowerCase() === (destino ?? "").toLowerCase()
+  // Envío Interno → TO: Responsable de la sucursal origen + Responsable de la sucursal que recibe
+  const sucOrigen = SUCURSALES_DATA.find(
+    (s) => s.ciudad.toLowerCase() === (origenRepuesto ?? "").toLowerCase()
   );
-  const tecnico = sucursal?.correo ?? SERGIO; // fallback a Sergio si no se encuentra
-  return { to: tecnico, cc: [JESUS, SERGIO] };
+  const correoOrigen = sucOrigen?.correo ?? SERGIO; // fallback a Sergio si no se encuentra
+  
+  const destinatarios = [correoOrigen, correoSolicitante].filter(Boolean) as string[];
+  return { to: destinatarios.join(", "), cc: [JESUS, SERGIO] };
 }
 
 /**

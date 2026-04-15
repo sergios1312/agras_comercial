@@ -51,7 +51,7 @@ export async function enviarNotificacionPedido(
     const grupos = agruparPorSucursal(carrito);
 
     const envios = [...grupos.entries()].map(async ([destino, items]) => {
-      const { to, cc } = resolverReceptorPedido(destino || null, modoPrueba);
+      const { to, cc } = resolverReceptorPedido(destino || null, sedeDestinoFisico, modoPrueba);
 
       // Override táctico: modo prueba → solo al admin
       const toFinal   = modoPrueba ? ADMIN_EMAIL : to;
