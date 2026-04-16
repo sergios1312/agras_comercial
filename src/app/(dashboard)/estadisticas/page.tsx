@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
 import type { Metadata } from "next";
 import { BarChart3 } from "lucide-react";
-import { cargarCasos } from "@/lib/casos";
+import { obtenerCasosDesdeDB } from "@/lib/casos";
 import { SUCURSALES_BANEADAS, TRABAJOS_BANEADOS } from "@/types/casos.types";
 import { EstadisticasDashboard } from "@/components/estadisticas/EstadisticasDashboard";
 
@@ -26,8 +26,8 @@ export default async function EstadisticasPage() {
     );
   }
 
-  // ── Pipeline de datos desde CSV ──────────────────────────────
-  const casos = cargarCasos();
+  // ── Pipeline de datos desde BD ──────────────────────────────
+  const casos = await obtenerCasosDesdeDB();
 
   // ── Listas para selectores de filtros ────────────────────────
   const sucursalesSet = new Set(casos.map((c) => c.sucursal).filter(Boolean));

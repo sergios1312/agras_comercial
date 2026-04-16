@@ -8,6 +8,7 @@ import "server-only";
 import fs from "fs";
 import path from "path";
 import { parse } from "csv-parse/sync";
+import { createClient } from "@/utils/supabase/server";
 import { contarDiasHabiles } from "@/lib/rtat";
 import { PLAZOS_IDEALES, SUCURSALES_BANEADAS, TRABAJOS_BANEADOS, SUCURSALES_OFICIALES } from "@/types/casos.types";
 import type { Caso, ClasificacionSLA } from "@/types/casos.types";
@@ -184,4 +185,51 @@ export function cargarCasos(): Caso[] {
   lastModified = stats.mtimeMs;
 
   return casos;
+}
+
+// ─── Lector de Casos desde Base de Datos ─────────────────────
+export async function obtenerCasosDesdeDB(): Promise<Caso[]> {
+  const supabase = await createClient();
+  const rawClient = supabase as any;
+  const hoy = new Date().toISOString().slice(0, 10);
+
+  const { data: casosDB, error } = await rawClient
+    .from("casos")
+    .select("*, sucursales(nombre_ciudad)");
+
+  if (error || !casosDB) {
+    console.error("Error obteniendo casos desde DB:", error);
+    return [];
+  }
+
+  const casosList: Caso[] = [];
+  
+  for (const row of casosDB) {
+    const rtat = row.fecha_ingreso ? contarDiasHabiles(row.fecha_ingreso, row.fecha_salida ?? hoy) : null;
+    const rtatFinal = rtat !== null && rtat >= 0 ? rtat : null;
+
+    const periodo = periodoMensual(row.fecha_salida);
+    const sla = clasificarSLA(rtatFinal, row.tipo_trabajo || "", row.estado_general || "");
+
+    const sucursalNombre = row.sucursales ? row.sucursales.nombre_ciudad : "Sin sucursal";
+
+    casosList.push({
+      id: row.id,
+      numeracionCaso: row.numeracion_caso,
+      estadoGeneral: row.estado_general || "ABIERTO",
+      descripcion: row.descripcion || "",
+      sucursal: sucursalNombre,
+      cliente: row.cliente || "",
+      garantia: row.garantia || "",
+      estadoCaso: row.estado_caso || "SIN ESTADO",
+      tipoTrabajo: row.tipo_trabajo || "SIN TIPO",
+      fechaIngreso: row.fecha_ingreso || null,
+      fechaSalida: row.fecha_salida || null,
+      periodoMensual: periodo,
+      rtat: rtatFinal,
+      clasificacionSLA: sla,
+    });
+  }
+
+  return casosList;
 }

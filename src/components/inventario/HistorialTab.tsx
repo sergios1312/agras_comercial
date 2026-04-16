@@ -44,8 +44,8 @@ function ModalEditarPedido({
 }) {
   const [formData, setFormData] = useState({
     fecha_pedido: new Date(pedido.fecha_pedido).toISOString().slice(0, 16),
-    repuesto_codigo: pedido.repuesto_codigo,
-    repuesto_nombre: pedido.repuesto_nombre,
+    repuesto_codigo: pedido.repuestos?.codigo ?? pedido.repuesto_codigo,
+    repuesto_nombre: pedido.repuestos?.nombre ?? pedido.repuesto_nombre,
     numero_caso: pedido.numero_caso,
     caso_reposicion: pedido.caso_reposicion || "",
     cantidad: pedido.cantidad,
@@ -391,8 +391,8 @@ function TablaCasosReposicion({
                                  {repuestosAsignados.map(r => (
                                    <tr key={r.id} className="border-b border-slate-800/50 last:border-0 hover:bg-slate-800/30">
                                      <td className="px-2 py-2 text-[10px] text-slate-400 whitespace-nowrap">{formatDate(r.fecha_pedido)}</td>
-                                     <td className="px-2 py-2 font-mono text-[10px] text-indigo-400">{r.repuesto_codigo}</td>
-                                     <td className="px-2 py-2 text-[10px] text-slate-300 truncate max-w-[200px]" title={r.repuesto_nombre}>{r.repuesto_nombre}</td>
+                                     <td className="px-2 py-2 font-mono text-[10px] text-indigo-400">{r.repuestos?.codigo ?? r.repuesto_codigo}</td>
+                                     <td className="px-2 py-2 text-[10px] text-slate-300 truncate max-w-[200px]" title={r.repuestos?.nombre ?? r.repuesto_nombre}>{r.repuestos?.nombre ?? r.repuesto_nombre}</td>
                                      <td className="px-2 py-2 text-[10px] text-slate-300 text-center">{r.cantidad}</td>
                                      <td className="px-2 py-2 text-[10px] text-slate-400 font-mono">{r.numero_caso}</td>
                                      <td className="px-2 py-2"><Badge label={r.estado} variant={estadoToVariant(r.estado)} /></td>
@@ -549,8 +549,8 @@ function TablaPedidos({
                     <td className="px-4 py-3">
                       <FechasPopover pedido={p} isAdmin={isAdmin} onFechasUpdated={onFechasUpdated} />
                     </td>
-                    <td className="px-4 py-3 font-mono text-indigo-400 text-[11px]">{p.repuesto_codigo}</td>
-                    <td className="px-4 py-3 text-[11px] text-slate-200 max-w-xs truncate" title={p.repuesto_nombre}>{p.repuesto_nombre}</td>
+                    <td className="px-4 py-3 font-mono text-indigo-400 text-[11px]">{p.repuestos?.codigo ?? p.repuesto_codigo}</td>
+                    <td className="px-4 py-3 text-[11px] text-slate-200 max-w-xs truncate" title={p.repuestos?.nombre ?? p.repuesto_nombre}>{p.repuestos?.nombre ?? p.repuesto_nombre}</td>
                     <td className="px-4 py-3 font-mono text-slate-300 text-[11px]">{p.numero_caso}</td>
                     {isReposicion && (
                       <td className="px-4 py-3">

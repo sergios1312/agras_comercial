@@ -69,8 +69,9 @@ export interface HistorialPedido {
   id: number;
   tecnico_destino: string;
   sucursal_origen: string;
-  repuesto_codigo: string;
-  repuesto_nombre: string;
+  repuesto_id: number | null;         // FK → repuestos(id)
+  repuesto_codigo: string;             // Columna de texto (legado, puede eliminarse luego)
+  repuesto_nombre: string;             // Columna de texto (legado, puede eliminarse luego)
   numero_caso: string;
   caso_reposicion?: string | null;
   cantidad: number;
@@ -82,6 +83,15 @@ export interface HistorialPedido {
   fecha_envio?: string | null;
   fecha_recepcion?: string | null;
   is_test?: boolean; // Bandera virtual para UI
+  // Join expandido desde Supabase (disponible cuando se hace select con FK join)
+  repuestos?: {
+    id: number;
+    codigo: string;
+    nombre: string;
+    nombre_traducido: string | null;
+    codigo_sap: string | null;
+    precio_venta: number | null;
+  } | null;
 }
 
 
@@ -159,13 +169,13 @@ export interface Database {
       };
       historial_pedidos: {
         Row: HistorialPedido;
-        Insert: Omit<HistorialPedido, "id" | "fecha_pedido">;
-        Update: Partial<Omit<HistorialPedido, "id">>;
+        Insert: Omit<HistorialPedido, "id" | "fecha_pedido" | "repuestos">;
+        Update: Partial<Omit<HistorialPedido, "id" | "repuestos">>;
       };
       historial_pedidos_prueba: {
         Row: HistorialPedido;
-        Insert: Omit<HistorialPedido, "id" | "fecha_pedido">;
-        Update: Partial<Omit<HistorialPedido, "id">>;
+        Insert: Omit<HistorialPedido, "id" | "fecha_pedido" | "repuestos">;
+        Update: Partial<Omit<HistorialPedido, "id" | "repuestos">>;
       };
       casos_reposicion: {
         Row: CasoReposicion;

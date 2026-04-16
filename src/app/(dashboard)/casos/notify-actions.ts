@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { getSession } from "@/lib/auth";
-import { cargarCasos } from "@/lib/casos";
+import { cargarCasos, obtenerCasosDesdeDB } from "@/lib/casos";
 import { procesarCorreosCasosAbiertos, obtenerVistaPrevia } from "@/lib/notify-casos";
 import type { Caso } from "@/types/casos.types";
 
@@ -15,7 +15,7 @@ export async function previsualizarCasosAccion(targetSucursales: string[]): Prom
   if (!user || user.role !== "admin") return { success: false, error: "Acceso denegado." };
 
   try {
-    const casos = cargarCasos();
+    const casos = await obtenerCasosDesdeDB();
     const result = obtenerVistaPrevia(casos, targetSucursales);
     return { success: true, data: result };
   } catch (error: any) {
@@ -42,7 +42,7 @@ export async function dispararNotificacionesCasos(targetSucursales: string[]): P
 
   try {
     // 1. Cargar casos usando parser
-    const casos = cargarCasos();
+    const casos = await obtenerCasosDesdeDB();
     
     // 2. Procesar y disparar motor de email (esperar la asincronía y su rate limit padding)
     const result = await procesarCorreosCasosAbiertos(casos, targetSucursales);

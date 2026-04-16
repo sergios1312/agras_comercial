@@ -93,6 +93,37 @@ export async function submitPedido(
     }
   }
 
+  // ─── Validación de Casos en BD (Lark) ──────────────────────────
+  if (!configPedidos.modo_prueba) {
+    const numerosDeCasoRequeridos = Array.from(
+      new Set(
+        carrito
+          .filter((item) => !item.es_venta)
+          .map((item) => item.numero_caso.trim())
+      )
+    );
+
+    if (numerosDeCasoRequeridos.length > 0) {
+      const rawC = supabase as any;
+      const { data: casosExistentes, error: errorCasos } = await rawC
+        .from("casos")
+        .select("numeracion_caso")
+        .in("numeracion_caso", numerosDeCasoRequeridos);
+
+      if (errorCasos) {
+        return { error: `Error al validar los casos en BD: ${errorCasos.message}`, success: null };
+      }
+
+      const casosEncontrados = new Set((casosExistentes || []).map((c: any) => c.numeracion_caso));
+
+      for (const num of numerosDeCasoRequeridos) {
+        if (!casosEncontrados.has(num)) {
+          return { error: `Caso de Lark no existe: ${num}`, success: null };
+        }
+      }
+    }
+  }
+
   // ─── Validación de ítems (reglas sin DB) ────────────────────
   for (const item of carrito) {
     // Regla 3: N° caso de 4 dígitos obligatorio (excepto ventas)
@@ -164,6 +195,7 @@ export async function submitPedido(
   const inserts = carrito.map((item) => ({
     tecnico_destino: sedeDestino, // Ahora utiliza la sede de destino seleccionada (o propia)
     sucursal_origen: item.sucursal_destino || "Oficina Central", // De dónde viene el repuesto
+    repuesto_id: item.repuesto_id,   // FK → repuestos(id)
     repuesto_codigo: item.codigo,
     repuesto_nombre: item.nombre,
     numero_caso: item.es_venta ? "VENTA" : item.numero_caso.trim(),

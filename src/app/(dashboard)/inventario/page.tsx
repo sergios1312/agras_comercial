@@ -40,7 +40,7 @@ export default async function InventarioPage() {
     fetchAllParallel<import("@/types/database.types").Repuesto>(db, "repuestos", "*", "id"),
     db.from("sucursales").select("id, nombre_ciudad"),
     fetchAllParallel<InventarioRow>(db, "inventario", "id, repuesto_id, sucursal_id, cantidad", "id"),
-    fetchAllParallel<HistorialPedido>(db, "historial_pedidos", "*", "fecha_pedido", false),
+    fetchAllParallel<HistorialPedido>(db, "historial_pedidos", "*, repuestos(id, codigo, nombre, nombre_traducido, codigo_sap, precio_venta)", "fecha_pedido", false),
     configPedidos.modo_prueba 
       ? fetchAllParallel<HistorialPedido>(db, "historial_pedidos_prueba", "*", "fecha_pedido", false)
       : Promise.resolve([]),

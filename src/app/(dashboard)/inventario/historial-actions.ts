@@ -248,8 +248,8 @@ export async function exportarHistorialCSV(
     new Date(p.fecha_pedido).toLocaleDateString("es-PE"),
     p.sucursal_origen,
     p.tecnico_destino, // Destino es el técnico que solicita
-    p.repuesto_codigo,
-    `"${p.repuesto_nombre.replace(/"/g, '""')}"`, // escape comillas
+    p.repuestos?.codigo ?? p.repuesto_codigo,
+    `"${(p.repuestos?.nombre ?? p.repuesto_nombre).replace(/"/g, '""')}"`, // escape comillas
     p.numero_caso,
     p.cantidad,
     p.tipo_reporte,
