@@ -106,21 +106,31 @@ export async function confirmarSubidaCasos(
 }
 
 /**
- * obtenerNumeracionesExistentes()
- * Devuelve un array con todas las numeraciones de casos actuales.
- * Utilizado por el Panel de Carga para detectar duplicados/modificaciones
- * saltándose las restricciones RLS mediante el cliente Admin.
+ * obtenerCasosExistentesDetalle()
+ * Devuelve un array con los datos clave de todos los casos actuales.
+ * Utilizado por el Panel de Carga para detectar cambios reales (Smart Diffing).
  */
-export async function obtenerNumeracionesExistentes(): Promise<string[]> {
+export async function obtenerCasosExistentesDetalle(): Promise<any[]> {
   const supabase = createAdminClient();
   const { data, error } = await supabase
     .from("casos")
-    .select("numeracion_caso");
+    .select(`
+      numeracion_caso, 
+      estado_general, 
+      descripcion, 
+      cliente, 
+      garantia, 
+      estado_caso, 
+      tipo_trabajo, 
+      fecha_ingreso, 
+      fecha_salida,
+      sucursales(nombre_ciudad)
+    `);
 
   if (error || !data) {
-    console.error("Error obteniendo numeraciones:", error);
+    console.error("Error obteniendo detalle de casos:", error);
     return [];
   }
 
-  return data.map((d: any) => d.numeracion_caso);
+  return data;
 }

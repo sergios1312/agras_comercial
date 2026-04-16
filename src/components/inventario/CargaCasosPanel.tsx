@@ -11,7 +11,7 @@ import {
   SUCURSALES_OFICIALES,
 } from "@/types/casos.types";
 import type { Caso, ClasificacionSLA } from "@/types/casos.types";
-import { confirmarSubidaCasos, obtenerNumeracionesExistentes } from "@/app/(dashboard)/administrador/admin-casos-actions";
+import { confirmarSubidaCasos, obtenerCasosExistentesDetalle } from "@/app/(dashboard)/administrador/admin-casos-actions";
 import {
   Upload,
   FileText,
@@ -28,12 +28,13 @@ import {
 type PanelState = "idle" | "parsing" | "preview" | "uploading" | "done" | "error";
 
 interface CasoConEstado extends Caso {
-  estadoCarga: "nuevo" | "modificado";
+  estadoCarga: "nuevo" | "modificado" | "sin_cambios";
 }
 
 interface ResumenCarga {
   nuevos: number;
   modificados: number;
+  sinCambios: number;
 }
 
 // ─── Helpers reutilizados del server (sin fs) ──────────────────
@@ -173,11 +174,18 @@ function parsearCsvTexto(raw: string): Caso[] {
 }
 
 // ─── Badges de estado de carga ────────────────────────────────
-function BadgeCarga({ estado }: { estado: "nuevo" | "modificado" }) {
+function BadgeCarga({ estado }: { estado: "nuevo" | "modificado" | "sin_cambios" }) {
   if (estado === "nuevo") {
     return (
       <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
         NUEVO
+      </span>
+    );
+  }
+  if (estado === "sin_cambios") {
+    return (
+      <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide bg-slate-700/30 text-slate-500 border border-slate-700/50">
+        SIN CAMBIOS
       </span>
     );
   }
@@ -205,7 +213,7 @@ function BadgeSLA({ sla }: { sla: ClasificacionSLA }) {
 export function CargaCasosPanel() {
   const [panelState, setPanelState] = useState<PanelState>("idle");
   const [casos, setCasos] = useState<CasoConEstado[]>([]);
-  const [resumen, setResumen] = useState<ResumenCarga>({ nuevos: 0, modificados: 0 });
+  const [resumen, setResumen] = useState<ResumenCarga>({ nuevos: 0, modificados: 0, sinCambios: 0 });
   const [mensaje, setMensaje] = useState<string>("");
   const [errorMsg, setErrorMsg] = useState<string>("");
   const [isDragging, setIsDragging] = useState(false);
@@ -233,20 +241,42 @@ export function CargaCasosPanel() {
         throw new Error("El archivo CSV está vacío o no contiene filas válidas tras el filtrado.");
       }
 
-      // Consultar la BD para saber qué numeraciones ya existen (vía Server Action para saltar RLS)
-      const existentes = await obtenerNumeracionesExistentes();
-      const setExistentes = new Set<string>(existentes);
+      // Consultar detalle completo de casos existentes para comparar (Smart Diffing)
+      const existentes = await obtenerCasosExistentesDetalle();
+      const mapExistentes = new Map<string, any>();
+      existentes.forEach((r) => mapExistentes.set(r.numeracion_caso, r));
 
-      const casosConEstado: CasoConEstado[] = casosParseados.map((c) => ({
-        ...c,
-        estadoCarga: setExistentes.has(c.numeracionCaso) ? "modificado" : "nuevo",
-      }));
+      const casosConEstado: CasoConEstado[] = casosParseados.map((c) => {
+        const dbCase = mapExistentes.get(c.numeracionCaso);
+        if (!dbCase) {
+          return { ...c, estadoCarga: "nuevo" };
+        }
+
+        // Comparar campos para ver si hay cambios reales
+        const norm = (val: any) => (val ?? "").toString().trim().toUpperCase();
+        const identicos = 
+          norm(c.estadoGeneral) === norm(dbCase.estado_general) &&
+          norm(c.descripcion) === norm(dbCase.descripcion) &&
+          norm(c.cliente) === norm(dbCase.cliente) &&
+          norm(c.garantia) === norm(dbCase.garantia) &&
+          norm(c.estadoCaso) === norm(dbCase.estado_caso) &&
+          norm(c.tipoTrabajo) === norm(dbCase.tipo_trabajo) &&
+          norm(c.fechaIngreso) === norm(dbCase.fecha_ingreso) &&
+          norm(c.fechaSalida) === norm(dbCase.fecha_salida) &&
+          norm(c.sucursal) === norm(dbCase.sucursales?.nombre_ciudad);
+
+        return { 
+          ...c, 
+          estadoCarga: identicos ? "sin_cambios" : "modificado" 
+        };
+      });
 
       const nuevos = casosConEstado.filter((c) => c.estadoCarga === "nuevo").length;
       const modificados = casosConEstado.filter((c) => c.estadoCarga === "modificado").length;
+      const sinCambios = casosConEstado.filter((c) => c.estadoCarga === "sin_cambios").length;
 
       setCasos(casosConEstado);
-      setResumen({ nuevos, modificados });
+      setResumen({ nuevos, modificados, sinCambios });
       setPaginaActual(0);
       setPanelState("preview");
     } catch (err: unknown) {
@@ -291,7 +321,15 @@ export function CargaCasosPanel() {
     startTransition(async () => {
       setPanelState("uploading");
       setMensaje("");
-      const result = await confirmarSubidaCasos(casos);
+      const casosAEnviar = casos.filter(c => c.estadoCarga !== "sin_cambios");
+      
+      if (casosAEnviar.length === 0) {
+        setMensaje("No hay cambios detectados para subir.");
+        setPanelState("done");
+        return;
+      }
+
+      const result = await confirmarSubidaCasos(casosAEnviar);
       if (result.success) {
         setMensaje(result.mensaje ?? "Sincronización completada.");
         setPanelState("done");
@@ -304,7 +342,7 @@ export function CargaCasosPanel() {
 
   const handleReset = () => {
     setCasos([]);
-    setResumen({ nuevos: 0, modificados: 0 });
+    setResumen({ nuevos: 0, modificados: 0, sinCambios: 0 });
     setMensaje("");
     setErrorMsg("");
     setPaginaActual(0);
@@ -418,7 +456,7 @@ export function CargaCasosPanel() {
       <div className="flex flex-col items-center justify-center gap-3 p-10 rounded-xl bg-slate-900/40 border border-slate-800">
         <Loader2 className="w-8 h-8 text-emerald-400 animate-spin" />
         <p className="text-sm text-slate-400">
-          Subiendo {casos.length.toLocaleString()} casos a la base de datos...
+          Subiendo {casos.filter(c => c.estadoCarga !== "sin_cambios").length.toLocaleString()} casos a la base de datos...
         </p>
         <p className="text-xs text-slate-600">Esto puede tardar unos segundos.</p>
       </div>
@@ -430,26 +468,26 @@ export function CargaCasosPanel() {
     <div className="flex flex-col gap-4">
       {/* Banner de resumen */}
       <div className="grid grid-cols-3 gap-3">
-        <div className="flex flex-col items-center justify-center gap-1 p-4 rounded-xl bg-slate-900/60 border border-slate-800">
-          <FileText className="w-4 h-4 text-slate-400 mb-0.5" />
-          <span className="text-2xl font-bold text-slate-100">
-            {casos.length.toLocaleString()}
-          </span>
-          <span className="text-xs text-slate-500 text-center">Total de casos</span>
-        </div>
         <div className="flex flex-col items-center justify-center gap-1 p-4 rounded-xl bg-emerald-950/40 border border-emerald-800/50">
-          <Eye className="w-4 h-4 text-emerald-400 mb-0.5" />
+          <UploadCloud className="w-4 h-4 text-emerald-400 mb-0.5" />
           <span className="text-2xl font-bold text-emerald-400">
             {resumen.nuevos.toLocaleString()}
           </span>
-          <span className="text-xs text-emerald-600 text-center">Casos nuevos</span>
+          <span className="text-xs text-emerald-600 text-center">Nuevos</span>
         </div>
         <div className="flex flex-col items-center justify-center gap-1 p-4 rounded-xl bg-amber-950/40 border border-amber-800/50">
           <Database className="w-4 h-4 text-amber-400 mb-0.5" />
           <span className="text-2xl font-bold text-amber-400">
             {resumen.modificados.toLocaleString()}
           </span>
-          <span className="text-xs text-amber-600 text-center">Casos a modificar</span>
+          <span className="text-xs text-amber-600 text-center">A modificar</span>
+        </div>
+        <div className="flex flex-col items-center justify-center gap-1 p-4 rounded-xl bg-slate-900/60 border border-slate-800">
+          <Database className="w-4 h-4 text-slate-500 mb-0.5" />
+          <span className="text-2xl font-bold text-slate-400">
+            {resumen.sinCambios.toLocaleString()}
+          </span>
+          <span className="text-xs text-slate-600 text-center">Sin cambios</span>
         </div>
       </div>
 
@@ -589,7 +627,7 @@ export function CargaCasosPanel() {
           className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-2.5 text-sm font-semibold rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-900/30 transition-all hover:scale-[1.02] active:scale-[0.98]"
         >
           <Database className="w-4 h-4" />
-          Subir {casos.length.toLocaleString()} casos a la Base de Datos
+          Subir {casos.filter(c => c.estadoCarga !== "sin_cambios").length.toLocaleString()} cambios a la Base de Datos
         </button>
       </div>
     </div>
