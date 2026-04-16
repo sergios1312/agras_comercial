@@ -11,7 +11,7 @@ import {
   SUCURSALES_OFICIALES,
 } from "@/types/casos.types";
 import type { Caso, ClasificacionSLA } from "@/types/casos.types";
-import { confirmarSubidaCasos } from "@/app/(dashboard)/administrador/admin-casos-actions";
+import { confirmarSubidaCasos, obtenerNumeracionesExistentes } from "@/app/(dashboard)/administrador/admin-casos-actions";
 import {
   Upload,
   FileText,
@@ -233,15 +233,9 @@ export function CargaCasosPanel() {
         throw new Error("El archivo CSV está vacío o no contiene filas válidas tras el filtrado.");
       }
 
-      // Consultar la BD para saber qué numeraciones ya existen
-      const supabase = createBrowserClient();
-      const { data: existentes } = await (supabase as any)
-        .from("casos")
-        .select("numeracion_caso");
-
-      const setExistentes = new Set<string>(
-        (existentes ?? []).map((r: { numeracion_caso: string }) => r.numeracion_caso)
-      );
+      // Consultar la BD para saber qué numeraciones ya existen (vía Server Action para saltar RLS)
+      const existentes = await obtenerNumeracionesExistentes();
+      const setExistentes = new Set<string>(existentes);
 
       const casosConEstado: CasoConEstado[] = casosParseados.map((c) => ({
         ...c,

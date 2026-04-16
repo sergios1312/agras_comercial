@@ -9,6 +9,7 @@ import fs from "fs";
 import path from "path";
 import { parse } from "csv-parse/sync";
 import { createClient } from "@/utils/supabase/server";
+import { createAdminClient } from "@/utils/supabase/admin";
 import { contarDiasHabiles } from "@/lib/rtat";
 import { PLAZOS_IDEALES, SUCURSALES_BANEADAS, TRABAJOS_BANEADOS, SUCURSALES_OFICIALES } from "@/types/casos.types";
 import type { Caso, ClasificacionSLA } from "@/types/casos.types";
@@ -49,7 +50,7 @@ let casosCached: Caso[] | null = null;
 let lastModified: number = 0;
 
 export async function obtenerFechaCasos(): Promise<string | null> {
-  const supabase = await createClient();
+  const supabase = createAdminClient();
   const { data, error } = await supabase
     .from("casos")
     .select("created_at")
@@ -203,7 +204,7 @@ export function cargarCasos(): Caso[] {
 
 // ─── Lector de Casos desde Base de Datos ─────────────────────
 export async function obtenerCasosDesdeDB(): Promise<Caso[]> {
-  const supabase = await createClient();
+  const supabase = createAdminClient();
   const rawClient = supabase as any;
   const hoy = new Date().toISOString().slice(0, 10);
 
