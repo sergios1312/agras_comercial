@@ -2,17 +2,71 @@
 
 import { AdminConfigPanel } from "@/components/inventario/AdminConfigPanel";
 import { CargaCasosPanel } from "@/components/inventario/CargaCasosPanel";
+import { CargaMaestroPanel } from "@/components/inventario/CargaMaestroPanel";
+import { CargaSapPanel } from "@/components/inventario/CargaSapPanel";
 import type { ConfigPedidos } from "@/types/database.types";
-import { Package, ArrowLeftRight, PackageX, Settings, Database } from "lucide-react";
+import { Package, ArrowLeftRight, PackageX, Settings, Database, Activity, Box } from "lucide-react";
+import { useState } from "react";
 
 interface AdminPageClientProps {
   configInicial: ConfigPedidos;
 }
 
 export function AdminPageClient({ configInicial }: AdminPageClientProps) {
+  const [activeTab, setActiveTab] = useState<"pedidos" | "casos" | "maestro" | "sap">("pedidos");
+
   return (
     <div className="space-y-6">
-      {/* Sección de control de pedidos */}
+      {/* Navegación de pestañas */}
+      <div className="flex flex-wrap items-center gap-2 border-b border-slate-800 pb-2">
+        <button
+          onClick={() => setActiveTab("pedidos")}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-t-lg transition-colors font-medium text-sm ${
+            activeTab === "pedidos"
+              ? "bg-indigo-500/10 text-indigo-400 border-b-2 border-indigo-400"
+              : "text-slate-400 hover:bg-slate-800/50 hover:text-slate-300"
+          }`}
+        >
+          <Settings className="w-4 h-4" />
+          Configuración
+        </button>
+        <button
+          onClick={() => setActiveTab("casos")}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-t-lg transition-colors font-medium text-sm ${
+            activeTab === "casos"
+              ? "bg-emerald-500/10 text-emerald-400 border-b-2 border-emerald-400"
+              : "text-slate-400 hover:bg-slate-800/50 hover:text-slate-300"
+          }`}
+        >
+          <Activity className="w-4 h-4" />
+          Casos (Garantías)
+        </button>
+        <button
+          onClick={() => setActiveTab("maestro")}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-t-lg transition-colors font-medium text-sm ${
+            activeTab === "maestro"
+              ? "bg-amber-500/10 text-amber-400 border-b-2 border-amber-400"
+              : "text-slate-400 hover:bg-slate-800/50 hover:text-slate-300"
+          }`}
+        >
+          <Database className="w-4 h-4" />
+          Maestro
+        </button>
+        <button
+          onClick={() => setActiveTab("sap")}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-t-lg transition-colors font-medium text-sm ${
+            activeTab === "sap"
+              ? "bg-sky-500/10 text-sky-400 border-b-2 border-sky-400"
+              : "text-slate-400 hover:bg-slate-800/50 hover:text-slate-300"
+          }`}
+        >
+          <Box className="w-4 h-4" />
+          Stock SAP
+        </button>
+      </div>
+
+      {/* Renderizado Condicional */}
+      {activeTab === "pedidos" && (
       <section className="space-y-3">
         <div className="flex items-center gap-2 mb-1">
           <Settings className="w-4 h-4 text-slate-400" />
@@ -58,9 +112,11 @@ export function AdminPageClient({ configInicial }: AdminPageClientProps) {
 
         <AdminConfigPanel configInicial={configInicial} />
       </section>
+      )}
 
-      {/* Sección de Base de Datos */}
-      <section className="space-y-3 pt-6 border-t border-slate-800/60">
+      {/* Sección de Base de Datos - Casos */}
+      {activeTab === "casos" && (
+        <section className="space-y-3 pt-4">
         <div className="flex items-center gap-2 mb-1">
           <Database className="w-4 h-4 text-emerald-400" />
           <h2 className="text-sm font-bold text-slate-300 uppercase tracking-wider">
@@ -73,7 +129,16 @@ export function AdminPageClient({ configInicial }: AdminPageClientProps) {
         </p>
 
         <CargaCasosPanel />
-      </section>
+        </section>
+      )}
+
+      {activeTab === "maestro" && (
+        <CargaMaestroPanel />
+      )}
+
+      {activeTab === "sap" && (
+        <CargaSapPanel />
+      )}
     </div>
   );
 }
