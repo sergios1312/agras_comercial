@@ -238,8 +238,8 @@ export async function submitPedido(
   // respuesta final al usuario, cortando la demora a cero.
   const solicitanteStr = user.usuario ?? "desconocido";
   const modoPrueba = configPedidos.modo_prueba;
-  after(() => {
-    void enviarNotificacionPedido(solicitanteStr, sedeDestino, carrito, esSinStock, modoPrueba);
+  after(async () => {
+    await enviarNotificacionPedido(solicitanteStr, sedeDestino, carrito, esSinStock, modoPrueba);
   });
 
   return {

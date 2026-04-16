@@ -10,14 +10,20 @@ export function cn(...inputs: ClassValue[]): string {
 }
 
 /** Formatea una fecha ISO a formato local es-PE */
-export function formatDate(isoString: string): string {
-  return new Intl.DateTimeFormat("es-PE", {
+export function formatDate(isoString: string, includeTime: boolean = false): string {
+  const options: Intl.DateTimeFormatOptions = {
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(new Date(isoString));
+    timeZone: "America/Lima",
+  };
+  
+  if (includeTime) {
+    options.hour = "2-digit";
+    options.minute = "2-digit";
+  }
+
+  return new Intl.DateTimeFormat("es-PE", options).format(new Date(isoString));
 }
 
 /** Formatea un número como moneda en Soles (PEN) */

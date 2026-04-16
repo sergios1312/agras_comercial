@@ -381,6 +381,7 @@ function TablaCasosReposicion({
                                  <tr>
                                    <th className="px-2 py-1.5 text-[10px] text-slate-500 font-medium whitespace-nowrap">Fecha P.</th>
                                    <th className="px-2 py-1.5 text-[10px] text-slate-500 font-medium">Código</th>
+                                   <th className="px-2 py-1.5 text-[10px] text-slate-500 font-medium whitespace-nowrap">Cód. SAP</th>
                                    <th className="px-2 py-1.5 text-[10px] text-slate-500 font-medium">Nombre de Repuesto</th>
                                    <th className="px-2 py-1.5 text-[10px] text-slate-500 font-medium">Cant.</th>
                                    <th className="px-2 py-1.5 text-[10px] text-slate-500 font-medium">N° Caso del Pedido</th>
@@ -392,6 +393,7 @@ function TablaCasosReposicion({
                                    <tr key={r.id} className="border-b border-slate-800/50 last:border-0 hover:bg-slate-800/30">
                                      <td className="px-2 py-2 text-[10px] text-slate-400 whitespace-nowrap">{formatDate(r.fecha_pedido)}</td>
                                      <td className="px-2 py-2 font-mono text-[10px] text-indigo-400">{r.repuestos?.codigo ?? r.repuesto_codigo}</td>
+                                     <td className="px-2 py-2 font-mono text-[10px] text-slate-300 max-w-[80px] truncate" title={r.repuestos?.codigo_sap || ""}>{r.repuestos?.codigo_sap || "N/A"}</td>
                                      <td className="px-2 py-2 text-[10px] text-slate-300 truncate max-w-[200px]" title={r.repuestos?.nombre ?? r.repuesto_nombre}>{r.repuestos?.nombre ?? r.repuesto_nombre}</td>
                                      <td className="px-2 py-2 text-[10px] text-slate-300 text-center">{r.cantidad}</td>
                                      <td className="px-2 py-2 text-[10px] text-slate-400 font-mono">{r.numero_caso}</td>
@@ -467,6 +469,7 @@ function TablaPedidos({
     ...(isAdmin ? ["Acciones"] : []),
     "Fecha",
     "Código",
+    "Cód. SAP",
     "Repuesto",
     "N° Caso",
     ...(isReposicion ? ["Caso Rep."] : []),
@@ -550,6 +553,7 @@ function TablaPedidos({
                       <FechasPopover pedido={p} isAdmin={isAdmin} onFechasUpdated={onFechasUpdated} />
                     </td>
                     <td className="px-4 py-3 font-mono text-indigo-400 text-[11px]">{p.repuestos?.codigo ?? p.repuesto_codigo}</td>
+                    <td className="px-4 py-3 font-mono text-slate-300 text-[11px] max-w-[90px] truncate" title={p.repuestos?.codigo_sap || ""}>{p.repuestos?.codigo_sap || "N/A"}</td>
                     <td className="px-4 py-3 text-[11px] text-slate-200 max-w-xs truncate" title={p.repuestos?.nombre ?? p.repuesto_nombre}>{p.repuestos?.nombre ?? p.repuesto_nombre}</td>
                     <td className="px-4 py-3 font-mono text-slate-300 text-[11px]">{p.numero_caso}</td>
                     {isReposicion && (

@@ -186,7 +186,7 @@ export function FechasPopover({ pedido, isAdmin, onFechasUpdated }: FechasPopove
 
       {/* Popover */}
       {open && (
-        <div className="absolute left-0 top-6 z-50 w-52 bg-slate-900 border border-slate-700/60 rounded-xl shadow-2xl shadow-black/40 p-3 space-y-2 animate-in fade-in zoom-in-95">
+        <div className="absolute left-0 top-6 z-50 w-64 bg-slate-900 border border-slate-700/60 rounded-xl shadow-2xl shadow-black/40 p-3 space-y-2 animate-in fade-in zoom-in-95">
           <p className="text-[10px] uppercase text-slate-500 font-semibold tracking-widest border-b border-slate-800 pb-1.5 mb-2">
             Historial de fechas
           </p>
@@ -197,7 +197,7 @@ export function FechasPopover({ pedido, isAdmin, onFechasUpdated }: FechasPopove
                 {label}
               </span>
               <span className="text-[10px] text-slate-300 font-mono">
-                {value ? formatDate(value) : <span className="text-slate-600">—</span>}
+                {value ? formatDate(value, true) : <span className="text-slate-600">—</span>}
               </span>
             </div>
           ))}
