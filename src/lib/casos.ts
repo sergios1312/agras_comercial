@@ -48,14 +48,28 @@ function periodoMensual(fechaSalida: string | null): string | null {
 let casosCached: Caso[] | null = null;
 let lastModified: number = 0;
 
-export function obtenerFechaCasos(): string | null {
-  const csvPath = path.join(process.cwd(), "casos.csv");
-  try {
-    const stats = fs.statSync(csvPath);
-    return new Intl.DateTimeFormat('es-PE', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(stats.mtime);
-  } catch (e) {
-    return null;
+export async function obtenerFechaCasos(): Promise<string | null> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("casos")
+    .select("created_at")
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .single();
+
+  if (error || !data) {
+    // Si no hay fecha en la BD, intentamos leer desde el archivo config.json como fallback
+    try {
+      const configPath = path.join(process.cwd(), "src", "data", "config.json");
+      const config = JSON.parse(fs.readFileSync(configPath, "utf-8"));
+      return config.lastUpdated || null;
+    } catch {
+      return null;
+    }
   }
+
+  const d = new Date((data as any).created_at);
+  return new Intl.DateTimeFormat('es-PE', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(d);
 }
 
 export function cargarCasos(): Caso[] {
@@ -193,42 +207,52 @@ export async function obtenerCasosDesdeDB(): Promise<Caso[]> {
   const rawClient = supabase as any;
   const hoy = new Date().toISOString().slice(0, 10);
 
-  const { data: casosDB, error } = await rawClient
-    .from("casos")
-    .select("*, sucursales(nombre_ciudad)");
-
-  if (error || !casosDB) {
-    console.error("Error obteniendo casos desde DB:", error);
-    return [];
-  }
-
   const casosList: Caso[] = [];
-  
-  for (const row of casosDB) {
-    const rtat = row.fecha_ingreso ? contarDiasHabiles(row.fecha_ingreso, row.fecha_salida ?? hoy) : null;
-    const rtatFinal = rtat !== null && rtat >= 0 ? rtat : null;
+  let from = 0;
+  const step = 1000;
 
-    const periodo = periodoMensual(row.fecha_salida);
-    const sla = clasificarSLA(rtatFinal, row.tipo_trabajo || "", row.estado_general || "");
+  while (true) {
+    const { data: casosDB, error } = await rawClient
+      .from("casos")
+      .select("*, sucursales(nombre_ciudad)")
+      .range(from, from + step - 1);
 
-    const sucursalNombre = row.sucursales ? row.sucursales.nombre_ciudad : "Sin sucursal";
+    if (error) {
+      console.error("Error obteniendo casos desde DB:", error);
+      break;
+    }
 
-    casosList.push({
-      id: row.id,
-      numeracionCaso: row.numeracion_caso,
-      estadoGeneral: row.estado_general || "ABIERTO",
-      descripcion: row.descripcion || "",
-      sucursal: sucursalNombre,
-      cliente: row.cliente || "",
-      garantia: row.garantia || "",
-      estadoCaso: row.estado_caso || "SIN ESTADO",
-      tipoTrabajo: row.tipo_trabajo || "SIN TIPO",
-      fechaIngreso: row.fecha_ingreso || null,
-      fechaSalida: row.fecha_salida || null,
-      periodoMensual: periodo,
-      rtat: rtatFinal,
-      clasificacionSLA: sla,
-    });
+    if (!casosDB || casosDB.length === 0) break;
+
+    for (const row of casosDB) {
+      const rtat = row.fecha_ingreso ? contarDiasHabiles(row.fecha_ingreso, row.fecha_salida ?? hoy) : null;
+      const rtatFinal = rtat !== null && rtat >= 0 ? rtat : null;
+
+      const periodo = periodoMensual(row.fecha_salida);
+      const sla = clasificarSLA(rtatFinal, row.tipo_trabajo || "", row.estado_general || "");
+
+      const sucursalNombre = row.sucursales ? row.sucursales.nombre_ciudad : "Sin sucursal";
+
+      casosList.push({
+        id: row.id,
+        numeracionCaso: row.numeracion_caso,
+        estadoGeneral: row.estado_general || "ABIERTO",
+        descripcion: row.descripcion || "",
+        sucursal: sucursalNombre,
+        cliente: row.cliente || "",
+        garantia: row.garantia || "",
+        estadoCaso: row.estado_caso || "SIN ESTADO",
+        tipoTrabajo: row.tipo_trabajo || "SIN TIPO",
+        fechaIngreso: row.fecha_ingreso || null,
+        fechaSalida: row.fecha_salida || null,
+        periodoMensual: periodo,
+        rtat: rtatFinal,
+        clasificacionSLA: sla,
+      });
+    }
+
+    if (casosDB.length < step) break;
+    from += step;
   }
 
   return casosList;

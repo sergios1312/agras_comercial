@@ -36,7 +36,7 @@ export default async function CasosPage() {
   const configPedidos = await getConfigPedidos();
 
   // Obtener fecha de la base de casos crudos directamente desde el archivo
-  const fechaCasos = obtenerFechaCasos();
+  const fechaCasos = await obtenerFechaCasos();
 
   // Cargar todos los pedidos reales
   const { data: historialOriginal } = await supabase
