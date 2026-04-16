@@ -1,27 +1,15 @@
 "use client";
 
-import { useTransition, useState } from "react";
 import { AdminConfigPanel } from "@/components/inventario/AdminConfigPanel";
+import { CargaCasosPanel } from "@/components/inventario/CargaCasosPanel";
 import type { ConfigPedidos } from "@/types/database.types";
-import { Package, ArrowLeftRight, PackageX, Settings, Database, Loader2, AlertCircle, CheckCircle2 } from "lucide-react";
-import { sincronizarCasosHaciaDB } from "@/app/(dashboard)/administrador/admin-casos-actions";
+import { Package, ArrowLeftRight, PackageX, Settings, Database } from "lucide-react";
 
 interface AdminPageClientProps {
   configInicial: ConfigPedidos;
 }
 
 export function AdminPageClient({ configInicial }: AdminPageClientProps) {
-  const [isPending, startTransition] = useTransition();
-  const [syncStatus, setSyncStatus] = useState<{success?: boolean, message?: string} | null>(null);
-
-  const handleSync = () => {
-    setSyncStatus(null);
-    startTransition(async () => {
-       const result = await sincronizarCasosHaciaDB();
-       setSyncStatus({ success: result.success, message: result.mensaje || result.error });
-    });
-  };
-
   return (
     <div className="space-y-6">
       {/* Sección de control de pedidos */}
@@ -76,30 +64,15 @@ export function AdminPageClient({ configInicial }: AdminPageClientProps) {
         <div className="flex items-center gap-2 mb-1">
           <Database className="w-4 h-4 text-emerald-400" />
           <h2 className="text-sm font-bold text-slate-300 uppercase tracking-wider">
-            Base de Datos (Sincronización)
+            Sincronización de Casos
           </h2>
         </div>
         <p className="text-sm text-slate-500 mb-4">
-          Sincroniza el archivo CSV local de casos con la base de datos segura en Supabase. Requiere que la tabla &apos;casos&apos; exista.
+          Sube un archivo <code className="text-emerald-400 bg-emerald-500/10 px-1 rounded text-xs">casos.csv</code> exportado
+          desde Gestioo para previsualizar los cambios antes de confirmar la carga a la base de datos.
         </p>
 
-        <div className="flex flex-col sm:flex-row items-center gap-4 bg-slate-900/40 p-5 rounded-xl border border-slate-800">
-          <button
-            onClick={handleSync}
-            disabled={isPending}
-            className="w-full sm:w-auto px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-medium text-sm rounded-lg transition-colors flex items-center justify-center gap-2"
-          >
-            {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Database className="w-4 h-4" />}
-            {isPending ? "Sincronizando DB..." : "Sincronizar Casos a CSV"}
-          </button>
-          
-          {syncStatus && (
-            <div className={`flex items-center gap-2 text-sm ${syncStatus.success ? 'text-emerald-400' : 'text-red-400'}`}>
-              {syncStatus.success ? <CheckCircle2 className="w-5 h-5" /> : <AlertCircle className="w-5 h-5 flex-shrink-0" />}
-              <span>{syncStatus.message}</span>
-            </div>
-          )}
-        </div>
+        <CargaCasosPanel />
       </section>
     </div>
   );
