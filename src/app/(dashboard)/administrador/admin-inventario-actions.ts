@@ -207,31 +207,36 @@ export async function confirmarSubidaSap(
       resRepuestosMsg = ` Se crearon ${creados} repuestos nuevos en blanco descubiertos en SAP.`;
     }
 
-    // Paso 1B: Como acabamos de insertar, algunos movimientos de inventario pueden 
-    // venir sin "repuesto_id" (porque el cliente no sabía el ID autogenerado).
-    // Necesitamos obtener los IDs frescos de la base de datos para los códigos que insertamos o que ya existían
-    let codigosBuscados = new Set(repuestosNuevos.map(r => r.codigo));
-    // Validar si algún movimientoInventario necesita resolverse
-    const faltanIds = movimientosInventario.some(m => !m.repuesto_id);
+    // Paso 1B: Resolver IDs faltantes y Limpiar campos temporales
+    const todosLosRepuestos = await obtenerMaestroExistente();
+    const mapaCodId = new Map();
+    todosLosRepuestos.forEach(r => {
+      mapaCodId.set(r.codigo, r.id);
+      if (r.codigo_sap) mapaCodId.set(r.codigo_sap, r.id);
+    });
 
-    if (faltanIds) {
-      // Pedimos de nuevo todos los IDs para no fallar (es rápido en server actions integrados)
-      const todosLosRepuestos = await obtenerMaestroExistente();
-      const mapaCodId = new Map(todosLosRepuestos.map(r => [r.codigo, r.id]));
+    const movimientosLimpios = movimientosInventario.map((m: any) => {
+      const { codigo_temp, ...resto } = m;
+      let idFinal = resto.repuesto_id;
       
-      // Asignar IDs faltantes usando un tag temporal que envió el frontend (usaremos 'codigo' en el array original para correlacionar)
-      // Como InventarioRecord no tiene "codigo" por schema, confiaremos en que el Frontend sí nos pasa 'codigo'
-      // para hacer este mapeo. 
-      // Haremos un pequeño cast.
-    }
+      // Si no tiene ID o es -1, intentamos resolverlo con el codigo_temp
+      if ((!idFinal || idFinal === -1) && codigo_temp) {
+        idFinal = mapaCodId.get(codigo_temp);
+      }
+
+      return {
+        ...resto,
+        repuesto_id: idFinal
+      };
+    }).filter(m => m.repuesto_id && m.repuesto_id !== -1);
 
     // Paso 2: Ejecutar upsert de inventario (Actualizaciones y purgas a 0)
-    if (movimientosInventario.length > 0) {
+    if (movimientosLimpios.length > 0) {
       const BATCH_SIZE = 500;
       let movPaginas = 0;
       
       for (let i = 0; i < movimientosInventario.length; i += BATCH_SIZE) {
-        const lote = movimientosInventario.slice(i, i + BATCH_SIZE);
+        const lote = movimientosLimpios.slice(i, i + BATCH_SIZE);
         // Garantizar que vamos a upsertar por combinación única de sucursal y repuesto
         const { error: errInv } = await rawClient
           .from("inventario")
