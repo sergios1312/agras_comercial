@@ -7,7 +7,7 @@ import { KpiCard } from "@/components/estadisticas/KpiCard";
 import { FileText, Clock, CheckCircle, AlertTriangle } from "lucide-react";
 import { PanelNotificaciones } from "@/components/casos/PanelNotificaciones";
 import type { HistorialPedido } from "@/types/database.types";
-import { obtenerFechaCasos } from "@/lib/casos";
+import { getUltimasActualizaciones } from "@/app/(dashboard)/inventario/config-actions";
 
 export const metadata: Metadata = {
   title: "Procesos y Notificaciones",
@@ -35,8 +35,10 @@ export default async function CasosPage() {
   const { getConfigPedidos } = await import("@/app/(dashboard)/inventario/config-actions");
   const configPedidos = await getConfigPedidos();
 
-  // Obtener fecha de la base de casos crudos directamente desde el archivo
-  const fechaCasos = await obtenerFechaCasos();
+  // Obtener fecha de la base de casos crudos desde la DB
+  const updates = await getUltimasActualizaciones();
+  const fechaCasosRaw = updates.casos;
+  const fechaCasos = fechaCasosRaw ? new Date(fechaCasosRaw).toLocaleString('es-PE') : null;
 
   // Cargar todos los pedidos reales
   const { data: historialOriginal } = await supabase
