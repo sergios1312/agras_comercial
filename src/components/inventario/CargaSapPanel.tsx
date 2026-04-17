@@ -35,7 +35,6 @@ interface InventarioAnalisis {
 
 const ALMACENES_MAP: Record<string, string> = {
   'APRI.016': 'Lima',
-  'APRI.DJG': 'Lima', 
   'DJCST.01': 'Chiclayo',
   'DICST.01': 'Ica',
   'DJABT.01': 'Bellavista',
@@ -114,7 +113,9 @@ export function CargaSapPanel() {
         const ciudad = ALMACENES_MAP[almacenCod];
         if (!ciudad) return; // Almacén ignorado
 
-        const sku = codigoBarras || codigoSap; // Preferir código barras
+        const sku = codigoBarras; // El usuario solicita usar ÚNICAMENTE el código de barras como identificador principal.
+        
+        if (!sku) return; // Si no hay código de barras, se salta la fila.
 
         if (!stockAgrupado[ciudad][sku]) {
            stockAgrupado[ciudad][sku] = { total: 0, desc: descripcion, codigoSap };
@@ -126,23 +127,31 @@ export function CargaSapPanel() {
       const dataBackend = await obtenerDatosParaSap();
       
       const mapSucID: Record<string, number> = {};
-      dataBackend.sucursales.forEach((s: any) => mapSucID[s.nombre_ciudad] = s.id);
+      const mapIDToSuc: Record<number, string> = {};
+      dataBackend.sucursales.forEach((s: any) => {
+         mapSucID[s.nombre_ciudad] = s.id;
+         mapIDToSuc[s.id] = s.nombre_ciudad;
+      });
 
       const mapRepToID: Record<string, number> = {};
+      const mapIDToRep: Record<number, any> = {};
       dataBackend.repuestos.forEach(r => {
         mapRepToID[r.codigo] = r.id!;
         if (r.codigo_sap) mapRepToID[r.codigo_sap] = r.id!;
+        mapIDToRep[r.id!] = r;
       });
 
       const mapInvActual: Record<string, number> = {};
       dataBackend.inventario.forEach(inv => {
-         Object.keys(mapSucID).forEach(c_nom => {
-            Object.keys(mapRepToID).forEach(r_cod => {
-                if (mapSucID[c_nom] === inv.sucursal_id && mapRepToID[r_cod] === inv.repuesto_id) {
-                    mapInvActual[`${c_nom}-${r_cod}`] = inv.cantidad;
-                }
-            });
-         });
+         const ciudad = mapIDToSuc[inv.sucursal_id];
+         const rep = mapIDToRep[inv.repuesto_id];
+         
+         if (ciudad && rep) {
+            mapInvActual[`${ciudad}-${rep.codigo}`] = inv.cantidad;
+            if (rep.codigo_sap) {
+               mapInvActual[`${ciudad}-${rep.codigo_sap}`] = inv.cantidad;
+            }
+         }
       });
 
       // ---- SMART DIFF LOGIC ----
@@ -219,10 +228,9 @@ export function CargaSapPanel() {
       let countPurgados = 0;
       dataBackend.inventario.forEach(inv => {
          if (inv.cantidad > 0) {
-            // Revertir ID -> Ciudad, SKU
-            const sucursalNombre = dataBackend.sucursales.find((s: any) => s.id === inv.sucursal_id)?.nombre_ciudad;
-            // repuestoID a Codigo no es 1:1 estricto bidireccional, usamos un lookup inverso de los existentes
-            const repItem = dataBackend.repuestos.find(r => r.id === inv.repuesto_id);
+            // Revertir ID -> Ciudad, SKU (Optimizado a O(1))
+            const sucursalNombre = mapIDToSuc[inv.sucursal_id];
+            const repItem = mapIDToRep[inv.repuesto_id];
 
             if (sucursalNombre && repItem) {
                const checkKey = `${sucursalNombre}-${repItem.codigo}`;
