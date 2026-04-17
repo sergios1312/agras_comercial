@@ -48,14 +48,7 @@ export default async function EstadisticasPage() {
   const tiposTrabajoDisponibles = [...tiposSet].sort();
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-white tracking-tight">Estadísticas</h1>
-        <p className="text-sm text-slate-500 mt-1">
-          Dashboards de garantías · {casos.length} casos cargados del registro
-        </p>
-      </div>
-
+    <div className="-mt-6">
       <EstadisticasDashboard
         casos={casos}
         sucursalesDisponibles={sucursalesDisponibles}

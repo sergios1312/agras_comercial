@@ -344,11 +344,14 @@ export function EstadisticasDashboard({
   return (
     <div className="space-y-6">
       {/* ── Filtros ─────────────────────────────────────────── */}
-      <div className="sticky top-2 z-40 bg-slate-900/90 backdrop-blur-md border border-slate-800 rounded-2xl p-4 shadow-xl">
+      <div className="sticky top-0 z-40 bg-slate-900/90 backdrop-blur-md border border-slate-800 rounded-b-2xl p-4 shadow-xl">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
             <Filter className="w-4 h-4 text-slate-500" />
             <span className="text-xs font-semibold text-slate-500 uppercase tracking-widest">Filtros Globales</span>
+            <div className="ml-2 px-2 py-0.5 bg-slate-800 border border-slate-700 rounded text-[10px] text-slate-400 font-medium">
+              {casos.length} CASOS
+            </div>
             {fechaActualizacion && (
               <div className="ml-4 flex items-center gap-2 px-3 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-lg shadow-sm">
                 <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
