@@ -23,6 +23,16 @@ export interface Caso {
   clasificacionSLA: ClasificacionSLA;
 }
 
+export interface CasoConEstado extends Caso {
+  estadoCarga: "nuevo" | "modificado" | "sin_cambios";
+}
+
+export interface ResumenCarga {
+  nuevos: number;
+  modificados: number;
+  sinCambios: number;
+}
+
 export const PLAZOS_IDEALES: Record<string, number> = {
   "REPARACION ELECTRONICA": 5,
   "REPARACION DE GENERADOR": 10,
