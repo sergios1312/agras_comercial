@@ -26,6 +26,14 @@ import {
 // ─── Tipos internos del panel ──────────────────────────────────
 type PanelState = "idle" | "parsing" | "preview" | "uploading" | "done" | "error";
 
+function normalizeString(str: string): string {
+  return str
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+}
+
 // ─── Helpers reutilizados del server (sin fs) ──────────────────
 function parseDate(val: string): string | null {
   if (!val || val.trim() === "") return null;
@@ -105,9 +113,9 @@ function parsearCsvTexto(raw: string, sucursalesDB: string[]): Caso[] {
     const cols = records[i].map((c: string) => c.trim());
     if (cols.length < 5) continue;
 
-    const sucursalRaw = cols[I.sucursal] ?? "";
+    const sucursalRaw = normalizeString(cols[I.sucursal] ?? "");
     const sucursalMatch = sucursalesDB.find((s) =>
-      sucursalRaw.toLowerCase().includes(s.toLowerCase())
+      sucursalRaw.includes(normalizeString(s))
     );
     if (!sucursalMatch) continue;
     const sucursal = sucursalMatch;
