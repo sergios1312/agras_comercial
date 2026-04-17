@@ -85,10 +85,10 @@ export function CargaSapPanel() {
       const normalize = (s: string) => String(s || '').trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
       const headers = headersRaw.map(normalize);
 
-      const idSapCod = headers.findIndex(h => h.includes('cod.sap') || h.includes('codigo de articulo'));
-      const idDesc = headers.findIndex(h => h.includes('descripcion del articulo'));
-      const idEan = headers.findIndex(h => h.includes('codigo de barras'));
-      const idAlm = headers.findIndex(h => h.includes('codigo de almacen'));
+      const idSapCod = headers.findIndex(h => h?.includes('cod.sap') || h?.includes('codigo de articulo'));
+      const idDesc = headers.findIndex(h => h?.includes('descripcion del articulo'));
+      const idEan = headers.findIndex(h => h?.includes('codigo de barras'));
+      const idAlm = headers.findIndex(h => h?.includes('codigo de almacen'));
       const idTotal = headers.findIndex(h => h === 'total');
 
       if (idSapCod === -1 || idAlm === -1) {
