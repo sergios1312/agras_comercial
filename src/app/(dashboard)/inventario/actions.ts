@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { after } from "next/server";
 import { createClient } from "@/utils/supabase/server";
+import { createAdminClient } from "@/utils/supabase/admin";
 import { getSession } from "@/lib/auth";
 import type { ItemCarrito, EstadoPedido } from "@/types/database.types";
 import { esNumeroCasoValido } from "@/lib/utils";
@@ -104,21 +105,37 @@ export async function submitPedido(
     );
 
     if (numerosDeCasoRequeridos.length > 0) {
-      const rawC = supabase as any;
-      const { data: casosExistentes, error: errorCasos } = await rawC
+      const dbAdmin = createAdminClient() as any;
+      const { data: casosExistentes, error: errorCasos } = await dbAdmin
         .from("casos")
-        .select("numeracion_caso")
+        .select("numeracion_caso, sucursales(nombre_ciudad)")
         .in("numeracion_caso", numerosDeCasoRequeridos);
 
       if (errorCasos) {
         return { error: `Error al validar los casos en BD: ${errorCasos.message}`, success: null };
       }
 
-      const casosEncontrados = new Set((casosExistentes || []).map((c: any) => c.numeracion_caso));
+      const casoMap = new Map((casosExistentes || []).map((c: any) => [
+        c.numeracion_caso,
+        c.sucursales ? c.sucursales.nombre_ciudad : null
+      ]));
 
-      for (const num of numerosDeCasoRequeridos) {
-        if (!casosEncontrados.has(num)) {
-          return { error: `Caso de Lark no existe: ${num}`, success: null };
+      for (const item of carrito) {
+        if (item.es_venta) continue;
+        const num = item.numero_caso.trim();
+        
+        if (!casoMap.has(num)) {
+          return { error: `El número de caso ${num} no existe en la base de datos de casos. Verifica nuevamente.`, success: null };
+        }
+        
+        const sedeDelCaso = casoMap.get(num);
+        if (typeof sedeDelCaso === "string") {
+          const sedeDelCasoLower = sedeDelCaso.toLowerCase();
+          const sedeDestinoLower = sedeDestino.toLowerCase();
+          
+          if (!sedeDelCasoLower.includes(sedeDestinoLower) && !sedeDestinoLower.includes(sedeDelCasoLower)) {
+            return { error: `El caso ${num} pertenece a "${sedeDelCaso}", pero tu destino es "${sedeDestino}". El repuesto debe ser solicitado para la misma sede a la que pertenece el caso.`, success: null };
+          }
         }
       }
     }

@@ -59,7 +59,7 @@ export async function enviarNotificacionPedido(
 
       const grupoEsSinStock = esSinStock || !destino;
       const html = generarCuerpoEmailHTML(
-        `${solicitante} (${sedeDestinoFisico})`,
+        sedeDestinoFisico.charAt(0).toUpperCase() + sedeDestinoFisico.slice(1),
         destino || null,
         items,
         grupoEsSinStock,
