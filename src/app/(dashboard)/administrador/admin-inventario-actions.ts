@@ -2,6 +2,7 @@
 
 import { createAdminClient } from "@/utils/supabase/admin";
 import { getSession } from "@/lib/auth";
+import { revalidatePath } from "next/cache";
 
 // ─── Tipos ──────────────────────────────────────────────────
 interface ActionResult {
@@ -117,6 +118,9 @@ export async function confirmarSubidaMaestro(
       { clave: "ultima_actualizacion_maestro", valor: fecha, updated_at: fecha },
       { onConflict: "clave" }
     );
+
+    revalidatePath("/inventario");
+    revalidatePath("/administrador");
 
     return {
       success: true,
@@ -258,10 +262,13 @@ export async function confirmarSubidaSap(
         { onConflict: "clave" }
       );
 
+      revalidatePath("/inventario");
+      revalidatePath("/administrador");
+
       return {
         success: true,
         mensaje: `Stock sincronizado exitosamente (${movPaginas} registros de almacén impactados).${resRepuestosMsg}`
-      }
+      };
     }
 
     return { success: true, mensaje: `Sin cambios en inventario.${resRepuestosMsg}` };

@@ -8,6 +8,8 @@ import { EstadisticasDashboard } from "@/components/estadisticas/EstadisticasDas
 import { getUltimasActualizaciones } from "@/app/(dashboard)/inventario/config-actions";
 import { createAdminClient } from "@/utils/supabase/admin";
 
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   title: "Estadísticas | Sistema de Garantías",
   description: "Dashboards de KPIs, SLA, RTAT y evolución de casos de garantía.",

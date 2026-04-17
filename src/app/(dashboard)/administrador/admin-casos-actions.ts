@@ -2,6 +2,7 @@
 
 import { createAdminClient } from "@/utils/supabase/admin";
 import { getSession } from "@/lib/auth";
+import { revalidatePath } from "next/cache";
 import type { Caso } from "@/types/casos.types";
 
 // ─── Tipos del resultado ──────────────────────────────────────
@@ -100,6 +101,9 @@ export async function confirmarSubidaCasos(
       { clave: "ultima_actualizacion_casos", valor: fecha, updated_at: fecha },
       { onConflict: "clave" }
     );
+
+    revalidatePath("/estadisticas");
+    revalidatePath("/casos");
 
     return {
       success: true,
