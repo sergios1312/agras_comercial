@@ -13,6 +13,7 @@ export interface Caso {
   descripcion: string;
   sucursal: string;
   cliente: string;
+  equipo: string;
   garantia: string;
   estadoCaso: string;
   tipoTrabajo: string;

@@ -79,6 +79,9 @@ function parsearCsvTexto(raw: string, sucursalesDB: string[]): Caso[] {
 
   const headers = records[0].map((h: string) => h.trim());
   const idx = (name: string) => headers.findIndex((h: string) => h === name);
+  // Búsqueda de encabezado ignorando mayúsculas/minúsculas y tildes
+  const idxNorm = (keyword: string) =>
+    headers.findIndex((h: string) => normalizeString(h).includes(normalizeString(keyword)));
 
   const I = {
     numeracion: idx("Numeración"),
@@ -91,6 +94,11 @@ function parsearCsvTexto(raw: string, sucursalesDB: string[]): Caso[] {
     tipoTrabajo: idx("TIPO DE TRABAJO"),
     fechaIngreso: idx("Fecha de ingreso"),
     fechaSalida: idx("Fecha de salida"),
+    // Equipo: prioridad Dron > Generador > Control > Batería
+    equipoDron:      idxNorm("dron"),
+    equipoGenerador: idxNorm("generador"),
+    equipoControl:   idxNorm("control"),
+    equipoBateria:   idxNorm("bateria"),
   };
 
   // Validación de columnas críticas
@@ -149,6 +157,18 @@ function parsearCsvTexto(raw: string, sucursalesDB: string[]): Caso[] {
     const periodo = periodoMensual(fechaSalida);
     const sla = clasificarSLA(rtat, tipoTrabajo, estadoGeneral);
 
+    // Extraer equipo con prioridad: Dron > Generador > Control > Batería
+    let equipo = "";
+    if (I.equipoDron >= 0 && cols[I.equipoDron]) {
+      equipo = cols[I.equipoDron];
+    } else if (I.equipoGenerador >= 0 && cols[I.equipoGenerador]) {
+      equipo = cols[I.equipoGenerador];
+    } else if (I.equipoControl >= 0 && cols[I.equipoControl]) {
+      equipo = cols[I.equipoControl];
+    } else if (I.equipoBateria >= 0 && cols[I.equipoBateria]) {
+      equipo = cols[I.equipoBateria];
+    }
+
     casos.push({
       id: i,
       numeracionCaso,
@@ -156,6 +176,7 @@ function parsearCsvTexto(raw: string, sucursalesDB: string[]): Caso[] {
       descripcion: cols[I.desc] ?? "",
       sucursal,
       cliente: cols[I.cliente] ?? "",
+      equipo,
       garantia: cols[I.garantia] ?? "",
       estadoCaso: estadoFinal,
       tipoTrabajo: tipoTrabajo || "SIN TIPO",
@@ -260,6 +281,7 @@ export function CargaCasosPanel({ ultimaActualizacion, sucursalesDB }: Props) {
           norm(c.estadoGeneral) === norm(dbCase.estado_general) &&
           norm(c.descripcion) === norm(dbCase.descripcion) &&
           norm(c.cliente) === norm(dbCase.cliente) &&
+          norm(c.equipo) === norm(dbCase.equipo) &&
           norm(c.garantia) === norm(dbCase.garantia) &&
           norm(c.estadoCaso) === norm(dbCase.estado_caso) &&
           norm(c.tipoTrabajo) === norm(dbCase.tipo_trabajo) &&

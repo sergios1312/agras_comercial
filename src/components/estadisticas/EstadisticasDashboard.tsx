@@ -23,6 +23,7 @@ interface Props {
   sucursalesDisponibles: string[];
   periodosDisponibles: string[];
   tiposTrabajoDisponibles: string[];
+  equiposDisponibles: string[];
   fechaActualizacion?: string | null;
 }
 
@@ -261,6 +262,7 @@ export function EstadisticasDashboard({
   sucursalesDisponibles,
   periodosDisponibles,
   tiposTrabajoDisponibles,
+  equiposDisponibles,
   fechaActualizacion,
 }: Props) {
   // ── Estados de filtros globales ──────────────────────────────
@@ -272,6 +274,7 @@ export function EstadisticasDashboard({
   const [openPeriodo, setOpenPeriodo] = useState<boolean>(false);
   const [estadoCasoFiltro, setEstadoCasoFiltro] = useState<string>("");
   const [tipoFiltro, setTipoFiltro] = useState<string>("");
+  const [equipoFiltro, setEquipoFiltro] = useState<string>("");
   const [binSize, setBinSize] = useState<number>(5);
 
   const estadosCasoDisponibles = useMemo(() => {
@@ -289,8 +292,8 @@ export function EstadisticasDashboard({
   const periodoDesact = estadoFiltro === "ABIERTO";
 
   const hayFiltros = useMemo(() => {
-    return estadoFiltro !== "TODOS" || sucursalFiltro !== "" || garantiaFiltro !== "" || periodoFiltro.length > 0 || ingresoFiltro !== "" || estadoCasoFiltro !== "" || tipoFiltro !== "";
-  }, [estadoFiltro, sucursalFiltro, garantiaFiltro, periodoFiltro, ingresoFiltro, estadoCasoFiltro, tipoFiltro]);
+    return estadoFiltro !== "TODOS" || sucursalFiltro !== "" || garantiaFiltro !== "" || periodoFiltro.length > 0 || ingresoFiltro !== "" || estadoCasoFiltro !== "" || tipoFiltro !== "" || equipoFiltro !== "";
+  }, [estadoFiltro, sucursalFiltro, garantiaFiltro, periodoFiltro, ingresoFiltro, estadoCasoFiltro, tipoFiltro, equipoFiltro]);
 
   const handleLimpiarFiltros = () => {
     setEstadoFiltro("TODOS");
@@ -300,6 +303,7 @@ export function EstadisticasDashboard({
     setIngresoFiltro("");
     setEstadoCasoFiltro("");
     setTipoFiltro("");
+    setEquipoFiltro("");
   };
 
   const casosKPI = useMemo(() => {
@@ -312,9 +316,10 @@ export function EstadisticasDashboard({
       if (ingresoFiltro === "NO INGRESADOS" && c.fechaIngreso) return false;
       if (estadoCasoFiltro && c.estadoCaso !== estadoCasoFiltro) return false;
       if (tipoFiltro && c.tipoTrabajo !== tipoFiltro) return false;
+      if (equipoFiltro && c.equipo !== equipoFiltro) return false;
       return true;
     });
-  }, [casos, estadoFiltro, sucursalFiltro, garantiaFiltro, periodoFiltro, ingresoFiltro, estadoCasoFiltro, tipoFiltro, periodoDesact]);
+    }, [casos, estadoFiltro, sucursalFiltro, garantiaFiltro, periodoFiltro, ingresoFiltro, estadoCasoFiltro, tipoFiltro, equipoFiltro, periodoDesact]);
 
   const total = casosKPI.length;
   const abiertos = casosKPI.filter(c => c.estadoGeneral === "ABIERTO").length;
@@ -480,6 +485,18 @@ export function EstadisticasDashboard({
             <option value="">Todos los tipos</option>
             {tiposTrabajoDisponibles.map((t) => (
               <option key={t} value={t}>{t}</option>
+            ))}
+          </select>
+
+          {/* F8: Equipo */}
+          <select
+            value={equipoFiltro}
+            onChange={(e) => setEquipoFiltro(e.target.value)}
+            className="px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-xs text-slate-300 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+          >
+            <option value="">Todos los equipos</option>
+            {equiposDisponibles.map((eq) => (
+              <option key={eq} value={eq}>{eq}</option>
             ))}
           </select>
 

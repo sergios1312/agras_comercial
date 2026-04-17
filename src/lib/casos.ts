@@ -58,7 +58,7 @@ export async function obtenerCasosDesdeDB(): Promise<Caso[]> {
   while (true) {
     const { data: casosDB, error } = await rawClient
       .from("casos")
-      .select("*, sucursales(nombre_ciudad)")
+      .select("*, sucursales(nombre_ciudad), equipo")
       .range(from, from + step - 1);
 
     if (error) {
@@ -84,6 +84,7 @@ export async function obtenerCasosDesdeDB(): Promise<Caso[]> {
         descripcion: row.descripcion || "",
         sucursal: sucursalNombre,
         cliente: row.cliente || "",
+        equipo: row.equipo || "",
         garantia: row.garantia || "",
         estadoCaso: row.estado_caso || "SIN ESTADO",
         tipoTrabajo: row.tipo_trabajo || "SIN TIPO",

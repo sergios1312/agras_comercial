@@ -48,6 +48,8 @@ export default async function EstadisticasPage() {
   const sucursalesDisponibles = sucursalesRes.data?.map((s: any) => s.nombre_ciudad) || [];
   const periodosDisponibles = [...periodosSet].sort();
   const tiposTrabajoDisponibles = [...tiposSet].sort();
+  const equiposSet = new Set(casos.map((c) => c.equipo).filter(Boolean) as string[]);
+  const equiposDisponibles = [...equiposSet].sort();
 
   return (
     <div className="-mt-6">
@@ -56,6 +58,7 @@ export default async function EstadisticasPage() {
         sucursalesDisponibles={sucursalesDisponibles}
         periodosDisponibles={periodosDisponibles}
         tiposTrabajoDisponibles={tiposTrabajoDisponibles}
+        equiposDisponibles={equiposDisponibles}
         fechaActualizacion={actualizaciones.casos}
       />
     </div>
