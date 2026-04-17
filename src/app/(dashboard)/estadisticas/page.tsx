@@ -5,6 +5,7 @@ import { BarChart3 } from "lucide-react";
 import { obtenerCasosDesdeDB } from "@/lib/casos";
 import { SUCURSALES_BANEADAS, TRABAJOS_BANEADOS } from "@/types/casos.types";
 import { EstadisticasDashboard } from "@/components/estadisticas/EstadisticasDashboard";
+import { getUltimasActualizaciones } from "@/app/(dashboard)/inventario/config-actions";
 
 export const metadata: Metadata = {
   title: "Estadísticas | Sistema de Garantías",
@@ -27,7 +28,10 @@ export default async function EstadisticasPage() {
   }
 
   // ── Pipeline de datos desde BD ──────────────────────────────
-  const casos = await obtenerCasosDesdeDB();
+  const [casos, actualizaciones] = await Promise.all([
+    obtenerCasosDesdeDB(),
+    getUltimasActualizaciones()
+  ]);
 
   // ── Listas para selectores de filtros ────────────────────────
   const sucursalesSet = new Set(casos.map((c) => c.sucursal).filter(Boolean));
@@ -56,6 +60,7 @@ export default async function EstadisticasPage() {
         sucursalesDisponibles={sucursalesDisponibles}
         periodosDisponibles={periodosDisponibles}
         tiposTrabajoDisponibles={tiposTrabajoDisponibles}
+        fechaActualizacion={actualizaciones.casos}
       />
     </div>
   );

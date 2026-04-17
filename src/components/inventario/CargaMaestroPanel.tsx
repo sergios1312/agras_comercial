@@ -26,7 +26,11 @@ interface RepuestoConEstado extends RepuestoRecord {
   estadoCarga: "nuevo" | "modificado" | "sin_cambios";
 }
 
-export function CargaMaestroPanel() {
+interface Props {
+  ultimaActualizacion?: string | null;
+}
+
+export function CargaMaestroPanel({ ultimaActualizacion }: Props) {
   const [panelState, setPanelState] = useState<PanelState>("idle");
   const [items, setItems] = useState<RepuestoConEstado[]>([]);
   const [resumen, setResumen] = useState({ nuevos: 0, modificados: 0, sinCambios: 0 });
@@ -216,10 +220,17 @@ export function CargaMaestroPanel() {
   if (panelState === "idle") {
     return (
       <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6">
-        <h3 className="text-lg font-bold text-slate-100 flex items-center gap-2 mb-4">
-          <Database className="w-5 h-5 text-emerald-400" />
-          Actualizar Maestro (inventario_unificado.xlsx)
-        </h3>
+        <div className="flex items-start justify-between mb-4">
+          <h3 className="text-lg font-bold text-slate-100 flex items-center gap-2">
+            <Database className="w-5 h-5 text-emerald-400" />
+            Actualizar Maestro (inventario_unificado.xlsx)
+          </h3>
+          {ultimaActualizacion && (
+            <span className="text-xs font-semibold text-emerald-500 bg-emerald-500/10 px-2 py-1 rounded">
+              Última act: {new Date(ultimaActualizacion).toLocaleString('es-PE')}
+            </span>
+          )}
+        </div>
         <p className="text-sm text-slate-400 mb-6">
           Sube el archivo maestro central para actualizar precios, nombres y modelos compatibles. No afecta las cantidades de stock, solo las características del repuesto.
         </p>

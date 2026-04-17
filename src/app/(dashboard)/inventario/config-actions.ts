@@ -81,3 +81,33 @@ export async function updateConfigPedido(
     return { error: msg };
   }
 }
+
+export interface UltimasActualizaciones {
+  maestro: string | null;
+  stock: string | null;
+  casos: string | null;
+}
+
+export async function getUltimasActualizaciones(): Promise<UltimasActualizaciones> {
+  const DEFAULT = { maestro: null, stock: null, casos: null };
+  try {
+    const db = createAdminClient();
+    const { data, error } = await (db as unknown as any)
+      .from("configuracion_sistema")
+      .select("clave, valor, updated_at")
+      .in("clave", ["ultima_actualizacion_maestro", "ultima_actualizacion_stock", "ultima_actualizacion_casos"]);
+
+    if (error || !data) return DEFAULT;
+
+    const rows = data as { clave: string; valor: string; updated_at: string }[];
+    const map = Object.fromEntries(rows.map((r) => [r.clave, r.updated_at || r.valor]));
+
+    return {
+      maestro: map["ultima_actualizacion_maestro"] ?? null,
+      stock: map["ultima_actualizacion_stock"] ?? null,
+      casos: map["ultima_actualizacion_casos"] ?? null,
+    };
+  } catch {
+    return DEFAULT;
+  }
+}

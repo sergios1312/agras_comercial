@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
 import type { Metadata } from "next";
 import { AdminPageClient } from "@/components/inventario/AdminPageClient";
-import { getConfigPedidos } from "@/app/(dashboard)/inventario/config-actions";
+import { getConfigPedidos, getUltimasActualizaciones } from "@/app/(dashboard)/inventario/config-actions";
 import { Shield } from "lucide-react";
 
 export const metadata: Metadata = {
@@ -16,6 +16,7 @@ export default async function AdministradorPage() {
   if (user.role !== "admin") redirect("/inventario");
 
   const configPedidos = await getConfigPedidos();
+  const actualizaciones = await getUltimasActualizaciones();
 
   return (
     <div className="space-y-6">
@@ -30,7 +31,7 @@ export default async function AdministradorPage() {
         </div>
       </div>
 
-      <AdminPageClient configInicial={configPedidos} />
+      <AdminPageClient configInicial={configPedidos} actualizaciones={actualizaciones} />
     </div>
   );
 }

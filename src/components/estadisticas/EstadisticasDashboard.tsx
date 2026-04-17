@@ -15,6 +15,23 @@ import { DemoraPromedio } from "@/components/estadisticas/DemoraPromedio";
 import { HistogramaRtat } from "@/components/estadisticas/HistogramaRtat";
 import { HeatmapSLA } from "@/components/estadisticas/HeatmapSLA";
 import { BarChart3, CheckCircle2, Clock, TrendingUp } from "lucide-react";
+"use client";
+
+import { useState, useMemo } from "react";
+import { Filter } from "lucide-react";
+import type { Caso } from "@/types/casos.types";
+import { PLAZOS_IDEALES } from "@/types/casos.types";
+import { KpiCard } from "@/components/estadisticas/KpiCard";
+import { TablaPrincipal } from "@/components/estadisticas/TablaPrincipal";
+import { TablaResumenSucursal } from "@/components/estadisticas/TablaResumenSucursal";
+import { PieDistribucion } from "@/components/estadisticas/PieDistribucion";
+import { PieEficiencia } from "@/components/estadisticas/PieEficiencia";
+import { ComparativaEficiencias } from "@/components/estadisticas/ComparativaEficiencias";
+import { BarrasDesviacion } from "@/components/estadisticas/BarrasDesviacion";
+import { DemoraPromedio } from "@/components/estadisticas/DemoraPromedio";
+import { HistogramaRtat } from "@/components/estadisticas/HistogramaRtat";
+import { HeatmapSLA } from "@/components/estadisticas/HeatmapSLA";
+import { BarChart3, CheckCircle2, Clock, TrendingUp } from "lucide-react";
 
 // ─── Tipos de filtros ────────────────────────────────────────
 type EstadoFiltro = "TODOS" | "ABIERTO" | "CERRADO" | "DEVUELTO";
@@ -24,6 +41,7 @@ interface Props {
   sucursalesDisponibles: string[];
   periodosDisponibles: string[];
   tiposTrabajoDisponibles: string[];
+  fechaActualizacion?: string | null;
 }
 
 // ─── Helpers de cómputo ──────────────────────────────────────
@@ -271,6 +289,7 @@ export function EstadisticasDashboard({
   sucursalesDisponibles,
   periodosDisponibles,
   tiposTrabajoDisponibles,
+  fechaActualizacion,
 }: Props) {
   // ── Estados de filtros globales ──────────────────────────────
   const [estadoFiltro, setEstadoFiltro] = useState<EstadoFiltro>("TODOS");
@@ -278,234 +297,6 @@ export function EstadisticasDashboard({
   const [garantiaFiltro, setGarantiaFiltro] = useState<string>("");   // F3
   const [periodoFiltro, setPeriodoFiltro] = useState<string[]>([]);
   const [ingresoFiltro, setIngresoFiltro] = useState<string>("");
-  const [openPeriodo, setOpenPeriodo] = useState<boolean>(false);
-  const [estadoCasoFiltro, setEstadoCasoFiltro] = useState<string>(""); // F5
-  const [tipoFiltro, setTipoFiltro] = useState<string>("");
-  const [binSize, setBinSize] = useState<number>(5);
-
-  // ── Lista dinámica de sub-estados para F5 ───────────────────
-  const estadosCasoDisponibles = useMemo(() => {
-    const set = new Set(casos.map((c) => c.estadoCaso).filter(Boolean));
-    return [...set].sort();
-  }, [casos]);
-
-  // ── Override táctico: F2 = "DEVUELTO" ───────────────────────
-  // Cuando el usuario elige DEVUELTO, no filtra estadoGeneral sino estadoCaso
-  const esDevuelto = estadoFiltro === "DEVUELTO";
-
-  // ── Helper: aplica filtro de estado con override táctico ─────
-  const matchEstado = (c: Caso) => {
-    if (esDevuelto) return c.estadoCaso === "DEVUELTO";
-    if (estadoFiltro === "TODOS") return true;
-    return c.estadoGeneral === estadoFiltro;
-  };
-
-  // ── Periodo desactivado cuando estado = ABIERTO ──────────────
-  const periodoDesact = estadoFiltro === "ABIERTO";
-
-  // ============================================================
-  // DATASETS DERIVADOS — uno por componente según la spec
-  // ============================================================
-
-  // ── KPIs + TablaPrincipal: F1, F2*, F3, F4*, F5, F6 ─────────
-  const casosKPI = useMemo(() =>
-    casos.filter((c) => {
-      if (!matchEstado(c)) return false;
-      if (sucursalFiltro && c.sucursal !== sucursalFiltro) return false;
-      if (garantiaFiltro && c.garantia !== garantiaFiltro) return false;
-      if (periodoFiltro.length > 0 && !periodoDesact && (!c.periodoMensual || !periodoFiltro.includes(c.periodoMensual))) return false;
-      if (ingresoFiltro === "INGRESADOS" && !c.fechaIngreso) return false;
-      if (ingresoFiltro === "NO INGRESADOS" && c.fechaIngreso) return false;
-      if (estadoCasoFiltro && c.estadoCaso !== estadoCasoFiltro) return false;
-      if (tipoFiltro && c.tipoTrabajo !== tipoFiltro) return false;
-      return true;
-    }),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [casos, estadoFiltro, sucursalFiltro, garantiaFiltro, periodoFiltro, periodoDesact, estadoCasoFiltro, tipoFiltro, ingresoFiltro]
-  );
-
-  // ── PieDistribucion: ignora F1 (para ver todas las sucursales) ─
-  // Aplica: F2*, F3, F4*, F5, F6
-  const casosDistribucion = useMemo(() =>
-    casos.filter((c) => {
-      if (!matchEstado(c)) return false;
-      if (garantiaFiltro && c.garantia !== garantiaFiltro) return false;
-      if (periodoFiltro.length > 0 && !periodoDesact && (!c.periodoMensual || !periodoFiltro.includes(c.periodoMensual))) return false;
-      if (ingresoFiltro === "INGRESADOS" && !c.fechaIngreso) return false;
-      if (ingresoFiltro === "NO INGRESADOS" && c.fechaIngreso) return false;
-      if (estadoCasoFiltro && c.estadoCaso !== estadoCasoFiltro) return false;
-      if (tipoFiltro && c.tipoTrabajo !== tipoFiltro) return false;
-      return true;
-    }),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [casos, estadoFiltro, garantiaFiltro, periodoFiltro, periodoDesact, estadoCasoFiltro, tipoFiltro, ingresoFiltro]
-  );
-
-  // ── TablaResumenSucursal: SOLO F4 (Periodo) ──────────────────
-  // Fotografia del mes general, ignora todo lo demás
-  const casosResumen = useMemo(() =>
-    casos.filter((c) => {
-      if (periodoFiltro.length > 0 && (!c.periodoMensual || !periodoFiltro.includes(c.periodoMensual))) return false;
-      return true;
-    }),
-    [casos, periodoFiltro]
-  );
-
-  // ── PieEficiencia: F1, F4, F6. Ignora F2 (fuerza CERRADO), F3, F5 ─
-  const casosEficiencia = useMemo(() =>
-    casos.filter((c) => {
-      if (sucursalFiltro && c.sucursal !== sucursalFiltro) return false;
-      if (periodoFiltro.length > 0 && (!c.periodoMensual || !periodoFiltro.includes(c.periodoMensual))) return false;
-      if (tipoFiltro && c.tipoTrabajo !== tipoFiltro) return false;
-      return true;
-    }),
-    [casos, sucursalFiltro, periodoFiltro, tipoFiltro]
-  );
-
-  // ── SemaforoEvolucion (tab): F1, F3, F6. Ignora F4, F2 (fuerza CERRADO)
-  const casosEvolucion = useMemo(() =>
-    casos.filter((c) => {
-      if (sucursalFiltro && c.sucursal !== sucursalFiltro) return false;
-      if (garantiaFiltro && c.garantia !== garantiaFiltro) return false;
-      if (tipoFiltro && c.tipoTrabajo !== tipoFiltro) return false;
-      return true;
-    }),
-    [casos, sucursalFiltro, garantiaFiltro, tipoFiltro]
-  );
-
-  // ── SemaforoSucursal (tab): F4, F3, F6. Ignora F1, F2 (fuerza CERRADO)
-  const casosSucursalSemaforo = useMemo(() =>
-    casos.filter((c) => {
-      if (garantiaFiltro && c.garantia !== garantiaFiltro) return false;
-      if (periodoFiltro.length > 0 && (!c.periodoMensual || !periodoFiltro.includes(c.periodoMensual))) return false;
-      if (tipoFiltro && c.tipoTrabajo !== tipoFiltro) return false;
-      return true;
-    }),
-    [casos, garantiaFiltro, periodoFiltro, tipoFiltro]
-  );
-
-  // ── Tab Demora/Garantía: F4, F5, F6. Ignora F1, F3 ─────────
-  const casosDemoraSucursal = useMemo(() =>
-    casos.filter((c) => {
-      if (periodoFiltro.length > 0 && (!c.periodoMensual || !periodoFiltro.includes(c.periodoMensual))) return false;
-      if (estadoCasoFiltro && c.estadoCaso !== estadoCasoFiltro) return false;
-      if (tipoFiltro && c.tipoTrabajo !== tipoFiltro) return false;
-      return true;
-    }),
-    [casos, periodoFiltro, estadoCasoFiltro, tipoFiltro]
-  );
-
-  // ── Tab Demora/TipoTrabajo: F4, F5. Ignora F1, F3, F6 ───────
-  const casosDemoraTabajo = useMemo(() =>
-    casos.filter((c) => {
-      if (periodoFiltro.length > 0 && (!c.periodoMensual || !periodoFiltro.includes(c.periodoMensual))) return false;
-      if (estadoCasoFiltro && c.estadoCaso !== estadoCasoFiltro) return false;
-      return true;
-    }),
-    [casos, periodoFiltro, estadoCasoFiltro]
-  );
-
-  // ── BarrasDesviacion: F1, F3, F4. Ignora F2 (fuerza CERRADO), F5, F6 ─
-  const casosDesviacion = useMemo(() =>
-    casos.filter((c) => {
-      if (sucursalFiltro && c.sucursal !== sucursalFiltro) return false;
-      if (garantiaFiltro && c.garantia !== garantiaFiltro) return false;
-      if (periodoFiltro.length > 0 && (!c.periodoMensual || !periodoFiltro.includes(c.periodoMensual))) return false;
-      return true;
-    }),
-    [casos, sucursalFiltro, garantiaFiltro, periodoFiltro]
-  );
-
-  // ── HistogramaRtat: F1, F3, F4, F6. Ignora F2 (fuerza CERRADO), F5 ─
-  const casosHistograma = useMemo(() =>
-    casos.filter((c) => {
-      if (sucursalFiltro && c.sucursal !== sucursalFiltro) return false;
-      if (garantiaFiltro && c.garantia !== garantiaFiltro) return false;
-      if (periodoFiltro.length > 0 && (!c.periodoMensual || !periodoFiltro.includes(c.periodoMensual))) return false;
-      if (tipoFiltro && c.tipoTrabajo !== tipoFiltro) return false;
-      return true;
-    }),
-    [casos, sucursalFiltro, garantiaFiltro, periodoFiltro, tipoFiltro]
-  );
-
-  // ── HeatmapSLA (ambas tabs): F1, F3, F4, F6 ─────────────────
-  // Tab TipoTrabajo ignora F6 (todos los tipos forzados en eje X)
-  const casosHeatmap = useMemo(() =>
-    casos.filter((c) => {
-      if (sucursalFiltro && c.sucursal !== sucursalFiltro) return false;
-      if (garantiaFiltro && c.garantia !== garantiaFiltro) return false;
-      if (periodoFiltro.length > 0 && (!c.periodoMensual || !periodoFiltro.includes(c.periodoMensual))) return false;
-      return true;
-    }),
-    [casos, sucursalFiltro, garantiaFiltro, periodoFiltro]
-  );
-  // Tab HeatmapPeriodo también aplica F6
-  const casosHeatmapPeriodo = useMemo(() =>
-    casosHeatmap.filter((c) => {
-      if (tipoFiltro && c.tipoTrabajo !== tipoFiltro) return false;
-      return true;
-    }),
-    [casosHeatmap, tipoFiltro]
-  );
-
-  // ============================================================
-  // DATOS COMPUTADOS PARA COMPONENTES
-  // ============================================================
-  const total = casosKPI.length;
-  const abiertos = casosKPI.filter((c) => c.estadoGeneral === "ABIERTO").length;
-  const cerrados = casosKPI.filter((c) => c.estadoGeneral === "CERRADO").length;
-  const pctAbiertos = total > 0 ? ((abiertos / total) * 100).toFixed(1) : "0.0";
-
-  const pieDistData = useMemo(() => {
-    const grupos: Record<string, number> = {};
-    for (const c of casosDistribucion) {
-      grupos[c.sucursal] = (grupos[c.sucursal] ?? 0) + 1;
-    }
-    return Object.entries(grupos).map(([name, value]) => ({ name, value }));
-  }, [casosDistribucion]);
-
-  const pieEficData = useMemo(() => {
-    const data = pctSLA(casosEficiencia);
-    const tot = data.reduce((a, b) => a + b.value, 0);
-    return data.map((d) => ({ ...d, total: tot }));
-  }, [casosEficiencia]);
-
-  const semEvolucionData = useMemo(() => semaforoEvolucion(casosEvolucion), [casosEvolucion]);
-  const semSucursalData = useMemo(() => semaforoSucursal(casosSucursalSemaforo), [casosSucursalSemaforo]);
-  const resumenData = useMemo(() => resumenSucursal(casosResumen), [casosResumen]);
-  const desviacionData = useMemo(() => barrasDesviacion(casosDesviacion), [casosDesviacion]);
-  const histData = useMemo(() => histogramaRtat(casosHistograma, binSize), [casosHistograma, binSize]);
-  const demoraSucData = useMemo(() => demoraSucursal(casosDemoraSucursal), [casosDemoraSucursal]);
-  const demoraTipoData = useMemo(() => demoraTipoTrabajo(casosDemoraTabajo), [casosDemoraTabajo]);
-
-  // Heatmap — delegamos el metaSLA al componente (tiene radio buttons propios)
-  // Pero necesitamos pasar los datos ya filtrados
-  const heatmapPeriodoFn = useMemo(
-    () => (metaSLA: "ETD" | "TAT") => heatmapPeriodo(casosHeatmapPeriodo, metaSLA),
-    [casosHeatmapPeriodo]
-  );
-  const heatmapTipoFn = useMemo(
-    () => (metaSLA: "ETD" | "TAT") => heatmapTipoTrabajo(casosHeatmap, metaSLA),
-    [casosHeatmap]
-  );
-
-  const hayFiltros = estadoFiltro !== "TODOS" || sucursalFiltro || garantiaFiltro || periodoFiltro.length > 0 || estadoCasoFiltro || ingresoFiltro || tipoFiltro;
-
-  return (
-    <div className="space-y-6">
-      {/* ── Filtros ─────────────────────────────────────────── */}
-      <div className="sticky top-2 z-40 bg-slate-900/90 backdrop-blur-md border border-slate-800 rounded-2xl p-4 shadow-xl">
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2">
-            <Filter className="w-4 h-4 text-slate-500" />
-            <span className="text-xs font-semibold text-slate-500 uppercase tracking-widest">Filtros Globales</span>
-          </div>
-          {hayFiltros && (
-            <button
-              onClick={() => { setEstadoFiltro("TODOS"); setSucursalFiltro(""); setGarantiaFiltro(""); setPeriodoFiltro([]); setEstadoCasoFiltro(""); setTipoFiltro(""); setIngresoFiltro(""); }}
-              className="px-3 py-1 rounded-lg text-xs font-medium border border-slate-600 text-slate-500 hover:text-slate-200 hover:border-slate-400 transition-all"
-            >
-              ✕ Limpiar filtros
             </button>
           )}
         </div>

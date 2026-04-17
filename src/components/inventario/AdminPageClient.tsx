@@ -5,14 +5,16 @@ import { CargaCasosPanel } from "@/components/inventario/CargaCasosPanel";
 import { CargaMaestroPanel } from "@/components/inventario/CargaMaestroPanel";
 import { CargaSapPanel } from "@/components/inventario/CargaSapPanel";
 import type { ConfigPedidos } from "@/types/database.types";
+import type { UltimasActualizaciones } from "@/app/(dashboard)/inventario/config-actions";
 import { Package, ArrowLeftRight, PackageX, Settings, Database, Activity, Box } from "lucide-react";
 import { useState } from "react";
 
 interface AdminPageClientProps {
   configInicial: ConfigPedidos;
+  actualizaciones: UltimasActualizaciones;
 }
 
-export function AdminPageClient({ configInicial }: AdminPageClientProps) {
+export function AdminPageClient({ configInicial, actualizaciones }: AdminPageClientProps) {
   const [activeTab, setActiveTab] = useState<"pedidos" | "casos" | "maestro" | "sap">("pedidos");
 
   return (
@@ -128,16 +130,16 @@ export function AdminPageClient({ configInicial }: AdminPageClientProps) {
           desde Gestioo para previsualizar los cambios antes de confirmar la carga a la base de datos.
         </p>
 
-        <CargaCasosPanel />
+        <CargaCasosPanel ultimaActualizacion={actualizaciones?.casos} />
         </section>
       )}
 
       {activeTab === "maestro" && (
-        <CargaMaestroPanel />
+        <CargaMaestroPanel ultimaActualizacion={actualizaciones?.maestro} />
       )}
 
       {activeTab === "sap" && (
-        <CargaSapPanel />
+        <CargaSapPanel ultimaActualizacion={actualizaciones?.stock} />
       )}
     </div>
   );

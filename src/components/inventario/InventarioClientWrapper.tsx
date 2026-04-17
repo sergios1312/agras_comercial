@@ -20,6 +20,7 @@ interface InventarioClientWrapperProps {
   casosReposicion: CasoReposicion[];
   ciudadUsuario: string;
   configPedidos: ConfigPedidos;
+  ultimaActualizacion?: string | null;
 }
 
 export function InventarioClientWrapper({
@@ -30,7 +31,8 @@ export function InventarioClientWrapper({
   historial,
   casosReposicion,
   ciudadUsuario,
-  configPedidos
+  configPedidos,
+  ultimaActualizacion
 }: InventarioClientWrapperProps) {
   // ── Carrito persistido en localStorage ──────────────────────
   const [carrito, setCarritoState] = useState<ItemCarrito[]>([]);
@@ -141,6 +143,7 @@ export function InventarioClientWrapper({
         <CatalogoTab 
           catalogo={catalogo} 
           sucursales={sucursalesNames} 
+          fechaActualizacion={ultimaActualizacion}
           onAddCarrito={agregarAlCarrito}
         />
         <SolicitudTab

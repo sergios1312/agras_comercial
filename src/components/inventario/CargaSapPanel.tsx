@@ -47,7 +47,11 @@ const ALMACENES_MAP: Record<string, string> = {
   'DSTPI.01': 'Piura'
 };
 
-export function CargaSapPanel() {
+interface Props {
+  ultimaActualizacion?: string | null;
+}
+
+export function CargaSapPanel({ ultimaActualizacion }: Props) {
   const [panelState, setPanelState] = useState<PanelState>("idle");
   const [itemsUI, setItemsUI] = useState<InventarioAnalisis[]>([]);
   const [upsertRepuestos, setUpsertRepuestos] = useState<RepuestoRecord[]>([]);
@@ -322,10 +326,17 @@ export function CargaSapPanel() {
   if (panelState === "idle") {
     return (
       <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6">
-        <h3 className="text-lg font-bold text-slate-100 flex items-center gap-2 mb-4">
-          <Database className="w-5 h-5 text-emerald-400" />
-          Actualizar Stock SAP (sap_crudo.xlsx)
-        </h3>
+        <div className="flex items-start justify-between mb-4">
+          <h3 className="text-lg font-bold text-slate-100 flex items-center gap-2">
+            <Database className="w-5 h-5 text-emerald-400" />
+            Actualizar Stock SAP (sap_crudo.xlsx)
+          </h3>
+          {ultimaActualizacion && (
+            <span className="text-xs font-semibold text-emerald-500 bg-emerald-500/10 px-2 py-1 rounded">
+              Último stock: {new Date(ultimaActualizacion).toLocaleString('es-PE')}
+            </span>
+          )}
+        </div>
         <p className="text-sm text-slate-400 mb-6">
           Sube el reporte bruto de almacenes desde SAP. El sistema cruzará las cantidades, purgará el stock desactualizado, e insertará repuestos base en blanco en caso detecte códigos de los cuales no tengamos maestro.
         </p>

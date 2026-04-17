@@ -9,7 +9,7 @@ import { Search, Package, History } from "lucide-react";
 import { SUCURSALES_DATA } from "@/lib/constants";
 
 import { fetchAll, fetchAllParallel } from "@/lib/db";
-import { getConfigPedidos } from "@/app/(dashboard)/inventario/config-actions";
+import { getConfigPedidos, getUltimasActualizaciones } from "@/app/(dashboard)/inventario/config-actions";
 
 export const metadata: Metadata = {
   title: "Solicitudes de Repuestos",
@@ -33,6 +33,7 @@ export default async function InventarioPage() {
 
   // Primero buscamos la configuración para saber si debemos traer las pruebas
   const configPedidos = await getConfigPedidos();
+  const actualizaciones = await getUltimasActualizaciones();
 
   // ─── Fetch de datos en paralelo (Recursivo para tablas grandes) ─────
   // Nota: fetchAll maneja el bucle de 1000 en 1000 automáticamente
@@ -91,6 +92,7 @@ export default async function InventarioPage() {
         casosReposicion={casosReposicion}
         ciudadUsuario={ciudadUsuario}
         configPedidos={configPedidos}
+        ultimaActualizacion={actualizaciones.stock}
       />
     </div>
   );

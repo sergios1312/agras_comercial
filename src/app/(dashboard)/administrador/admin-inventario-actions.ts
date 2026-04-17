@@ -112,6 +112,12 @@ export async function confirmarSubidaMaestro(
       procesados += lote.length;
     }
 
+    const fecha = new Date().toISOString();
+    await rawClient.from("configuracion_sistema").upsert(
+      { clave: "ultima_actualizacion_maestro", valor: fecha, updated_at: fecha },
+      { onConflict: "clave" }
+    );
+
     return {
       success: true,
       mensaje: `Maestro sincronizado. ${procesados.toLocaleString()} repuestos actualizados correctamente.`,
@@ -245,6 +251,13 @@ export async function confirmarSubidaSap(
         if (errInv) return { success: false, error: "Fallo insertando el stock: " + errInv.message };
         movPaginas += lote.length;
       }
+
+      const fecha = new Date().toISOString();
+      await rawClient.from("configuracion_sistema").upsert(
+        { clave: "ultima_actualizacion_stock", valor: fecha, updated_at: fecha },
+        { onConflict: "clave" }
+      );
+
       return {
         success: true,
         mensaje: `Stock sincronizado exitosamente (${movPaginas} registros de almacén impactados).${resRepuestosMsg}`

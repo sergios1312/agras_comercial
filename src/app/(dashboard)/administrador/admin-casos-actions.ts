@@ -95,6 +95,12 @@ export async function confirmarSubidaCasos(
       procesados += lote.length;
     }
 
+    const fecha = new Date().toISOString();
+    await (rawClient as any).from("configuracion_sistema").upsert(
+      { clave: "ultima_actualizacion_casos", valor: fecha, updated_at: fecha },
+      { onConflict: "clave" }
+    );
+
     return {
       success: true,
       mensaje: `Sincronización completada. ${procesados.toLocaleString()} casos procesados en la base de datos.`,

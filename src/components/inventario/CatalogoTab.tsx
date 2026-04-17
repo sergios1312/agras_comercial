@@ -10,10 +10,11 @@ import config from "@/data/config.json";
 interface CatalogoTabProps {
   catalogo: RepuestoConStock[];
   sucursales: string[];
+  fechaActualizacion?: string | null;
   onAddCarrito?: (r: RepuestoConStock) => void;
 }
 
-export function CatalogoTab({ catalogo, sucursales, onAddCarrito }: CatalogoTabProps) {
+export function CatalogoTab({ catalogo, sucursales, fechaActualizacion, onAddCarrito }: CatalogoTabProps) {
   // terminoInput: lo que el usuario escribe en tiempo real
   const [terminoInput, setTerminoInput] = useState("");
   // terminoActivo: lo que se pasa al motor de búsqueda
@@ -130,9 +131,9 @@ export function CatalogoTab({ catalogo, sucursales, onAddCarrito }: CatalogoTabP
             Exportar Stock
           </button>
         </div>
-        {config.lastUpdated && (
+        {fechaActualizacion && (
           <p className="font-semibold text-indigo-400/80">
-            Inventario actualizado el {config.lastUpdated}
+            Inventario actualizado el {new Date(fechaActualizacion).toLocaleString('es-PE')}
           </p>
         )}
       </div>

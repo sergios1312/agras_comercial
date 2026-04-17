@@ -209,8 +209,12 @@ function BadgeSLA({ sla }: { sla: ClasificacionSLA }) {
   );
 }
 
+interface Props {
+  ultimaActualizacion?: string | null;
+}
+
 // ─── Componente Principal ─────────────────────────────────────
-export function CargaCasosPanel() {
+export function CargaCasosPanel({ ultimaActualizacion }: Props) {
   const [panelState, setPanelState] = useState<PanelState>("idle");
   const [casos, setCasos] = useState<CasoConEstado[]>([]);
   const [resumen, setResumen] = useState<ResumenCarga>({ nuevos: 0, modificados: 0, sinCambios: 0 });
@@ -359,17 +363,24 @@ export function CargaCasosPanel() {
   // ─── Render: IDLE ─────────────────────────────────────────
   if (panelState === "idle") {
     return (
-      <div
-        onDragOver={handleDragOver}
-        onDragLeave={handleDragLeave}
-        onDrop={handleDrop}
-        onClick={() => fileInputRef.current?.click()}
-        className={`relative flex flex-col items-center justify-center gap-4 p-10 rounded-xl border-2 border-dashed cursor-pointer transition-all duration-200 ${
-          isDragging
-            ? "border-emerald-500 bg-emerald-500/10 scale-[1.01]"
-            : "border-slate-700 bg-slate-900/40 hover:border-slate-500 hover:bg-slate-900/60"
-        }`}
-      >
+      <div className="space-y-4">
+        {ultimaActualizacion && (
+          <div className="flex items-center gap-2 text-sm text-emerald-400/80 mb-2">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+            Última carga de casos: {new Date(ultimaActualizacion).toLocaleString('es-PE')}
+          </div>
+        )}
+        <div
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+          onClick={() => fileInputRef.current?.click()}
+          className={`relative flex flex-col items-center justify-center gap-4 p-10 rounded-xl border-2 border-dashed cursor-pointer transition-all duration-200 ${
+            isDragging
+              ? "border-emerald-500 bg-emerald-500/10 scale-[1.01]"
+              : "border-slate-700 bg-slate-900/40 hover:border-slate-500 hover:bg-slate-900/60"
+          }`}
+        >
         <input
           ref={fileInputRef}
           type="file"
@@ -395,6 +406,7 @@ export function CargaCasosPanel() {
           <p className="text-xs text-slate-500 mt-1">o haz click para seleccionar el archivo</p>
         </div>
       </div>
+     </div>
     );
   }
 
