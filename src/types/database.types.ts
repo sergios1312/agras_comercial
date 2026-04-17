@@ -70,8 +70,6 @@ export interface HistorialPedido {
   tecnico_destino: string;
   sucursal_origen: string;
   repuesto_id: number | null;         // FK → repuestos(id)
-  repuesto_codigo: string;             // Columna de texto (legado, puede eliminarse luego)
-  repuesto_nombre: string;             // Columna de texto (legado, puede eliminarse luego)
   numero_caso: string;
   caso_reposicion?: string | null;
   cantidad: number;

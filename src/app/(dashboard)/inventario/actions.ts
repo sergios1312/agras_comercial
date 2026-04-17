@@ -213,8 +213,6 @@ export async function submitPedido(
     tecnico_destino: sedeDestino, // Ahora utiliza la sede de destino seleccionada (o propia)
     sucursal_origen: item.sucursal_destino || "Oficina Central", // De dónde viene el repuesto
     repuesto_id: item.repuesto_id,   // FK → repuestos(id)
-    repuesto_codigo: item.codigo,
-    repuesto_nombre: item.nombre,
     numero_caso: item.es_venta ? "VENTA" : item.numero_caso.trim(),
     cantidad: item.cantidad,
     tipo_reporte: calcularTipoReporte(item.sucursal_destino),

@@ -206,7 +206,7 @@ export async function exportarHistorialCSV(
   const rawClient = supabase as unknown as any;
   const { data, error } = await rawClient
     .from("historial_pedidos")
-    .select("*")
+    .select("*, repuestos(codigo, nombre, codigo_sap)")
     .order("fecha_pedido", { ascending: false });
 
   if (error) return { csv: null, error: error.message };
@@ -248,8 +248,8 @@ export async function exportarHistorialCSV(
     new Date(p.fecha_pedido).toLocaleDateString("es-PE"),
     p.sucursal_origen,
     p.tecnico_destino, // Destino es el técnico que solicita
-    p.repuestos?.codigo ?? p.repuesto_codigo,
-    `"${(p.repuestos?.nombre ?? p.repuesto_nombre).replace(/"/g, '""')}"`, // escape comillas
+    p.repuestos?.codigo ?? "N/A",
+    `"${(p.repuestos?.nombre ?? "N/A").replace(/"/g, '""')}"`, // escape comillas
     p.numero_caso,
     p.cantidad,
     p.tipo_reporte,

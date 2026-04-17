@@ -55,8 +55,8 @@ export function SucursalExpander({ sucursal, pedidos }: SucursalExpanderProps) {
                     ${i % 2 === 0 ? "" : "bg-slate-900/50"}`}
                 >
                   <td className="px-4 py-2.5 text-xs text-slate-400 whitespace-nowrap">{formatDate(p.fecha_pedido)}</td>
-                  <td className="px-4 py-2.5 font-mono text-indigo-400 text-xs">{p.repuesto_codigo}</td>
-                  <td className="px-4 py-2.5 text-slate-200 max-w-xs truncate">{p.repuesto_nombre}</td>
+                  <td className="px-4 py-2.5 font-mono text-indigo-400 text-xs">{p.repuestos?.codigo ?? "N/A"}</td>
+                  <td className="px-4 py-2.5 text-slate-200 max-w-xs truncate">{p.repuestos?.nombre ?? "N/A"}</td>
                   <td className="px-4 py-2.5 font-mono text-slate-300 text-xs">{p.numero_caso}</td>
                   <td className="px-4 py-2.5 text-center text-slate-300">{p.cantidad}</td>
                   <td className="px-4 py-2.5">

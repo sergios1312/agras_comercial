@@ -41,7 +41,7 @@ export default async function CasosPage() {
   // Cargar todos los pedidos reales
   const { data: historialOriginal } = await supabase
     .from("historial_pedidos")
-    .select("*")
+    .select("*, repuestos(codigo, nombre, codigo_sap)")
     .order("fecha_pedido", { ascending: false });
 
   let pedidos = (historialOriginal ?? []) as HistorialPedido[];
@@ -50,7 +50,7 @@ export default async function CasosPage() {
   if (configPedidos.modo_prueba) {
     const { data: historialPrueba } = await supabase
       .from("historial_pedidos_prueba")
-      .select("*");
+      .select("*, repuestos(codigo, nombre, codigo_sap)");
       
     if (historialPrueba && historialPrueba.length > 0) {
       const historialPruebaMarcado = (historialPrueba as HistorialPedido[]).map(p => ({ ...p, is_test: true }));
