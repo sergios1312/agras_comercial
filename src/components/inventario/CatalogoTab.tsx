@@ -132,9 +132,12 @@ export function CatalogoTab({ catalogo, sucursales, fechaActualizacion, onAddCar
           </button>
         </div>
         {fechaActualizacion && (
-          <p className="font-semibold text-indigo-400/80">
-            Inventario actualizado el {new Date(fechaActualizacion).toLocaleString('es-PE')}
-          </p>
+          <div className="flex items-center gap-2 px-3 py-1.5 bg-indigo-500/10 border border-indigo-500/20 rounded-lg shadow-sm">
+            <span className="w-2 h-2 rounded-full bg-indigo-400 animate-pulse" />
+            <p className="font-bold text-indigo-300 text-[11px]">
+              INVENTARIO ACTUALIZADO EL {new Date(fechaActualizacion).toLocaleString('es-PE').toUpperCase()}
+            </p>
+          </div>
         )}
       </div>
 

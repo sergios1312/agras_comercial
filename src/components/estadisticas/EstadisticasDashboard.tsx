@@ -350,9 +350,12 @@ export function EstadisticasDashboard({
             <Filter className="w-4 h-4 text-slate-500" />
             <span className="text-xs font-semibold text-slate-500 uppercase tracking-widest">Filtros Globales</span>
             {fechaActualizacion && (
-              <span className="ml-2 px-2 py-0.5 rounded text-[10px] text-slate-400 bg-slate-800 border border-slate-700">
-                Datos actualizados el {new Date(fechaActualizacion).toLocaleString('es-PE')}
-              </span>
+              <div className="ml-4 flex items-center gap-2 px-3 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-lg shadow-sm">
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                <p className="font-bold text-emerald-400 text-[10px]">
+                  CASOS ACTUALIZADOS EL {new Date(fechaActualizacion).toLocaleString('es-PE').toUpperCase()}
+                </p>
+              </div>
             )}
           </div>
           {hayFiltros && (
