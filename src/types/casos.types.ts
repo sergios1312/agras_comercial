@@ -37,11 +37,6 @@ export const PLAZOS_IDEALES: Record<string, number> = {
 };
 
 export const SUCURSALES_BANEADAS = ["Arequipa", "Sullana"];
-export const SUCURSALES_OFICIALES = [
-  "Arequipa", "Bellavista", "Chiclayo", "Chimbote", "Cusco",
-  "Huancayo", "Ica", "Jaen", "Lima", "Nueva Cajamarca",
-  "Piura", "Pucallpa", "Sullana", "Tarapoto", "Trujillo", "Yurimaguas"
-];
 
 export const TRABAJOS_BANEADOS = [
   "MANTENIMIENTO DE DRON",

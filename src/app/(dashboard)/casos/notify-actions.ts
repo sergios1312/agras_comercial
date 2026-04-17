@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { getSession } from "@/lib/auth";
-import { cargarCasos, obtenerCasosDesdeDB } from "@/lib/casos";
+import { obtenerCasosDesdeDB } from "@/lib/casos";
 import { procesarCorreosCasosAbiertos, obtenerVistaPrevia } from "@/lib/notify-casos";
 import type { Caso } from "@/types/casos.types";
 

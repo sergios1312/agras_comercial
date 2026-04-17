@@ -8,9 +8,8 @@ import {
   PLAZOS_IDEALES,
   SUCURSALES_BANEADAS,
   TRABAJOS_BANEADOS,
-  SUCURSALES_OFICIALES,
 } from "@/types/casos.types";
-import type { Caso, ClasificacionSLA } from "@/types/casos.types";
+import type { Caso, ClasificacionSLA, CasoConEstado, ResumenCarga } from "@/types/casos.types";
 import { confirmarSubidaCasos, obtenerCasosExistentesDetalle } from "@/app/(dashboard)/administrador/admin-casos-actions";
 import {
   Upload,
@@ -26,16 +25,6 @@ import {
 
 // ─── Tipos internos del panel ──────────────────────────────────
 type PanelState = "idle" | "parsing" | "preview" | "uploading" | "done" | "error";
-
-interface CasoConEstado extends Caso {
-  estadoCarga: "nuevo" | "modificado" | "sin_cambios";
-}
-
-interface ResumenCarga {
-  nuevos: number;
-  modificados: number;
-  sinCambios: number;
-}
 
 // ─── Helpers reutilizados del server (sin fs) ──────────────────
 function parseDate(val: string): string | null {
@@ -65,7 +54,7 @@ function clasificarSLA(
   return "ATRASADO";
 }
 
-function parsearCsvTexto(raw: string): Caso[] {
+function parsearCsvTexto(raw: string, sucursalesDB: string[]): Caso[] {
   let delimitador = ",";
   const lineas = raw.split("\n");
   if (lineas.length > 0 && !lineas[0].includes(",") && lineas[0].includes(";")) {
@@ -117,7 +106,7 @@ function parsearCsvTexto(raw: string): Caso[] {
     if (cols.length < 5) continue;
 
     const sucursalRaw = cols[I.sucursal] ?? "";
-    const sucursalMatch = SUCURSALES_OFICIALES.find((s) =>
+    const sucursalMatch = sucursalesDB.find((s) =>
       sucursalRaw.toLowerCase().includes(s.toLowerCase())
     );
     if (!sucursalMatch) continue;
@@ -211,10 +200,11 @@ function BadgeSLA({ sla }: { sla: ClasificacionSLA }) {
 
 interface Props {
   ultimaActualizacion?: string | null;
+  sucursalesDB: string[];
 }
 
 // ─── Componente Principal ─────────────────────────────────────
-export function CargaCasosPanel({ ultimaActualizacion }: Props) {
+export function CargaCasosPanel({ ultimaActualizacion, sucursalesDB }: Props) {
   const [panelState, setPanelState] = useState<PanelState>("idle");
   const [casos, setCasos] = useState<CasoConEstado[]>([]);
   const [resumen, setResumen] = useState<ResumenCarga>({ nuevos: 0, modificados: 0, sinCambios: 0 });
@@ -239,7 +229,7 @@ export function CargaCasosPanel({ ultimaActualizacion }: Props) {
 
     try {
       const raw = await file.text();
-      const casosParseados = parsearCsvTexto(raw);
+      const casosParseados = parsearCsvTexto(raw, sucursalesDB);
 
       if (casosParseados.length === 0) {
         throw new Error("El archivo CSV está vacío o no contiene filas válidas tras el filtrado.");
@@ -288,7 +278,7 @@ export function CargaCasosPanel({ ultimaActualizacion }: Props) {
       setErrorMsg(msg);
       setPanelState("error");
     }
-  }, []);
+  }, [sucursalesDB]);
 
   // ─── Drag & Drop ──────────────────────────────────────────
   const handleDragOver = useCallback((e: React.DragEvent) => {

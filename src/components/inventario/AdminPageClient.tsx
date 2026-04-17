@@ -12,9 +12,10 @@ import { useState } from "react";
 interface AdminPageClientProps {
   configInicial: ConfigPedidos;
   actualizaciones: UltimasActualizaciones;
+  sucursalesDB: string[];
 }
 
-export function AdminPageClient({ configInicial, actualizaciones }: AdminPageClientProps) {
+export function AdminPageClient({ configInicial, actualizaciones, sucursalesDB }: AdminPageClientProps) {
   const [activeTab, setActiveTab] = useState<"pedidos" | "casos" | "maestro" | "sap">("pedidos");
 
   return (
@@ -130,7 +131,7 @@ export function AdminPageClient({ configInicial, actualizaciones }: AdminPageCli
           desde Gestioo para previsualizar los cambios antes de confirmar la carga a la base de datos.
         </p>
 
-        <CargaCasosPanel ultimaActualizacion={actualizaciones?.casos} />
+        <CargaCasosPanel ultimaActualizacion={actualizaciones?.casos} sucursalesDB={sucursalesDB} />
         </section>
       )}
 

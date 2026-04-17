@@ -4,6 +4,7 @@ import type { Metadata } from "next";
 import { AdminPageClient } from "@/components/inventario/AdminPageClient";
 import { getConfigPedidos, getUltimasActualizaciones } from "@/app/(dashboard)/inventario/config-actions";
 import { Shield } from "lucide-react";
+import { createAdminClient } from "@/utils/supabase/admin";
 
 export const metadata: Metadata = {
   title: "Panel Administrador",
@@ -18,6 +19,10 @@ export default async function AdministradorPage() {
   const configPedidos = await getConfigPedidos();
   const actualizaciones = await getUltimasActualizaciones();
 
+  const db = createAdminClient();
+  const sucursalesRes = await db.from("sucursales").select("nombre_ciudad");
+  const sucursalesNombres = sucursalesRes.data?.map((s: any) => s.nombre_ciudad) || [];
+
   return (
     <div className="space-y-6">
       {/* Header de página */}
@@ -31,7 +36,7 @@ export default async function AdministradorPage() {
         </div>
       </div>
 
-      <AdminPageClient configInicial={configPedidos} actualizaciones={actualizaciones} />
+      <AdminPageClient configInicial={configPedidos} actualizaciones={actualizaciones} sucursalesDB={sucursalesNombres} />
     </div>
   );
 }
