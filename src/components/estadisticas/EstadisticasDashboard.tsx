@@ -29,7 +29,7 @@ interface Props {
 
 // ─── Helpers de cómputo ──────────────────────────────────────
 function pctSLA(casos: Caso[]): Array<{ name: string; value: number }> {
-  const cerrados = casos.filter((c) => c.estadoGeneral === "CERRADO" && c.clasificacionSLA);
+  const cerrados = casos.filter((c) => c.clasificacionSLA);
   const counts: Record<string, number> = { "A TIEMPO": 0, "APLAZADO": 0, "ATRASADO": 0 };
   for (const c of cerrados) {
     if (c.clasificacionSLA) counts[c.clasificacionSLA]++;
@@ -40,16 +40,17 @@ function pctSLA(casos: Caso[]): Array<{ name: string; value: number }> {
 }
 
 function resumenSucursal(casos: Caso[]) {
-  const cerrados = casos.filter((c) => c.estadoGeneral === "CERRADO" && c.clasificacionSLA);
-  const grupos: Record<string, { total: number; aTiempo: number; aplazado: number; atrasado: number; rtatAplazado: number[]; rtatAtrasado: number[] }> = {};
+  const cerrados = casos.filter((c) => c.clasificacionSLA);
+  const grupos: Record<string, { total: number; aTiempo: number; aplazado: number; atrasado: number; rtatATiempo: number[]; rtatAplazado: number[]; rtatAtrasado: number[] }> = {};
 
   for (const c of cerrados) {
     if (!grupos[c.sucursal]) {
-      grupos[c.sucursal] = { total: 0, aTiempo: 0, aplazado: 0, atrasado: 0, rtatAplazado: [], rtatAtrasado: [] };
+      grupos[c.sucursal] = { total: 0, aTiempo: 0, aplazado: 0, atrasado: 0, rtatATiempo: [], rtatAplazado: [], rtatAtrasado: [] };
     }
     grupos[c.sucursal].total++;
     if (c.clasificacionSLA === "A TIEMPO") {
       grupos[c.sucursal].aTiempo++;
+      if (c.rtat !== null) grupos[c.sucursal].rtatATiempo.push(c.rtat);
     } else if (c.clasificacionSLA === "APLAZADO") {
       grupos[c.sucursal].aplazado++;
       if (c.rtat !== null) grupos[c.sucursal].rtatAplazado.push(c.rtat);
@@ -70,13 +71,14 @@ function resumenSucursal(casos: Caso[]) {
     pctEtd: g.total > 0 ? (g.aTiempo / g.total) * 100 : 0,
     pctAplazado: g.total > 0 ? (g.aplazado / g.total) * 100 : 0,
     pctAtrasado: g.total > 0 ? (g.atrasado / g.total) * 100 : 0,
+    tatATiempo: avg(g.rtatATiempo),
     tatAplazado: avg(g.rtatAplazado),
     tatAtrasado: avg(g.rtatAtrasado),
   }));
 }
 
 function semaforoEvolucion(casos: Caso[]) {
-  const cerrados = casos.filter((c) => c.estadoGeneral === "CERRADO" && c.clasificacionSLA && c.periodoMensual);
+  const cerrados = casos.filter((c) => c.clasificacionSLA && c.periodoMensual);
   const periodos: Record<string, { aTiempo: number; aplazado: number; total: number }> = {};
   for (const c of cerrados) {
     const p = c.periodoMensual!;
@@ -101,6 +103,10 @@ function semaforoSucursal(casos: Caso[]) {
     sucursal: d.sucursal,
     "A TIEMPO": d.total > 0 ? parseFloat(((d.aTiempo / d.total) * 100).toFixed(1)) : 0,
     "APLAZADO": d.total > 0 ? parseFloat(((d.aplazado / d.total) * 100).toFixed(1)) : 0,
+    "ATRASADO": d.total > 0 ? parseFloat(((d.atrasado / d.total) * 100).toFixed(1)) : 0,
+    cantATiempo: d.aTiempo,
+    cantAplazado: d.aplazado,
+    cantAtrasado: d.atrasado,
     pctEtd: d.pctEtd,
   }));
 }

@@ -53,7 +53,6 @@ function clasificarSLA(
   tipoTrabajo: string,
   estadoGeneral: string
 ): ClasificacionSLA {
-  if (estadoGeneral !== "CERRADO") return null;
   if (rtat === null) return null;
   const plazo = PLAZOS_IDEALES[tipoTrabajo];
   if (!plazo) return null;

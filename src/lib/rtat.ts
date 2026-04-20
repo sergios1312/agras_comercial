@@ -20,7 +20,7 @@ export function contarDiasHabiles(
   const fin = new Date(fechaFin);
 
   if (isNaN(inicio.getTime()) || isNaN(fin.getTime())) return -1;
-  if (inicio >= fin) return 0;
+  if (inicio > fin) return 0;
 
   let dias = 0;
   const actual = new Date(inicio);

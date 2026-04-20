@@ -19,6 +19,28 @@ const SLA_COLORS: Record<string, string> = {
 
 const DEFAULT_COLOR = "#6366f1";
 
+const renderCustomLabel = (props: any) => {
+  const { cx, cy, midAngle, outerRadius, percent, value } = props;
+  const RADIAN = Math.PI / 180;
+  const radius = outerRadius + 15;
+  const x = cx + radius * Math.cos(-midAngle * RADIAN);
+  const y = cy + radius * Math.sin(-midAngle * RADIAN);
+  if (value === 0) return null;
+
+  return (
+    <text 
+      x={x} 
+      y={y} 
+      fill="#94a3b8" 
+      fontSize={11} 
+      textAnchor={x > cx ? 'start' : 'end'} 
+      dominantBaseline="central"
+    >
+      {`${value} (${(percent * 100).toFixed(0)}%)`}
+    </text>
+  );
+};
+
 export function PieEficiencia({ data, titulo = "Eficiencia SLA" }: Props) {
   return (
     <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5">
@@ -33,9 +55,11 @@ export function PieEficiencia({ data, titulo = "Eficiencia SLA" }: Props) {
             nameKey="name"
             cx="50%"
             cy="50%"
-            innerRadius={70}
-            outerRadius={110}
+            innerRadius={60}
+            outerRadius={95}
             paddingAngle={3}
+            labelLine={{ stroke: '#475569', strokeWidth: 1 }}
+            label={renderCustomLabel}
           >
             {data.map((entry, i) => (
               <Cell

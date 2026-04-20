@@ -9,6 +9,7 @@ interface RowSucursal {
   pctEtd: number;
   pctAplazado: number;
   pctAtrasado: number;
+  tatATiempo: number;
   tatAplazado: number;
   tatAtrasado: number;
 }
@@ -29,7 +30,7 @@ export function TablaResumenSucursal({ data }: Props) {
             <tr className="bg-slate-800 border-b border-slate-700">
               <th className="text-left px-3 py-2.5 text-xs text-slate-400 font-semibold uppercase tracking-widest">Sucursal</th>
               <th className="text-right px-3 py-2.5 text-xs text-slate-400 font-semibold uppercase tracking-widest">Total</th>
-              <th className="text-right px-3 py-2.5 text-xs text-green-500 font-semibold uppercase tracking-widest">A Tiempo</th>
+              <th className="text-right px-3 py-2.5 text-xs text-green-500 font-semibold uppercase tracking-widest">A Tiempo<br/><span className="text-[10px] text-slate-500 font-normal">% / TAT</span></th>
               <th className="text-right px-3 py-2.5 text-xs text-yellow-500 font-semibold uppercase tracking-widest">Aplazado<br/><span className="text-[10px] text-slate-500 font-normal">% / TAT</span></th>
               <th className="text-right px-3 py-2.5 text-xs text-red-500 font-semibold uppercase tracking-widest">Atrasado<br/><span className="text-[10px] text-slate-500 font-normal">% / TAT</span></th>
               <th className="text-right px-3 py-2.5 text-xs text-slate-400 font-semibold uppercase tracking-widest">% ETD</th>
@@ -40,7 +41,10 @@ export function TablaResumenSucursal({ data }: Props) {
               <tr key={row.sucursal} className="border-t border-slate-800 hover:bg-slate-800/40 transition-colors">
                 <td className="px-3 py-2.5 text-slate-200 font-medium">{row.sucursal}</td>
                 <td className="px-3 py-2.5 text-right text-slate-300 font-mono">{row.total}</td>
-                <td className="px-3 py-2.5 text-right text-green-400 font-mono font-semibold">{row.aTiempo}</td>
+                <td className="px-3 py-2.5 text-right text-green-400 font-mono font-semibold">
+                  <div>{row.aTiempo}</div>
+                  <div className="text-[10px] text-slate-500 font-normal">{row.pctEtd.toFixed(1)}% / {(row.tatATiempo || 0).toFixed(1)}d</div>
+                </td>
                 <td className="px-3 py-2.5 text-right text-yellow-400 font-mono font-semibold">
                   <div>{row.aplazado}</div>
                   <div className="text-[10px] text-slate-500 font-normal">{row.pctAplazado.toFixed(1)}% / {row.tatAplazado.toFixed(1)}d</div>
