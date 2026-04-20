@@ -394,7 +394,7 @@ function TablaCasosReposicion({
                                      <td className="px-2 py-2 font-mono text-[10px] text-slate-300 max-w-[80px] truncate" title={r.repuestos?.codigo_sap || ""}>{r.repuestos?.codigo_sap || "N/A"}</td>
                                      <td className="px-2 py-2 text-[10px] text-slate-300 truncate max-w-[200px]" title={r.repuestos?.nombre ?? "N/A"}>{r.repuestos?.nombre ?? "N/A"}</td>
                                      <td className="px-2 py-2 text-[10px] text-slate-300 text-center">{r.cantidad}</td>
-                                     <td className="px-2 py-2 text-[10px] text-slate-400 font-mono">{r.numero_caso}</td>
+                                     <td className="px-2 py-2 text-[10px] text-slate-400 font-mono">{r.numero_caso === "0000" ? "VENTA" : r.numero_caso}</td>
                                      <td className="px-2 py-2"><Badge label={r.estado} variant={estadoToVariant(r.estado)} /></td>
                                    </tr>
                                  ))}
@@ -553,7 +553,7 @@ function TablaPedidos({
                     <td className="px-4 py-3 font-mono text-indigo-400 text-[11px]">{p.repuestos?.codigo ?? "N/A"}</td>
                     <td className="px-4 py-3 font-mono text-slate-300 text-[11px] max-w-[90px] truncate" title={p.repuestos?.codigo_sap || ""}>{p.repuestos?.codigo_sap || "N/A"}</td>
                     <td className="px-4 py-3 text-[11px] text-slate-200 max-w-xs truncate" title={p.repuestos?.nombre ?? "N/A"}>{p.repuestos?.nombre ?? "N/A"}</td>
-                    <td className="px-4 py-3 font-mono text-slate-300 text-[11px]">{p.numero_caso}</td>
+                    <td className="px-4 py-3 font-mono text-slate-300 text-[11px]">{p.numero_caso === "0000" ? "VENTA" : p.numero_caso}</td>
                     {isReposicion && (
                       <td className="px-4 py-3">
                         <input 
@@ -1037,7 +1037,7 @@ function TablaMisPedidos({
                 </td>
                 <td className="px-4 py-3 font-mono text-indigo-400 text-[11px]">{p.repuestos?.codigo ?? "N/A"}</td>
                 <td className="px-4 py-3 text-[11px] text-slate-200 max-w-xs truncate" title={p.repuestos?.nombre ?? "N/A"}>{p.repuestos?.nombre ?? "N/A"}</td>
-                <td className="px-4 py-3 font-mono text-slate-300 text-[11px]">{p.numero_caso}</td>
+                <td className="px-4 py-3 font-mono text-slate-300 text-[11px]">{p.numero_caso === "0000" ? "VENTA" : p.numero_caso}</td>
                 <td className="px-4 py-3 text-center text-slate-300 text-[11px]">{p.cantidad}</td>
                 <td className="px-4 py-3 text-slate-400 text-[11px] capitalize">{p.sucursal_origen}</td>
                 <td className="px-4 py-3 text-[11px] text-slate-500 whitespace-nowrap">{p.tipo_reporte}</td>
@@ -1100,7 +1100,7 @@ function TablaMisPedidosHistorial({ pedidos }: { pedidos: HistorialPedido[] }) {
                 </td>
                 <td className="px-4 py-3 font-mono text-indigo-400 text-[11px]">{p.repuestos?.codigo ?? "N/A"}</td>
                 <td className="px-4 py-3 text-[11px] text-slate-200 max-w-xs truncate" title={p.repuestos?.nombre ?? "N/A"}>{p.repuestos?.nombre ?? "N/A"}</td>
-                <td className="px-4 py-3 font-mono text-slate-300 text-[11px]">{p.numero_caso}</td>
+                <td className="px-4 py-3 font-mono text-slate-300 text-[11px]">{p.numero_caso === "0000" ? "VENTA" : p.numero_caso}</td>
                 <td className="px-4 py-3 text-center text-slate-300 text-[11px]">{p.cantidad}</td>
                 <td className="px-4 py-3 text-slate-400 text-[11px] capitalize">{p.sucursal_origen}</td>
                 <td className="px-4 py-3 text-[11px] text-slate-500 whitespace-nowrap">{p.tipo_reporte}</td>
@@ -1160,7 +1160,7 @@ function TablaADespachar({
                 </td>
                 <td className="px-4 py-3 font-mono text-indigo-400 text-[11px]">{p.repuestos?.codigo ?? "N/A"}</td>
                 <td className="px-4 py-3 text-[11px] text-slate-200 max-w-xs truncate" title={p.repuestos?.nombre ?? "N/A"}>{p.repuestos?.nombre ?? "N/A"}</td>
-                <td className="px-4 py-3 font-mono text-slate-300 text-[11px]">{p.numero_caso}</td>
+                <td className="px-4 py-3 font-mono text-slate-300 text-[11px]">{p.numero_caso === "0000" ? "VENTA" : p.numero_caso}</td>
                 <td className="px-4 py-3 text-center text-slate-300 text-[11px]">{p.cantidad}</td>
                 <td className="px-4 py-3 text-slate-400 text-[11px] capitalize">{p.tecnico_destino}</td>
                 <td className="px-4 py-3 text-[11px] text-slate-500 whitespace-nowrap">{p.tipo_reporte}</td>
@@ -1223,7 +1223,7 @@ function TablaDespachadosHistorial({ pedidos }: { pedidos: HistorialPedido[] }) 
                 </td>
                 <td className="px-4 py-3 font-mono text-indigo-400 text-[11px]">{p.repuestos?.codigo ?? "N/A"}</td>
                 <td className="px-4 py-3 text-[11px] text-slate-200 max-w-xs truncate" title={p.repuestos?.nombre ?? "N/A"}>{p.repuestos?.nombre ?? "N/A"}</td>
-                <td className="px-4 py-3 font-mono text-slate-300 text-[11px]">{p.numero_caso}</td>
+                <td className="px-4 py-3 font-mono text-slate-300 text-[11px]">{p.numero_caso === "0000" ? "VENTA" : p.numero_caso}</td>
                 <td className="px-4 py-3 text-center text-slate-300 text-[11px]">{p.cantidad}</td>
                 <td className="px-4 py-3 text-slate-400 text-[11px] capitalize">{p.tecnico_destino}</td>
                 <td className="px-4 py-3 text-[11px] text-slate-500 whitespace-nowrap">{p.tipo_reporte}</td>

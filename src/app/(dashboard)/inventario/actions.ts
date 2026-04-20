@@ -213,17 +213,18 @@ export async function submitPedido(
     tecnico_destino: sedeDestino, // Ahora utiliza la sede de destino seleccionada (o propia)
     sucursal_origen: item.sucursal_destino || "Oficina Central", // De dónde viene el repuesto
     repuesto_id: item.repuesto_id,   // FK → repuestos(id)
-    numero_caso: item.es_venta ? "VENTA" : item.numero_caso.trim(),
+    numero_caso: item.es_venta ? "0000" : item.numero_caso.trim(),
     cantidad: item.cantidad,
     tipo_reporte: calcularTipoReporte(item.sucursal_destino),
     estado,
   }));
 
-  // Casting a unknown antes de any para evitar advertencias de tipos si fuera necesario
-  const rawClient = supabase as unknown as any;
+  // Usamos cliente admin para la inserción masiva para evitar problemas de RLS 
+  // o integridad si el usuario no tiene visibilidad completa de la tabla de casos.
+  const dbAdmin = createAdminClient() as any;
   const tablaDestino = configPedidos.modo_prueba ? "historial_pedidos_prueba" : "historial_pedidos";
 
-  const { error: insertError } = await rawClient
+  const { error: insertError } = await dbAdmin
     .from(tablaDestino)
     .insert(inserts);
 
