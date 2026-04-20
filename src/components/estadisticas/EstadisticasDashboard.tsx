@@ -327,7 +327,13 @@ export function EstadisticasDashboard({
       if (ingresoFiltro === "NO INGRESADOS" && c.fechaIngreso) return false;
       if (estadoCasoFiltro && c.estadoCaso !== estadoCasoFiltro) return false;
       if (tipoFiltro && c.tipoTrabajo !== tipoFiltro) return false;
-      if (equipoFiltro && c.equipo !== equipoFiltro) return false;
+      if (equipoFiltro) {
+        if (equipoFiltro === "SIN_EQUIPO") {
+          if (c.equipo && c.equipo.trim() !== "") return false;
+        } else if (c.equipo !== equipoFiltro) {
+          return false;
+        }
+      }
       return true;
     });
     }, [casos, estadoFiltro, sucursalFiltro, garantiaFiltro, periodoFiltro, ingresoFiltro, estadoCasoFiltro, tipoFiltro, equipoFiltro, periodoDesact]);
@@ -506,6 +512,7 @@ export function EstadisticasDashboard({
             className="px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-xs text-slate-300 focus:outline-none focus:ring-1 focus:ring-indigo-500"
           >
             <option value="">Todos los equipos</option>
+            <option value="SIN_EQUIPO">(Vacío)</option>
             {equiposDisponibles.map((eq) => (
               <option key={eq} value={eq}>{eq}</option>
             ))}
