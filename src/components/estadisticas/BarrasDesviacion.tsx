@@ -1,10 +1,10 @@
 "use client";
 
-type Fmt = (v: any, name: any) => [string, string];
+type Fmt = (v: any, name: any, info: any) => [string, string];
 import { useState } from "react";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
-  ReferenceLine, ResponsiveContainer, Cell,
+  ReferenceLine, ResponsiveContainer, Cell, LabelList,
 } from "recharts";
 
 interface DataRow {
@@ -12,6 +12,7 @@ interface DataRow {
   rtatPromedio: number;    // RTAT promedio de ese tipo
   plazoIdeal: number;      // ETD (plazo × 1)
   plazoMaximo: number;     // TAT (plazo × 2)
+  cantidad: number;        // Número de casos
 }
 
 interface Props {
@@ -27,6 +28,7 @@ export function BarrasDesviacion({ data }: Props) {
     desviacion: parseFloat(
       (d.rtatPromedio - (modo === "ETD" ? d.plazoIdeal : d.plazoMaximo)).toFixed(1)
     ),
+    cantidad: d.cantidad,
   }));
 
   const labelModo = modo === "ETD"
@@ -58,44 +60,57 @@ export function BarrasDesviacion({ data }: Props) {
         ))}
       </div>
 
-      <ResponsiveContainer width="100%" height={320}>
+      <ResponsiveContainer width="100%" height={400}>
         <BarChart
           data={dataConDesviacion}
-          layout="vertical"
-          margin={{ top: 4, right: 24, left: 0, bottom: 4 }}
+          barCategoryGap="25%"
+          margin={{ top: 25, right: 8, left: 0, bottom: 40 }}
         >
           <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
           <XAxis
-            type="number"
-            tick={{ fill: "#64748b", fontSize: 11 }}
-            tickFormatter={(v) => `${v}d`}
+            dataKey="tipoTrabajo"
+            tick={{ fill: "#94a3b8", fontSize: 10 }}
+            interval={0}
+            angle={-35}
+            textAnchor="end"
+            height={60}
+            axisLine={false}
+            tickLine={false}
           />
           <YAxis
-            type="category"
-            dataKey="tipoTrabajo"
-            tick={{ fill: "#94a3b8", fontSize: 11 }}
-            width={160}
+            tick={{ fill: "#64748b", fontSize: 11 }}
+            tickFormatter={(v) => `${v}d`}
+            axisLine={false}
+            tickLine={false}
           />
           <Tooltip
             contentStyle={{ background: "#1e293b", border: "1px solid #334155", borderRadius: 8 }}
             labelStyle={{ color: "#94a3b8" }}
             itemStyle={{ color: "#e2e8f0" }}
-            formatter={((v: number) => {
+            formatter={((v: number, name: string, props: any) => {
+              const row = props.payload;
               const n = Number(v);
               return [
-                `${n > 0 ? "+" : ""}${n.toFixed(1)} días`,
+                `${n > 0 ? "+" : ""}${n.toFixed(1)} días (${row.cantidad} casos)`,
                 modo === "ETD" ? "vs Plazo Ideal" : "vs Plazo Máximo",
               ];
             }) as Fmt}
           />
-          <ReferenceLine x={0} stroke="#475569" strokeWidth={1.5} />
-          <Bar dataKey="desviacion" name="Desviación" radius={[0, 3, 3, 0]}>
+          <ReferenceLine y={0} stroke="#475569" strokeWidth={1.5} />
+          <Bar dataKey="desviacion" name="Desviación" radius={[4, 4, 0, 0]}>
             {dataConDesviacion.map((entry, i) => (
               <Cell
                 key={i}
                 fill={entry.desviacion <= 0 ? "#22c55e" : "#ef4444"}
               />
             ))}
+            <LabelList 
+              dataKey="cantidad" 
+              position="top" 
+              fill="#94a3b8" 
+              fontSize={10}
+              formatter={(v: any) => `(${v})`}
+            />
           </Bar>
         </BarChart>
       </ResponsiveContainer>

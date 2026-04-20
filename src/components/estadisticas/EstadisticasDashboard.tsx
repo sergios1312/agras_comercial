@@ -135,6 +135,7 @@ function barrasDesviacion(casos: Caso[]) {
         rtatPromedio: parseFloat(avg.toFixed(1)),
         plazoIdeal: plazo,
         plazoMaximo: plazo * 2,
+        cantidad: rtats.length,
       };
     });
 }
