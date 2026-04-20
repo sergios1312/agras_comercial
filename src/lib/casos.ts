@@ -59,6 +59,7 @@ export async function obtenerCasosDesdeDB(): Promise<Caso[]> {
     const { data: casosDB, error } = await rawClient
       .from("casos")
       .select("*, sucursales(nombre_ciudad), equipo")
+      .order("numeracion_caso", { ascending: false })
       .range(from, from + step - 1);
 
     if (error) {
