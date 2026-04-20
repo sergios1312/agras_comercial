@@ -89,8 +89,8 @@ export function ComparativaEficiencias({ evolucionData, sucursalData }: Props) {
           <p className="text-[11px] text-slate-600 mb-3">
             Filtros activos: Sucursal (F1), Garantía (F3), Tipo Trabajo (F6) · F4 Periodo ignorado (el eje X es el periodo)
           </p>
-          <ResponsiveContainer width="100%" height={320}>
-            <BarChart data={evolucionData} margin={{ top: 20, right: 16, left: 0, bottom: 4 }}>
+          <ResponsiveContainer width="100%" height={400}>
+            <BarChart data={evolucionData} barCategoryGap="25%" margin={{ top: 20, right: 16, left: 0, bottom: 4 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
               <XAxis dataKey="periodo" tick={{ fill: "#64748b", fontSize: 11 }} />
               <YAxis
@@ -144,9 +144,10 @@ export function ComparativaEficiencias({ evolucionData, sucursalData }: Props) {
           <p className="text-[11px] text-slate-600 mb-3">
             Filtros activos: Periodo (F4), Garantía (F3), Tipo Trabajo (F6) · F1 Sucursal ignorado (el eje X es la sucursal)
           </p>
-          <ResponsiveContainer width="100%" height={320}>
+          <ResponsiveContainer width="100%" height={400}>
             <BarChart
               data={sortedSucursal}
+              barCategoryGap="25%"
               margin={{ top: 20, right: 16, left: 0, bottom: 40 }}
             >
               <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
