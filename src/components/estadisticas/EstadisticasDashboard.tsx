@@ -79,13 +79,14 @@ function resumenSucursal(casos: Caso[]) {
 
 function semaforoEvolucion(casos: Caso[]) {
   const cerrados = casos.filter((c) => c.clasificacionSLA && c.periodoMensual);
-  const periodos: Record<string, { aTiempo: number; aplazado: number; total: number }> = {};
+  const periodos: Record<string, { aTiempo: number; aplazado: number; atrasado: number; total: number }> = {};
   for (const c of cerrados) {
     const p = c.periodoMensual!;
-    if (!periodos[p]) periodos[p] = { aTiempo: 0, aplazado: 0, total: 0 };
+    if (!periodos[p]) periodos[p] = { aTiempo: 0, aplazado: 0, atrasado: 0, total: 0 };
     periodos[p].total++;
     if (c.clasificacionSLA === "A TIEMPO") periodos[p].aTiempo++;
     else if (c.clasificacionSLA === "APLAZADO") periodos[p].aplazado++;
+    else if (c.clasificacionSLA === "ATRASADO") periodos[p].atrasado++;
   }
   return Object.entries(periodos)
     .sort(([a], [b]) => a.localeCompare(b))
@@ -93,6 +94,10 @@ function semaforoEvolucion(casos: Caso[]) {
       periodo,
       "A TIEMPO": g.total > 0 ? parseFloat(((g.aTiempo / g.total) * 100).toFixed(1)) : 0,
       "APLAZADO": g.total > 0 ? parseFloat(((g.aplazado / g.total) * 100).toFixed(1)) : 0,
+      "ATRASADO": g.total > 0 ? parseFloat(((g.atrasado / g.total) * 100).toFixed(1)) : 0,
+      cantATiempo: g.aTiempo,
+      cantAplazado: g.aplazado,
+      cantAtrasado: g.atrasado,
       total: g.total,
     }));
 }
