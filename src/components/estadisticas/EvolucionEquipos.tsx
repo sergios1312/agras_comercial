@@ -15,8 +15,8 @@ export interface EvolucionEquipoRow {
   Generador: number;
   Bateria: number;
   Otros: number;
-  eficienciaSLA: number; // Porcentaje de "A Tiempo"
-  eficienciaAplazadoSLA: number; // Porcentaje de "APLAZADO"
+  eficienciaETD: number; // Porcentaje de "A Tiempo"
+  eficienciaTAT: number; // Porcentaje de "A Tiempo" + "APLAZADO"
   totalCasos: number;
 }
 
@@ -31,7 +31,7 @@ export function EvolucionEquipos({ evolucionData, sucursalData }: Props) {
   const [activeTab, setActiveTab] = useState<Tab>("evolucion");
 
   const formatterTooltip: Fmt = (v: number, name: string, props: any) => {
-    if (name === "Eficiencia A Tiempo" || name === "Eficiencia Aplazados") {
+    if (name === "Eficiencia ETD" || name === "Eficiencia TAT") {
       return [`${Number(v).toFixed(1)}%`, name];
     }
     const n = Number(v);
@@ -45,7 +45,7 @@ export function EvolucionEquipos({ evolucionData, sucursalData }: Props) {
         Eficiencia y Volumen por Equipo
       </h3>
       <p className="text-xs text-slate-600 mb-4">
-        Solo casos cerrados (con SLA) · Comparativa histórica de volumen vs eficiencia (A Tiempo y Aplazados)
+        Solo casos cerrados (con SLA) · Comparativa histórica de volumen vs eficiencia (ETD y TAT)
       </p>
 
       {/* Tabs */}
@@ -72,7 +72,7 @@ export function EvolucionEquipos({ evolucionData, sucursalData }: Props) {
 
       {activeTab === "evolucion" && (
         <ResponsiveContainer width="100%" height={400}>
-          <ComposedChart data={evolucionData} barCategoryGap="25%" margin={{ top: 20, right: 16, left: 0, bottom: 4 }}>
+          <ComposedChart data={evolucionData} barCategoryGap="25%" margin={{ top: 20, right: 16, left: 10, bottom: 4 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
             <XAxis dataKey="periodo" tick={{ fill: "#64748b", fontSize: 11 }} />
             
@@ -118,17 +118,17 @@ export function EvolucionEquipos({ evolucionData, sucursalData }: Props) {
             <Line 
               yAxisId="right"
               type="monotone" 
-              dataKey="eficienciaSLA" 
-              name="Eficiencia A Tiempo" 
+              dataKey="eficienciaETD" 
+              name="Eficiencia ETD" 
               stroke="#22c55e" 
               strokeWidth={3} 
               dot={{ r: 4, fill: "#22c55e", strokeWidth: 2, stroke: "#1e293b" }} 
               activeDot={{ r: 6 }} 
             >
               <LabelList 
-                dataKey="eficienciaSLA" 
+                dataKey="eficienciaETD" 
                 position="left" 
-                offset={25} 
+                dx={-20}
                 fill="#86efac" 
                 fontSize={11} 
                 fontWeight={600}
@@ -139,17 +139,17 @@ export function EvolucionEquipos({ evolucionData, sucursalData }: Props) {
             <Line 
               yAxisId="right"
               type="monotone" 
-              dataKey="eficienciaAplazadoSLA" 
-              name="Eficiencia Aplazados" 
+              dataKey="eficienciaTAT" 
+              name="Eficiencia TAT" 
               stroke="#eab308" 
               strokeWidth={3} 
               dot={{ r: 4, fill: "#eab308", strokeWidth: 2, stroke: "#1e293b" }} 
               activeDot={{ r: 6 }} 
             >
               <LabelList 
-                dataKey="eficienciaAplazadoSLA" 
+                dataKey="eficienciaTAT" 
                 position="left" 
-                offset={25} 
+                dx={-20}
                 fill="#fde047" 
                 fontSize={11} 
                 fontWeight={600}
@@ -162,7 +162,7 @@ export function EvolucionEquipos({ evolucionData, sucursalData }: Props) {
 
       {activeTab === "sucursal" && (
         <ResponsiveContainer width="100%" height={400}>
-          <ComposedChart data={sucursalData} barCategoryGap="25%" margin={{ top: 20, right: 16, left: 0, bottom: 40 }}>
+          <ComposedChart data={sucursalData} barCategoryGap="25%" margin={{ top: 20, right: 16, left: 10, bottom: 40 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
             <XAxis 
               dataKey="sucursal" 
@@ -215,17 +215,17 @@ export function EvolucionEquipos({ evolucionData, sucursalData }: Props) {
             <Line 
               yAxisId="right"
               type="monotone" 
-              dataKey="eficienciaSLA" 
-              name="Eficiencia A Tiempo" 
+              dataKey="eficienciaETD" 
+              name="Eficiencia ETD" 
               stroke="#22c55e" 
               strokeWidth={3} 
               dot={{ r: 4, fill: "#22c55e", strokeWidth: 2, stroke: "#1e293b" }} 
               activeDot={{ r: 6 }} 
             >
               <LabelList 
-                dataKey="eficienciaSLA" 
+                dataKey="eficienciaETD" 
                 position="left" 
-                offset={25} 
+                dx={-20}
                 fill="#86efac" 
                 fontSize={11} 
                 fontWeight={600}
@@ -236,17 +236,17 @@ export function EvolucionEquipos({ evolucionData, sucursalData }: Props) {
             <Line 
               yAxisId="right"
               type="monotone" 
-              dataKey="eficienciaAplazadoSLA" 
-              name="Eficiencia Aplazados" 
+              dataKey="eficienciaTAT" 
+              name="Eficiencia TAT" 
               stroke="#eab308" 
               strokeWidth={3} 
               dot={{ r: 4, fill: "#eab308", strokeWidth: 2, stroke: "#1e293b" }} 
               activeDot={{ r: 6 }} 
             >
               <LabelList 
-                dataKey="eficienciaAplazadoSLA" 
+                dataKey="eficienciaTAT" 
                 position="left" 
-                offset={25} 
+                dx={-20}
                 fill="#fde047" 
                 fontSize={11} 
                 fontWeight={600}

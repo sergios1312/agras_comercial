@@ -175,8 +175,8 @@ function evolucionEquiposLogic(casos: Caso[]) {
       Generador: g.Generador,
       Bateria: g.Bateria,
       Otros: g.Otros,
-      eficienciaSLA: g.total > 0 ? parseFloat(((g.aTiempo / g.total) * 100).toFixed(1)) : 0,
-      eficienciaAplazadoSLA: g.total > 0 ? parseFloat(((g.aplazado / g.total) * 100).toFixed(1)) : 0,
+      eficienciaETD: g.total > 0 ? parseFloat(((g.aTiempo / g.total) * 100).toFixed(1)) : 0,
+      eficienciaTAT: g.total > 0 ? parseFloat((((g.aTiempo + g.aplazado) / g.total) * 100).toFixed(1)) : 0,
       totalCasos: g.total,
     }));
 }
@@ -210,8 +210,8 @@ function sucursalEquiposLogic(casos: Caso[]) {
       Generador: g.Generador,
       Bateria: g.Bateria,
       Otros: g.Otros,
-      eficienciaSLA: g.total > 0 ? parseFloat(((g.aTiempo / g.total) * 100).toFixed(1)) : 0,
-      eficienciaAplazadoSLA: g.total > 0 ? parseFloat(((g.aplazado / g.total) * 100).toFixed(1)) : 0,
+      eficienciaETD: g.total > 0 ? parseFloat(((g.aTiempo / g.total) * 100).toFixed(1)) : 0,
+      eficienciaTAT: g.total > 0 ? parseFloat((((g.aTiempo + g.aplazado) / g.total) * 100).toFixed(1)) : 0,
       totalCasos: g.total,
     }));
 }
