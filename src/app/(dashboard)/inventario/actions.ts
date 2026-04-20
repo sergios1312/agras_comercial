@@ -206,6 +206,21 @@ export async function submitPedido(
     }
   }
 
+  // Usamos cliente admin para la inserción y comprobaciones para evitar problemas de RLS
+  const dbAdmin = createAdminClient() as any;
+
+  // Si hay alguna venta, asegurar que el caso genérico '0000' exista en BD
+  if (carrito.some((item) => item.es_venta)) {
+    await dbAdmin.from("casos").upsert({
+      numeracion_caso: "0000",
+      estado_general: "CERRADO",
+      descripcion: "Caso contenedor para repuestos vendidos",
+      cliente: "VENTA DIRECTA",
+      equipo: "VENTA",
+      tipo_trabajo: "VENTA",
+    }, { onConflict: "numeracion_caso" });
+  }
+
   // ─── Inserción masiva en historial_pedidos ─────────────────
   const estado: EstadoPedido = "Pendiente";
 
@@ -219,9 +234,6 @@ export async function submitPedido(
     estado,
   }));
 
-  // Usamos cliente admin para la inserción masiva para evitar problemas de RLS 
-  // o integridad si el usuario no tiene visibilidad completa de la tabla de casos.
-  const dbAdmin = createAdminClient() as any;
   const tablaDestino = configPedidos.modo_prueba ? "historial_pedidos_prueba" : "historial_pedidos";
 
   const { error: insertError } = await dbAdmin

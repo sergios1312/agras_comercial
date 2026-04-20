@@ -144,5 +144,5 @@ export async function obtenerCasosExistentesDetalle(): Promise<any[]> {
     return [];
   }
 
-  return data;
+  return data.filter((c: any) => c.numeracion_caso !== "0000");
 }

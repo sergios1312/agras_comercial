@@ -70,6 +70,8 @@ export async function obtenerCasosDesdeDB(): Promise<Caso[]> {
     if (!casosDB || casosDB.length === 0) break;
 
     for (const row of casosDB) {
+      if (row.numeracion_caso === "0000") continue; // Ignorar el caso genérico de ventas en estadísticas
+
       const rtat = row.fecha_ingreso ? contarDiasHabiles(row.fecha_ingreso, row.fecha_salida ?? hoy) : null;
       const rtatFinal = rtat !== null && rtat >= 0 ? rtat : null;
 
