@@ -153,14 +153,15 @@ function agruparEquipo(equipo: string | null | undefined): "Dron" | "Generador" 
 
 function evolucionEquiposLogic(casos: Caso[]) {
   const cerrados = casos.filter((c) => c.clasificacionSLA && c.periodoMensual);
-  const periodos: Record<string, { Dron: number; Generador: number; Bateria: number; Otros: number; total: number; aTiempo: number }> = {};
+  const periodos: Record<string, { Dron: number; Generador: number; Bateria: number; Otros: number; total: number; aTiempo: number; aplazado: number }> = {};
 
   for (const c of cerrados) {
     const p = c.periodoMensual!;
-    if (!periodos[p]) periodos[p] = { Dron: 0, Generador: 0, Bateria: 0, Otros: 0, total: 0, aTiempo: 0 };
+    if (!periodos[p]) periodos[p] = { Dron: 0, Generador: 0, Bateria: 0, Otros: 0, total: 0, aTiempo: 0, aplazado: 0 };
     periodos[p].total++;
     
     if (c.clasificacionSLA === "A TIEMPO") periodos[p].aTiempo++;
+    if (c.clasificacionSLA === "APLAZADO") periodos[p].aplazado++;
 
     const cat = agruparEquipo(c.equipo);
     periodos[p][cat]++;
@@ -175,20 +176,22 @@ function evolucionEquiposLogic(casos: Caso[]) {
       Bateria: g.Bateria,
       Otros: g.Otros,
       eficienciaSLA: g.total > 0 ? parseFloat(((g.aTiempo / g.total) * 100).toFixed(1)) : 0,
+      eficienciaAplazadoSLA: g.total > 0 ? parseFloat(((g.aplazado / g.total) * 100).toFixed(1)) : 0,
       totalCasos: g.total,
     }));
 }
 
 function sucursalEquiposLogic(casos: Caso[]) {
   const cerrados = casos.filter((c) => c.clasificacionSLA);
-  const sucursales: Record<string, { Dron: number; Generador: number; Bateria: number; Otros: number; total: number; aTiempo: number }> = {};
+  const sucursales: Record<string, { Dron: number; Generador: number; Bateria: number; Otros: number; total: number; aTiempo: number; aplazado: number }> = {};
 
   for (const c of cerrados) {
     const s = c.sucursal;
-    if (!sucursales[s]) sucursales[s] = { Dron: 0, Generador: 0, Bateria: 0, Otros: 0, total: 0, aTiempo: 0 };
+    if (!sucursales[s]) sucursales[s] = { Dron: 0, Generador: 0, Bateria: 0, Otros: 0, total: 0, aTiempo: 0, aplazado: 0 };
     sucursales[s].total++;
     
     if (c.clasificacionSLA === "A TIEMPO") sucursales[s].aTiempo++;
+    if (c.clasificacionSLA === "APLAZADO") sucursales[s].aplazado++;
 
     const cat = agruparEquipo(c.equipo);
     sucursales[s][cat]++;
@@ -208,6 +211,7 @@ function sucursalEquiposLogic(casos: Caso[]) {
       Bateria: g.Bateria,
       Otros: g.Otros,
       eficienciaSLA: g.total > 0 ? parseFloat(((g.aTiempo / g.total) * 100).toFixed(1)) : 0,
+      eficienciaAplazadoSLA: g.total > 0 ? parseFloat(((g.aplazado / g.total) * 100).toFixed(1)) : 0,
       totalCasos: g.total,
     }));
 }

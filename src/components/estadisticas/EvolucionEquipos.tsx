@@ -16,6 +16,7 @@ export interface EvolucionEquipoRow {
   Bateria: number;
   Otros: number;
   eficienciaSLA: number; // Porcentaje de "A Tiempo"
+  eficienciaAplazadoSLA: number; // Porcentaje de "APLAZADO"
   totalCasos: number;
 }
 
@@ -30,7 +31,7 @@ export function EvolucionEquipos({ evolucionData, sucursalData }: Props) {
   const [activeTab, setActiveTab] = useState<Tab>("evolucion");
 
   const formatterTooltip: Fmt = (v: number, name: string, props: any) => {
-    if (name === "Eficiencia SLA") {
+    if (name === "Eficiencia A Tiempo" || name === "Eficiencia Aplazados") {
       return [`${Number(v).toFixed(1)}%`, name];
     }
     const n = Number(v);
@@ -44,7 +45,7 @@ export function EvolucionEquipos({ evolucionData, sucursalData }: Props) {
         Eficiencia y Volumen por Equipo
       </h3>
       <p className="text-xs text-slate-600 mb-4">
-        Solo casos cerrados (con SLA) · Comparativa histórica de volumen vs eficiencia (A Tiempo)
+        Solo casos cerrados (con SLA) · Comparativa histórica de volumen vs eficiencia (A Tiempo y Aplazados)
       </p>
 
       {/* Tabs */}
@@ -104,13 +105,13 @@ export function EvolucionEquipos({ evolucionData, sucursalData }: Props) {
             <Bar yAxisId="left" dataKey="Dron" stackId="a" fill="#3b82f6">
                <LabelList dataKey={(d: EvolucionEquipoRow) => d.Dron >= 3 ? d.Dron : ""} position="center" fill="#fff" fontSize={10} />
             </Bar>
-            <Bar yAxisId="left" dataKey="Generador" stackId="a" fill="#10b981">
+            <Bar yAxisId="left" dataKey="Generador" stackId="a" fill="#06b6d4">
                <LabelList dataKey={(d: EvolucionEquipoRow) => d.Generador >= 3 ? d.Generador : ""} position="center" fill="#fff" fontSize={10} />
             </Bar>
-            <Bar yAxisId="left" dataKey="Bateria" stackId="a" fill="#f59e0b">
+            <Bar yAxisId="left" dataKey="Bateria" stackId="a" fill="#d946ef">
                <LabelList dataKey={(d: EvolucionEquipoRow) => d.Bateria >= 3 ? d.Bateria : ""} position="center" fill="#fff" fontSize={10} />
             </Bar>
-            <Bar yAxisId="left" dataKey="Otros" stackId="a" fill="#8b5cf6" radius={[4, 4, 0, 0]}>
+            <Bar yAxisId="left" dataKey="Otros" stackId="a" fill="#64748b" radius={[4, 4, 0, 0]}>
                <LabelList dataKey={(d: EvolucionEquipoRow) => d.Otros >= 3 ? d.Otros : ""} position="center" fill="#fff" fontSize={10} />
             </Bar>
 
@@ -118,17 +119,38 @@ export function EvolucionEquipos({ evolucionData, sucursalData }: Props) {
               yAxisId="right"
               type="monotone" 
               dataKey="eficienciaSLA" 
-              name="Eficiencia SLA" 
-              stroke="#ef4444" 
+              name="Eficiencia A Tiempo" 
+              stroke="#22c55e" 
               strokeWidth={3} 
-              dot={{ r: 4, fill: "#ef4444", strokeWidth: 2, stroke: "#1e293b" }} 
+              dot={{ r: 4, fill: "#22c55e", strokeWidth: 2, stroke: "#1e293b" }} 
               activeDot={{ r: 6 }} 
             >
               <LabelList 
                 dataKey="eficienciaSLA" 
                 position="left" 
                 offset={25} 
-                fill="#fca5a5" 
+                fill="#86efac" 
+                fontSize={11} 
+                fontWeight={600}
+                formatter={(v: any) => `${v}%`}
+              />
+            </Line>
+            
+            <Line 
+              yAxisId="right"
+              type="monotone" 
+              dataKey="eficienciaAplazadoSLA" 
+              name="Eficiencia Aplazados" 
+              stroke="#eab308" 
+              strokeWidth={3} 
+              dot={{ r: 4, fill: "#eab308", strokeWidth: 2, stroke: "#1e293b" }} 
+              activeDot={{ r: 6 }} 
+            >
+              <LabelList 
+                dataKey="eficienciaAplazadoSLA" 
+                position="left" 
+                offset={25} 
+                fill="#fde047" 
                 fontSize={11} 
                 fontWeight={600}
                 formatter={(v: any) => `${v}%`}
@@ -180,13 +202,13 @@ export function EvolucionEquipos({ evolucionData, sucursalData }: Props) {
             <Bar yAxisId="left" dataKey="Dron" stackId="a" fill="#3b82f6">
                <LabelList dataKey={(d: EvolucionEquipoRow) => d.Dron >= 3 ? d.Dron : ""} position="center" fill="#fff" fontSize={10} />
             </Bar>
-            <Bar yAxisId="left" dataKey="Generador" stackId="a" fill="#10b981">
+            <Bar yAxisId="left" dataKey="Generador" stackId="a" fill="#06b6d4">
                <LabelList dataKey={(d: EvolucionEquipoRow) => d.Generador >= 3 ? d.Generador : ""} position="center" fill="#fff" fontSize={10} />
             </Bar>
-            <Bar yAxisId="left" dataKey="Bateria" stackId="a" fill="#f59e0b">
+            <Bar yAxisId="left" dataKey="Bateria" stackId="a" fill="#d946ef">
                <LabelList dataKey={(d: EvolucionEquipoRow) => d.Bateria >= 3 ? d.Bateria : ""} position="center" fill="#fff" fontSize={10} />
             </Bar>
-            <Bar yAxisId="left" dataKey="Otros" stackId="a" fill="#8b5cf6" radius={[4, 4, 0, 0]}>
+            <Bar yAxisId="left" dataKey="Otros" stackId="a" fill="#64748b" radius={[4, 4, 0, 0]}>
                <LabelList dataKey={(d: EvolucionEquipoRow) => d.Otros >= 3 ? d.Otros : ""} position="center" fill="#fff" fontSize={10} />
             </Bar>
 
@@ -194,17 +216,38 @@ export function EvolucionEquipos({ evolucionData, sucursalData }: Props) {
               yAxisId="right"
               type="monotone" 
               dataKey="eficienciaSLA" 
-              name="Eficiencia SLA" 
-              stroke="#ef4444" 
+              name="Eficiencia A Tiempo" 
+              stroke="#22c55e" 
               strokeWidth={3} 
-              dot={{ r: 4, fill: "#ef4444", strokeWidth: 2, stroke: "#1e293b" }} 
+              dot={{ r: 4, fill: "#22c55e", strokeWidth: 2, stroke: "#1e293b" }} 
               activeDot={{ r: 6 }} 
             >
               <LabelList 
                 dataKey="eficienciaSLA" 
                 position="left" 
                 offset={25} 
-                fill="#fca5a5" 
+                fill="#86efac" 
+                fontSize={11} 
+                fontWeight={600}
+                formatter={(v: any) => `${v}%`}
+              />
+            </Line>
+            
+            <Line 
+              yAxisId="right"
+              type="monotone" 
+              dataKey="eficienciaAplazadoSLA" 
+              name="Eficiencia Aplazados" 
+              stroke="#eab308" 
+              strokeWidth={3} 
+              dot={{ r: 4, fill: "#eab308", strokeWidth: 2, stroke: "#1e293b" }} 
+              activeDot={{ r: 6 }} 
+            >
+              <LabelList 
+                dataKey="eficienciaAplazadoSLA" 
+                position="left" 
+                offset={25} 
+                fill="#fde047" 
                 fontSize={11} 
                 fontWeight={600}
                 formatter={(v: any) => `${v}%`}
