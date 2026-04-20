@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
+  ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip,
   Legend, ResponsiveContainer, LabelList
 } from "recharts";
 
@@ -28,6 +28,7 @@ interface SucursalRow {
   cantAplazado: number;
   cantAtrasado: number;
   pctEtd: number;
+  total: number;
 }
 
 interface Props {
@@ -43,6 +44,10 @@ export function ComparativaEficiencias({ evolucionData, sucursalData }: Props) {
   const sortedSucursal = [...sucursalData].sort((a, b) => b.pctEtd - a.pctEtd);
 
   const formatterTooltip: Fmt = (v: number, name: string, props: any) => {
+    if (name === "Total Casos") {
+      return [`${v} casos en total`, "Volumen (Línea)"];
+    }
+
     const row = props.payload;
     let count = 0;
     if (name === "A TIEMPO") count = row.cantATiempo;
@@ -90,12 +95,12 @@ export function ComparativaEficiencias({ evolucionData, sucursalData }: Props) {
             Filtros activos: Sucursal (F1), Garantía (F3), Tipo Trabajo (F6) · F4 Periodo ignorado (el eje X es el periodo)
           </p>
           <ResponsiveContainer width="100%" height={400}>
-            <BarChart data={evolucionData} barCategoryGap="25%" margin={{ top: 20, right: 16, left: 0, bottom: 4 }}>
+            <ComposedChart data={evolucionData} barCategoryGap="25%" margin={{ top: 20, right: 16, left: 0, bottom: 4 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
               <XAxis dataKey="periodo" tick={{ fill: "#64748b", fontSize: 11 }} />
               <YAxis
-                tickFormatter={(v) => `${v}%`}
-                domain={[0, 100]}
+                tickFormatter={(v) => `${v}`}
+                domain={[0, (dataMax: number) => Math.max(100, dataMax)]}
                 tick={{ fill: "#64748b", fontSize: 11 }}
               />
               <Tooltip
@@ -133,7 +138,16 @@ export function ComparativaEficiencias({ evolucionData, sucursalData }: Props) {
                   style={{ whiteSpace: "pre" }}
                 />
               </Bar>
-            </BarChart>
+              <Line 
+                type="monotone" 
+                dataKey="total" 
+                name="Total Casos" 
+                stroke="#60a5fa" 
+                strokeWidth={3} 
+                dot={{ r: 4, fill: "#60a5fa", strokeWidth: 2, stroke: "#1e293b" }} 
+                activeDot={{ r: 6 }} 
+              />
+            </ComposedChart>
           </ResponsiveContainer>
         </>
       )}
@@ -145,7 +159,7 @@ export function ComparativaEficiencias({ evolucionData, sucursalData }: Props) {
             Filtros activos: Periodo (F4), Garantía (F3), Tipo Trabajo (F6) · F1 Sucursal ignorado (el eje X es la sucursal)
           </p>
           <ResponsiveContainer width="100%" height={400}>
-            <BarChart
+            <ComposedChart
               data={sortedSucursal}
               barCategoryGap="25%"
               margin={{ top: 20, right: 16, left: 0, bottom: 40 }}
@@ -161,9 +175,8 @@ export function ComparativaEficiencias({ evolucionData, sucursalData }: Props) {
                 height={60}
               />
               <YAxis
-                type="number"
-                tickFormatter={(v) => `${v}%`}
-                domain={[0, 100]}
+                tickFormatter={(v) => `${v}`}
+                domain={[0, (dataMax: number) => Math.max(100, dataMax)]}
                 tick={{ fill: "#64748b", fontSize: 11 }}
               />
               <Tooltip
@@ -201,7 +214,16 @@ export function ComparativaEficiencias({ evolucionData, sucursalData }: Props) {
                   style={{ whiteSpace: "pre" }}
                 />
               </Bar>
-            </BarChart>
+              <Line 
+                type="monotone" 
+                dataKey="total" 
+                name="Total Casos" 
+                stroke="#60a5fa" 
+                strokeWidth={3} 
+                dot={{ r: 4, fill: "#60a5fa", strokeWidth: 2, stroke: "#1e293b" }} 
+                activeDot={{ r: 6 }} 
+              />
+            </ComposedChart>
           </ResponsiveContainer>
         </>
       )}

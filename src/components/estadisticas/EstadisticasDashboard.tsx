@@ -113,6 +113,7 @@ function semaforoSucursal(casos: Caso[]) {
     cantAplazado: d.aplazado,
     cantAtrasado: d.atrasado,
     pctEtd: d.pctEtd,
+    total: d.total,
   }));
 }
 
