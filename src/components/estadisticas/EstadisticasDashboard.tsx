@@ -14,6 +14,7 @@ import { BarrasDesviacion } from "@/components/estadisticas/BarrasDesviacion";
 import { DemoraPromedio } from "@/components/estadisticas/DemoraPromedio";
 import { HistogramaRtat } from "@/components/estadisticas/HistogramaRtat";
 import { HeatmapSLA } from "@/components/estadisticas/HeatmapSLA";
+import { EvolucionEquipos } from "@/components/estadisticas/EvolucionEquipos";
 
 // ─── Tipos de filtros ────────────────────────────────────────
 type EstadoFiltro = "TODOS" | "ABIERTO" | "CERRADO" | "DEVUELTO";
@@ -139,6 +140,43 @@ function barrasDesviacion(casos: Caso[]) {
         cantidad: rtats.length,
       };
     });
+}
+
+function agruparEquipo(equipo: string | null | undefined): "Dron" | "Generador" | "Bateria" | "Otros" {
+  if (!equipo) return "Otros";
+  const e = equipo.toUpperCase();
+  if (e.includes("D12000IE") || e.includes("D14000IEP") || e.includes("D6000IE")) return "Generador";
+  if (e.includes("DB1560") || e.includes("DB2160") || e.includes("DB800")) return "Bateria";
+  if (e.includes("T100") || e.includes("T25") || e.includes("T40") || e.includes("T50") || e.includes("T70P")) return "Dron";
+  return "Otros";
+}
+
+function evolucionEquiposLogic(casos: Caso[]) {
+  const cerrados = casos.filter((c) => c.clasificacionSLA && c.periodoMensual);
+  const periodos: Record<string, { Dron: number; Generador: number; Bateria: number; Otros: number; total: number; aTiempo: number }> = {};
+
+  for (const c of cerrados) {
+    const p = c.periodoMensual!;
+    if (!periodos[p]) periodos[p] = { Dron: 0, Generador: 0, Bateria: 0, Otros: 0, total: 0, aTiempo: 0 };
+    periodos[p].total++;
+    
+    if (c.clasificacionSLA === "A TIEMPO") periodos[p].aTiempo++;
+
+    const cat = agruparEquipo(c.equipo);
+    periodos[p][cat]++;
+  }
+
+  return Object.entries(periodos)
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([periodo, g]) => ({
+      periodo,
+      Dron: g.Dron,
+      Generador: g.Generador,
+      Bateria: g.Bateria,
+      Otros: g.Otros,
+      eficienciaSLA: g.total > 0 ? parseFloat(((g.aTiempo / g.total) * 100).toFixed(1)) : 0,
+      totalCasos: g.total,
+    }));
 }
 
 function histogramaRtat(casos: Caso[], binSize: number) {
@@ -356,6 +394,7 @@ export function EstadisticasDashboard({
   const pieEficData = useMemo(() => pctSLA(casosKPI), [casosKPI]);
   const semEvolucionData = useMemo(() => semaforoEvolucion(casosKPI), [casosKPI]);
   const semSucursalData = useMemo(() => semaforoSucursal(casosKPI), [casosKPI]);
+  const evoEquiposData = useMemo(() => evolucionEquiposLogic(casosKPI), [casosKPI]);
   const resumenData = useMemo(() => resumenSucursal(casosKPI), [casosKPI]);
   const desviacionData = useMemo(() => barrasDesviacion(casosKPI), [casosKPI]);
   const histData = useMemo(() => histogramaRtat(casosKPI, binSize), [casosKPI, binSize]);
@@ -564,6 +603,9 @@ export function EstadisticasDashboard({
         evolucionData={semEvolucionData}
         sucursalData={semSucursalData}
       />
+
+      {/* ── Evolución de Eficiencia y Volumen por Equipo ─────── */}
+      <EvolucionEquipos data={evoEquiposData} />
 
       {/* ── Tabla Resumen + Desviación ────────────────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
