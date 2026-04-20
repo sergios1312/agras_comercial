@@ -240,7 +240,7 @@ export async function submitPedido(
         const invId = (item.inv_ids as Record<string, number> | undefined)?.[item.sucursal_destino];
         if (!invId) return [];
         const stockNuevo = item.stock_disponible - item.cantidad;
-        return [rawClient.from("inventario").update({ cantidad: stockNuevo }).eq("id", invId)];
+        return [dbAdmin.from("inventario").update({ cantidad: stockNuevo }).eq("id", invId)];
       });
     // Todos los UPDATEs en paralelo — un solo roundtrip de latencia
     await Promise.all(updates);
