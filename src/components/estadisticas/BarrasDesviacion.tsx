@@ -63,23 +63,23 @@ export function BarrasDesviacion({ data }: Props) {
       <ResponsiveContainer width="100%" height={400}>
         <BarChart
           data={dataConDesviacion}
+          layout="vertical"
           barCategoryGap="25%"
-          margin={{ top: 25, right: 8, left: 0, bottom: 40 }}
+          margin={{ top: 5, right: 40, left: 20, bottom: 5 }}
         >
           <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
           <XAxis
-            dataKey="tipoTrabajo"
-            tick={{ fill: "#94a3b8", fontSize: 10 }}
-            interval={0}
-            angle={-35}
-            textAnchor="end"
-            height={60}
+            type="number"
+            tick={{ fill: "#64748b", fontSize: 11 }}
+            tickFormatter={(v) => `${v}d`}
             axisLine={false}
             tickLine={false}
           />
           <YAxis
-            tick={{ fill: "#64748b", fontSize: 11 }}
-            tickFormatter={(v) => `${v}d`}
+            type="category"
+            dataKey="tipoTrabajo"
+            tick={{ fill: "#94a3b8", fontSize: 11 }}
+            width={160}
             axisLine={false}
             tickLine={false}
           />
@@ -96,8 +96,8 @@ export function BarrasDesviacion({ data }: Props) {
               ];
             }) as Fmt}
           />
-          <ReferenceLine y={0} stroke="#475569" strokeWidth={1.5} />
-          <Bar dataKey="desviacion" name="Desviación" radius={[4, 4, 0, 0]}>
+          <ReferenceLine x={0} stroke="#475569" strokeWidth={1.5} />
+          <Bar dataKey="desviacion" name="Desviación" radius={[0, 4, 4, 0]}>
             {dataConDesviacion.map((entry, i) => (
               <Cell
                 key={i}
@@ -106,7 +106,7 @@ export function BarrasDesviacion({ data }: Props) {
             ))}
             <LabelList 
               dataKey="cantidad" 
-              position="top" 
+              position="right" 
               fill="#94a3b8" 
               fontSize={10}
               formatter={(v: any) => `(${v})`}
