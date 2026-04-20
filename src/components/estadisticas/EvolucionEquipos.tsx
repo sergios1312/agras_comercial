@@ -96,7 +96,17 @@ export function EvolucionEquipos({ data }: Props) {
             strokeWidth={3} 
             dot={{ r: 4, fill: "#ef4444", strokeWidth: 2, stroke: "#1e293b" }} 
             activeDot={{ r: 6 }} 
-          />
+          >
+            <LabelList 
+              dataKey="eficienciaSLA" 
+              position="left" 
+              offset={10} 
+              fill="#fca5a5" 
+              fontSize={11} 
+              fontWeight={600}
+              formatter={(v: any) => `${v}%`}
+            />
+          </Line>
         </ComposedChart>
       </ResponsiveContainer>
     </div>

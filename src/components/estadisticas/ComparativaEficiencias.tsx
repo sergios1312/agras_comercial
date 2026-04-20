@@ -146,7 +146,16 @@ export function ComparativaEficiencias({ evolucionData, sucursalData }: Props) {
                 strokeWidth={3} 
                 dot={{ r: 4, fill: "#60a5fa", strokeWidth: 2, stroke: "#1e293b" }} 
                 activeDot={{ r: 6 }} 
-              />
+              >
+                <LabelList 
+                  dataKey="total" 
+                  position="left" 
+                  offset={10} 
+                  fill="#93c5fd" 
+                  fontSize={11} 
+                  fontWeight={600}
+                />
+              </Line>
             </ComposedChart>
           </ResponsiveContainer>
         </>
@@ -222,7 +231,16 @@ export function ComparativaEficiencias({ evolucionData, sucursalData }: Props) {
                 strokeWidth={3} 
                 dot={{ r: 4, fill: "#60a5fa", strokeWidth: 2, stroke: "#1e293b" }} 
                 activeDot={{ r: 6 }} 
-              />
+              >
+                <LabelList 
+                  dataKey="total" 
+                  position="left" 
+                  offset={10} 
+                  fill="#93c5fd" 
+                  fontSize={11} 
+                  fontWeight={600}
+                />
+              </Line>
             </ComposedChart>
           </ResponsiveContainer>
         </>
