@@ -179,6 +179,39 @@ function evolucionEquiposLogic(casos: Caso[]) {
     }));
 }
 
+function sucursalEquiposLogic(casos: Caso[]) {
+  const cerrados = casos.filter((c) => c.clasificacionSLA);
+  const sucursales: Record<string, { Dron: number; Generador: number; Bateria: number; Otros: number; total: number; aTiempo: number }> = {};
+
+  for (const c of cerrados) {
+    const s = c.sucursal;
+    if (!sucursales[s]) sucursales[s] = { Dron: 0, Generador: 0, Bateria: 0, Otros: 0, total: 0, aTiempo: 0 };
+    sucursales[s].total++;
+    
+    if (c.clasificacionSLA === "A TIEMPO") sucursales[s].aTiempo++;
+
+    const cat = agruparEquipo(c.equipo);
+    sucursales[s][cat]++;
+  }
+
+  return Object.entries(sucursales)
+    // sort by efficiency desc
+    .sort((a, b) => {
+        const pctA = a[1].total > 0 ? a[1].aTiempo / a[1].total : 0;
+        const pctB = b[1].total > 0 ? b[1].aTiempo / b[1].total : 0;
+        return pctB - pctA;
+    })
+    .map(([sucursal, g]) => ({
+      sucursal,
+      Dron: g.Dron,
+      Generador: g.Generador,
+      Bateria: g.Bateria,
+      Otros: g.Otros,
+      eficienciaSLA: g.total > 0 ? parseFloat(((g.aTiempo / g.total) * 100).toFixed(1)) : 0,
+      totalCasos: g.total,
+    }));
+}
+
 function histogramaRtat(casos: Caso[], binSize: number) {
   const rtats = casos.filter((c) => c.estadoGeneral === "CERRADO" && c.rtat !== null).map((c) => c.rtat!);
   const buckets: Record<number, number> = {};
@@ -395,6 +428,7 @@ export function EstadisticasDashboard({
   const semEvolucionData = useMemo(() => semaforoEvolucion(casosKPI), [casosKPI]);
   const semSucursalData = useMemo(() => semaforoSucursal(casosKPI), [casosKPI]);
   const evoEquiposData = useMemo(() => evolucionEquiposLogic(casosKPI), [casosKPI]);
+  const sucEquiposData = useMemo(() => sucursalEquiposLogic(casosKPI), [casosKPI]);
   const resumenData = useMemo(() => resumenSucursal(casosKPI), [casosKPI]);
   const desviacionData = useMemo(() => barrasDesviacion(casosKPI), [casosKPI]);
   const histData = useMemo(() => histogramaRtat(casosKPI, binSize), [casosKPI, binSize]);
@@ -605,7 +639,7 @@ export function EstadisticasDashboard({
       />
 
       {/* ── Evolución de Eficiencia y Volumen por Equipo ─────── */}
-      <EvolucionEquipos data={evoEquiposData} />
+      <EvolucionEquipos evolucionData={evoEquiposData} sucursalData={sucEquiposData} />
 
       {/* ── Tabla Resumen + Desviación ────────────────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">

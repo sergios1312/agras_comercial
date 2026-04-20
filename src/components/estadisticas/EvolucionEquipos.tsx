@@ -1,14 +1,16 @@
 "use client";
 
+import { useState } from "react";
 import {
   ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip,
-  Legend, ResponsiveContainer, LabelList, Cell
+  Legend, ResponsiveContainer, LabelList
 } from "recharts";
 
 type Fmt = (v: any, name: any, info: any) => [string, string];
 
 export interface EvolucionEquipoRow {
-  periodo: string;
+  periodo?: string;
+  sucursal?: string;
   Dron: number;
   Generador: number;
   Bateria: number;
@@ -18,10 +20,14 @@ export interface EvolucionEquipoRow {
 }
 
 interface Props {
-  data: EvolucionEquipoRow[];
+  evolucionData: EvolucionEquipoRow[];
+  sucursalData: EvolucionEquipoRow[];
 }
 
-export function EvolucionEquipos({ data }: Props) {
+type Tab = "evolucion" | "sucursal";
+
+export function EvolucionEquipos({ evolucionData, sucursalData }: Props) {
+  const [activeTab, setActiveTab] = useState<Tab>("evolucion");
 
   const formatterTooltip: Fmt = (v: number, name: string, props: any) => {
     if (name === "Eficiencia SLA") {
@@ -35,80 +41,178 @@ export function EvolucionEquipos({ data }: Props) {
     <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 mb-6">
       {/* Header */}
       <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-widest mb-1">
-        Evolución de Eficiencia y Volumen por Equipo
+        Eficiencia y Volumen por Equipo
       </h3>
       <p className="text-xs text-slate-600 mb-4">
         Solo casos cerrados (con SLA) · Comparativa histórica de volumen vs eficiencia (A Tiempo)
       </p>
 
-      <ResponsiveContainer width="100%" height={400}>
-        <ComposedChart data={data} barCategoryGap="25%" margin={{ top: 20, right: 16, left: 0, bottom: 4 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
-          <XAxis dataKey="periodo" tick={{ fill: "#64748b", fontSize: 11 }} />
-          
-          {/* Eje Y Izquierdo para Volumen (Barras Apiladas) */}
-          <YAxis
-            yAxisId="left"
-            tickFormatter={(v) => `${v}`}
-            tick={{ fill: "#64748b", fontSize: 11 }}
-            axisLine={false}
-            tickLine={false}
-          />
-          
-          {/* Eje Y Derecho para Eficiencia (Línea, 0% a 100%) */}
-          <YAxis
-            yAxisId="right"
-            orientation="right"
-            domain={[0, 100]}
-            tickFormatter={(v) => `${v}%`}
-            tick={{ fill: "#64748b", fontSize: 11 }}
-            axisLine={false}
-            tickLine={false}
-          />
+      {/* Tabs */}
+      <div className="flex gap-1 mb-5 border-b border-slate-800">
+        <button
+          onClick={() => setActiveTab("evolucion")}
+          className={`px-4 py-2 text-xs font-semibold transition-all border-b-2 -mb-px
+            ${activeTab === "evolucion"
+              ? "border-indigo-500 text-indigo-300"
+              : "border-transparent text-slate-500 hover:text-slate-300"}`}
+        >
+          📈 Evolución Temporal
+        </button>
+        <button
+          onClick={() => setActiveTab("sucursal")}
+          className={`px-4 py-2 text-xs font-semibold transition-all border-b-2 -mb-px
+            ${activeTab === "sucursal"
+              ? "border-indigo-500 text-indigo-300"
+              : "border-transparent text-slate-500 hover:text-slate-300"}`}
+        >
+          🏢 Comparativa por Sucursal
+        </button>
+      </div>
 
-          <Tooltip
-            contentStyle={{ background: "#1e293b", border: "1px solid #334155", borderRadius: 8 }}
-            labelStyle={{ color: "#94a3b8" }}
-            itemStyle={{ color: "#e2e8f0" }}
-            formatter={formatterTooltip}
-          />
-          <Legend wrapperStyle={{ fontSize: 12, color: "#94a3b8" }} verticalAlign="top" height={36} />
-          
-          <Bar yAxisId="left" dataKey="Dron" stackId="a" fill="#3b82f6">
-             <LabelList dataKey={(d: EvolucionEquipoRow) => d.Dron >= 3 ? d.Dron : ""} position="center" fill="#fff" fontSize={10} />
-          </Bar>
-          <Bar yAxisId="left" dataKey="Generador" stackId="a" fill="#10b981">
-             <LabelList dataKey={(d: EvolucionEquipoRow) => d.Generador >= 3 ? d.Generador : ""} position="center" fill="#fff" fontSize={10} />
-          </Bar>
-          <Bar yAxisId="left" dataKey="Bateria" stackId="a" fill="#f59e0b">
-             <LabelList dataKey={(d: EvolucionEquipoRow) => d.Bateria >= 3 ? d.Bateria : ""} position="center" fill="#fff" fontSize={10} />
-          </Bar>
-          <Bar yAxisId="left" dataKey="Otros" stackId="a" fill="#8b5cf6" radius={[4, 4, 0, 0]}>
-             <LabelList dataKey={(d: EvolucionEquipoRow) => d.Otros >= 3 ? d.Otros : ""} position="center" fill="#fff" fontSize={10} />
-          </Bar>
-
-          <Line 
-            yAxisId="right"
-            type="monotone" 
-            dataKey="eficienciaSLA" 
-            name="Eficiencia SLA" 
-            stroke="#ef4444" 
-            strokeWidth={3} 
-            dot={{ r: 4, fill: "#ef4444", strokeWidth: 2, stroke: "#1e293b" }} 
-            activeDot={{ r: 6 }} 
-          >
-            <LabelList 
-              dataKey="eficienciaSLA" 
-              position="left" 
-              offset={10} 
-              fill="#fca5a5" 
-              fontSize={11} 
-              fontWeight={600}
-              formatter={(v: any) => `${v}%`}
+      {activeTab === "evolucion" && (
+        <ResponsiveContainer width="100%" height={400}>
+          <ComposedChart data={evolucionData} barCategoryGap="25%" margin={{ top: 20, right: 16, left: 0, bottom: 4 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
+            <XAxis dataKey="periodo" tick={{ fill: "#64748b", fontSize: 11 }} />
+            
+            <YAxis
+              yAxisId="left"
+              tickFormatter={(v) => `${v}`}
+              tick={{ fill: "#64748b", fontSize: 11 }}
+              axisLine={false}
+              tickLine={false}
             />
-          </Line>
-        </ComposedChart>
-      </ResponsiveContainer>
+            
+            <YAxis
+              yAxisId="right"
+              orientation="right"
+              domain={[0, 100]}
+              tickFormatter={(v) => `${v}%`}
+              tick={{ fill: "#64748b", fontSize: 11 }}
+              axisLine={false}
+              tickLine={false}
+            />
+
+            <Tooltip
+              contentStyle={{ background: "#1e293b", border: "1px solid #334155", borderRadius: 8 }}
+              labelStyle={{ color: "#94a3b8" }}
+              itemStyle={{ color: "#e2e8f0" }}
+              formatter={formatterTooltip}
+            />
+            <Legend wrapperStyle={{ fontSize: 12, color: "#94a3b8" }} verticalAlign="top" height={36} />
+            
+            <Bar yAxisId="left" dataKey="Dron" stackId="a" fill="#3b82f6">
+               <LabelList dataKey={(d: EvolucionEquipoRow) => d.Dron >= 3 ? d.Dron : ""} position="center" fill="#fff" fontSize={10} />
+            </Bar>
+            <Bar yAxisId="left" dataKey="Generador" stackId="a" fill="#10b981">
+               <LabelList dataKey={(d: EvolucionEquipoRow) => d.Generador >= 3 ? d.Generador : ""} position="center" fill="#fff" fontSize={10} />
+            </Bar>
+            <Bar yAxisId="left" dataKey="Bateria" stackId="a" fill="#f59e0b">
+               <LabelList dataKey={(d: EvolucionEquipoRow) => d.Bateria >= 3 ? d.Bateria : ""} position="center" fill="#fff" fontSize={10} />
+            </Bar>
+            <Bar yAxisId="left" dataKey="Otros" stackId="a" fill="#8b5cf6" radius={[4, 4, 0, 0]}>
+               <LabelList dataKey={(d: EvolucionEquipoRow) => d.Otros >= 3 ? d.Otros : ""} position="center" fill="#fff" fontSize={10} />
+            </Bar>
+
+            <Line 
+              yAxisId="right"
+              type="monotone" 
+              dataKey="eficienciaSLA" 
+              name="Eficiencia SLA" 
+              stroke="#ef4444" 
+              strokeWidth={3} 
+              dot={{ r: 4, fill: "#ef4444", strokeWidth: 2, stroke: "#1e293b" }} 
+              activeDot={{ r: 6 }} 
+            >
+              <LabelList 
+                dataKey="eficienciaSLA" 
+                position="left" 
+                offset={25} 
+                fill="#fca5a5" 
+                fontSize={11} 
+                fontWeight={600}
+                formatter={(v: any) => `${v}%`}
+              />
+            </Line>
+          </ComposedChart>
+        </ResponsiveContainer>
+      )}
+
+      {activeTab === "sucursal" && (
+        <ResponsiveContainer width="100%" height={400}>
+          <ComposedChart data={sucursalData} barCategoryGap="25%" margin={{ top: 20, right: 16, left: 0, bottom: 40 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
+            <XAxis 
+              dataKey="sucursal" 
+              tick={{ fill: "#94a3b8", fontSize: 11 }} 
+              interval={0}
+              angle={-35}
+              textAnchor="end"
+              height={60}
+            />
+            
+            <YAxis
+              yAxisId="left"
+              tickFormatter={(v) => `${v}`}
+              tick={{ fill: "#64748b", fontSize: 11 }}
+              axisLine={false}
+              tickLine={false}
+            />
+            
+            <YAxis
+              yAxisId="right"
+              orientation="right"
+              domain={[0, 100]}
+              tickFormatter={(v) => `${v}%`}
+              tick={{ fill: "#64748b", fontSize: 11 }}
+              axisLine={false}
+              tickLine={false}
+            />
+
+            <Tooltip
+              contentStyle={{ background: "#1e293b", border: "1px solid #334155", borderRadius: 8 }}
+              labelStyle={{ color: "#94a3b8" }}
+              itemStyle={{ color: "#e2e8f0" }}
+              formatter={formatterTooltip}
+            />
+            <Legend wrapperStyle={{ fontSize: 12, color: "#94a3b8" }} verticalAlign="top" height={36} />
+            
+            <Bar yAxisId="left" dataKey="Dron" stackId="a" fill="#3b82f6">
+               <LabelList dataKey={(d: EvolucionEquipoRow) => d.Dron >= 3 ? d.Dron : ""} position="center" fill="#fff" fontSize={10} />
+            </Bar>
+            <Bar yAxisId="left" dataKey="Generador" stackId="a" fill="#10b981">
+               <LabelList dataKey={(d: EvolucionEquipoRow) => d.Generador >= 3 ? d.Generador : ""} position="center" fill="#fff" fontSize={10} />
+            </Bar>
+            <Bar yAxisId="left" dataKey="Bateria" stackId="a" fill="#f59e0b">
+               <LabelList dataKey={(d: EvolucionEquipoRow) => d.Bateria >= 3 ? d.Bateria : ""} position="center" fill="#fff" fontSize={10} />
+            </Bar>
+            <Bar yAxisId="left" dataKey="Otros" stackId="a" fill="#8b5cf6" radius={[4, 4, 0, 0]}>
+               <LabelList dataKey={(d: EvolucionEquipoRow) => d.Otros >= 3 ? d.Otros : ""} position="center" fill="#fff" fontSize={10} />
+            </Bar>
+
+            <Line 
+              yAxisId="right"
+              type="monotone" 
+              dataKey="eficienciaSLA" 
+              name="Eficiencia SLA" 
+              stroke="#ef4444" 
+              strokeWidth={3} 
+              dot={{ r: 4, fill: "#ef4444", strokeWidth: 2, stroke: "#1e293b" }} 
+              activeDot={{ r: 6 }} 
+            >
+              <LabelList 
+                dataKey="eficienciaSLA" 
+                position="left" 
+                offset={25} 
+                fill="#fca5a5" 
+                fontSize={11} 
+                fontWeight={600}
+                formatter={(v: any) => `${v}%`}
+              />
+            </Line>
+          </ComposedChart>
+        </ResponsiveContainer>
+      )}
     </div>
   );
 }

@@ -150,7 +150,7 @@ export function ComparativaEficiencias({ evolucionData, sucursalData }: Props) {
                 <LabelList 
                   dataKey="total" 
                   position="left" 
-                  offset={10} 
+                  offset={25} 
                   fill="#93c5fd" 
                   fontSize={11} 
                   fontWeight={600}
@@ -235,7 +235,7 @@ export function ComparativaEficiencias({ evolucionData, sucursalData }: Props) {
                 <LabelList 
                   dataKey="total" 
                   position="left" 
-                  offset={10} 
+                  offset={25} 
                   fill="#93c5fd" 
                   fontSize={11} 
                   fontWeight={600}
