@@ -355,14 +355,16 @@ export function EstadisticasDashboard({
 }: Props) {
   // ── Estados de filtros globales ──────────────────────────────
   const [estadoFiltro, setEstadoFiltro] = useState<EstadoFiltro>("TODOS");
-  const [sucursalFiltro, setSucursalFiltro] = useState<string>("");
+  const [sucursalFiltro, setSucursalFiltro] = useState<string[]>([]); // ← array multi-select
   const [garantiaFiltro, setGarantiaFiltro] = useState<string>("");   
   const [periodoFiltro, setPeriodoFiltro] = useState<string[]>([]);
   const [ingresoFiltro, setIngresoFiltro] = useState<string>("");
   const [openPeriodo, setOpenPeriodo] = useState<boolean>(false);
+  const [openSucursal, setOpenSucursal] = useState<boolean>(false);
+  const [openEquipo, setOpenEquipo] = useState<boolean>(false);
   const [estadoCasoFiltro, setEstadoCasoFiltro] = useState<string>("");
   const [tipoFiltro, setTipoFiltro] = useState<string>("");
-  const [equipoFiltro, setEquipoFiltro] = useState<string>("");
+  const [equipoFiltro, setEquipoFiltro] = useState<string[]>([]); // ← array: valores raw OR categoria especial
   const [binSize, setBinSize] = useState<number>(5);
 
   const estadosCasoDisponibles = useMemo(() => {
@@ -380,40 +382,50 @@ export function EstadisticasDashboard({
   const periodoDesact = estadoFiltro === "ABIERTO";
 
   const hayFiltros = useMemo(() => {
-    return estadoFiltro !== "TODOS" || sucursalFiltro !== "" || garantiaFiltro !== "" || periodoFiltro.length > 0 || ingresoFiltro !== "" || estadoCasoFiltro !== "" || tipoFiltro !== "" || equipoFiltro !== "";
+    return estadoFiltro !== "TODOS" || sucursalFiltro.length > 0 || garantiaFiltro !== "" || periodoFiltro.length > 0 || ingresoFiltro !== "" || estadoCasoFiltro !== "" || tipoFiltro !== "" || equipoFiltro.length > 0;
   }, [estadoFiltro, sucursalFiltro, garantiaFiltro, periodoFiltro, ingresoFiltro, estadoCasoFiltro, tipoFiltro, equipoFiltro]);
 
   const handleLimpiarFiltros = () => {
     setEstadoFiltro("TODOS");
-    setSucursalFiltro("");
+    setSucursalFiltro([]);
     setGarantiaFiltro("");
     setPeriodoFiltro([]);
     setIngresoFiltro("");
     setEstadoCasoFiltro("");
     setTipoFiltro("");
-    setEquipoFiltro("");
+    setEquipoFiltro([]);
+  };
+
+  // Mapping categorias de equipos para filtrado
+  const EQUIPO_GRUPOS: Record<string, string[]> = {
+    "Dron": ["T100", "T25", "T25P", "T40", "T50", "T70P"],
+    "Generador": ["D12000IE", "D12000IEP", "D14000IEP", "D6000IE"],
+    "Bateria": ["DB1560", "DB2160", "DB800"],
   };
 
   const casosKPI = useMemo(() => {
     return casos.filter(c => {
       if (!matchEstado(c)) return false;
-      if (sucursalFiltro && c.sucursal !== sucursalFiltro) return false;
+      if (sucursalFiltro.length > 0 && !sucursalFiltro.includes(c.sucursal)) return false;
       if (garantiaFiltro && c.garantia !== garantiaFiltro) return false;
       if (periodoFiltro.length > 0 && !periodoDesact && (!c.periodoMensual || !periodoFiltro.includes(c.periodoMensual))) return false;
       if (ingresoFiltro === "INGRESADOS" && !c.fechaIngreso) return false;
       if (ingresoFiltro === "NO INGRESADOS" && c.fechaIngreso) return false;
       if (estadoCasoFiltro && c.estadoCaso !== estadoCasoFiltro) return false;
       if (tipoFiltro && c.tipoTrabajo !== tipoFiltro) return false;
-      if (equipoFiltro) {
-        if (equipoFiltro === "SIN_EQUIPO") {
-          if (c.equipo && c.equipo.trim() !== "") return false;
-        } else if (c.equipo !== equipoFiltro) {
-          return false;
-        }
+      if (equipoFiltro.length > 0) {
+        const equipoVal = c.equipo?.trim() ?? "";
+        const matchesAny = equipoFiltro.some(f => {
+          if (f === "SIN_EQUIPO") return equipoVal === "";
+          if (f === "Otros") return equipoVal !== "" && !Object.values(EQUIPO_GRUPOS).flat().includes(equipoVal);
+          if (f in EQUIPO_GRUPOS) return EQUIPO_GRUPOS[f].includes(equipoVal);
+          return c.equipo === f;
+        });
+        if (!matchesAny) return false;
       }
       return true;
     });
-    }, [casos, estadoFiltro, sucursalFiltro, garantiaFiltro, periodoFiltro, ingresoFiltro, estadoCasoFiltro, tipoFiltro, equipoFiltro, periodoDesact]);
+  }, [casos, estadoFiltro, sucursalFiltro, garantiaFiltro, periodoFiltro, ingresoFiltro, estadoCasoFiltro, tipoFiltro, equipoFiltro, periodoDesact]);
 
   const total = casosKPI.length;
   const abiertos = casosKPI.filter(c => c.estadoGeneral === "ABIERTO").length;
@@ -489,17 +501,81 @@ export function EstadisticasDashboard({
             ))}
           </div>
 
-          {/* F1: Sucursal */}
-          <select
-            value={sucursalFiltro}
-            onChange={(e) => setSucursalFiltro(e.target.value)}
-            className="px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-xs text-slate-300 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-          >
-            <option value="">Todas las sucursales</option>
-            {sucursalesDisponibles.map((s) => (
-              <option key={s} value={s}>{s}</option>
-            ))}
-          </select>
+          {/* F1: Sucursal — Grupos con multi-select */}
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => { setOpenSucursal(!openSucursal); setOpenEquipo(false); setOpenPeriodo(false); }}
+              className="px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-xs flex items-center justify-between min-w-[150px] text-slate-300 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+            >
+              <span className="truncate pr-2">
+                {sucursalFiltro.length > 0 ? `${sucursalFiltro.length} sede(s)` : "Todas las sedes"}
+              </span>
+              <span className="text-[10px] opacity-70">▼</span>
+            </button>
+            {openSucursal && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setOpenSucursal(false)} />
+                <div className="absolute top-full mt-1 z-50 bg-slate-800 border border-slate-700 rounded-lg shadow-xl py-1 w-64">
+                  {/* Select all / clear */}
+                  <div className="flex gap-2 px-3 py-1.5 border-b border-slate-700">
+                    <button onClick={() => setSucursalFiltro([])} className="text-[10px] text-slate-400 hover:text-slate-200">Limpiar</button>
+                  </div>
+                  {/* Grupo QTC */}
+                  {(() => {
+                    const GRUPO_QTC = ["LIMA", "PIURA", "ICA", "CHICLAYO", "Lima", "Piura", "Ica", "Chiclayo"];
+                    const GRUPO_AMZ = ["BELLAVISTA", "PUCALLPA", "NUEVA CAJAMARCA", "HUÁNUCO", "JAÉN", "YURIMAGUAS", "Bellavista", "Pucallpa", "Nueva Cajamarca", "Huánuco", "Jaen", "Jaén", "Yurimaguas"];
+                    const qtcSedes = sucursalesDisponibles.filter(s => GRUPO_QTC.some(g => s.toLowerCase().includes(g.toLowerCase())));
+                    const amzSedes = sucursalesDisponibles.filter(s => GRUPO_AMZ.some(g => s.toLowerCase().includes(g.toLowerCase())));
+                    const toggleSede = (s: string) => setSucursalFiltro(prev => prev.includes(s) ? prev.filter(x => x !== s) : [...prev, s]);
+                    const toggleGroup = (sedes: string[]) => {
+                      const allSelected = sedes.every(s => sucursalFiltro.includes(s));
+                      if (allSelected) setSucursalFiltro(prev => prev.filter(s => !sedes.includes(s)));
+                      else setSucursalFiltro(prev => [...new Set([...prev, ...sedes])]);
+                    };
+                    return (
+                      <>
+                        {/* Grupo QTC */}
+                        <div>
+                          <label className="flex items-center px-3 py-1.5 hover:bg-slate-700/50 cursor-pointer border-b border-slate-700/50">
+                            <input type="checkbox" className="mr-2 rounded border-slate-600 bg-slate-900 accent-indigo-500"
+                              checked={qtcSedes.length > 0 && qtcSedes.every(s => sucursalFiltro.includes(s))}
+                              onChange={() => toggleGroup(qtcSedes)} />
+                            <span className="text-xs text-indigo-300 font-semibold">🏙 Grupo QTC</span>
+                          </label>
+                          {qtcSedes.map(s => (
+                            <label key={s} className="flex items-center px-5 py-1 hover:bg-slate-700/30 cursor-pointer">
+                              <input type="checkbox" className="mr-2 rounded border-slate-600 bg-slate-900 accent-indigo-500"
+                                checked={sucursalFiltro.includes(s)}
+                                onChange={() => toggleSede(s)} />
+                              <span className="text-xs text-slate-300">{s}</span>
+                            </label>
+                          ))}
+                        </div>
+                        {/* Grupo QTC Amazonas */}
+                        <div>
+                          <label className="flex items-center px-3 py-1.5 hover:bg-slate-700/50 cursor-pointer border-b border-slate-700/50">
+                            <input type="checkbox" className="mr-2 rounded border-slate-600 bg-slate-900 accent-indigo-500"
+                              checked={amzSedes.length > 0 && amzSedes.every(s => sucursalFiltro.includes(s))}
+                              onChange={() => toggleGroup(amzSedes)} />
+                            <span className="text-xs text-emerald-300 font-semibold">🌿 Grupo QTC Amazonas</span>
+                          </label>
+                          {amzSedes.map(s => (
+                            <label key={s} className="flex items-center px-5 py-1 hover:bg-slate-700/30 cursor-pointer">
+                              <input type="checkbox" className="mr-2 rounded border-slate-600 bg-slate-900 accent-indigo-500"
+                                checked={sucursalFiltro.includes(s)}
+                                onChange={() => toggleSede(s)} />
+                              <span className="text-xs text-slate-300">{s}</span>
+                            </label>
+                          ))}
+                        </div>
+                      </>
+                    );
+                  })()}
+                </div>
+              </>
+            )}
+          </div>
 
           {/* F3: Garantía */}
           <select
@@ -517,7 +593,7 @@ export function EstadisticasDashboard({
             <button
               type="button"
               disabled={periodoDesact}
-              onClick={() => setOpenPeriodo(!openPeriodo)}
+              onClick={() => { setOpenPeriodo(!openPeriodo); setOpenSucursal(false); setOpenEquipo(false); }}
               className={`px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-xs flex items-center justify-between min-w-[140px] focus:outline-none focus:ring-1 focus:ring-indigo-500 transition-opacity
                 ${periodoDesact ? "opacity-40 cursor-not-allowed text-slate-600" : "text-slate-300"}`}
             >
@@ -584,18 +660,60 @@ export function EstadisticasDashboard({
             ))}
           </select>
 
-          {/* F8: Equipo */}
-          <select
-            value={equipoFiltro}
-            onChange={(e) => setEquipoFiltro(e.target.value)}
-            className="px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-xs text-slate-300 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-          >
-            <option value="">Todos los equipos</option>
-            <option value="SIN_EQUIPO">(Vacío)</option>
-            {equiposDisponibles.map((eq) => (
-              <option key={eq} value={eq}>{eq}</option>
-            ))}
-          </select>
+          {/* F8: Equipo — Categorías con submodelos */}
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => { setOpenEquipo(!openEquipo); setOpenSucursal(false); setOpenPeriodo(false); }}
+              className="px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-xs flex items-center justify-between min-w-[150px] text-slate-300 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+            >
+              <span className="truncate pr-2">
+                {equipoFiltro.length > 0 ? `${equipoFiltro.length} filtro(s)` : "Todos los equipos"}
+              </span>
+              <span className="text-[10px] opacity-70">▼</span>
+            </button>
+            {openEquipo && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setOpenEquipo(false)} />
+                <div className="absolute top-full mt-1 z-50 bg-slate-800 border border-slate-700 rounded-lg shadow-xl py-1 w-64">
+                  <div className="flex gap-2 px-3 py-1.5 border-b border-slate-700">
+                    <button onClick={() => setEquipoFiltro([])} className="text-[10px] text-slate-400 hover:text-slate-200">Limpiar</button>
+                  </div>
+                  {/* Vacío */}
+                  <label className="flex items-center px-3 py-1.5 hover:bg-slate-700/50 cursor-pointer">
+                    <input type="checkbox" className="mr-2 rounded border-slate-600 bg-slate-900 accent-indigo-500"
+                      checked={equipoFiltro.includes("SIN_EQUIPO")}
+                      onChange={() => setEquipoFiltro(prev => prev.includes("SIN_EQUIPO") ? prev.filter(x => x !== "SIN_EQUIPO") : [...prev, "SIN_EQUIPO"])} />
+                    <span className="text-xs text-slate-400 italic">(Vacío / Sin equipo)</span>
+                  </label>
+                  {/* Categorías principales con submodelos */}
+                  {([
+                    { cat: "Dron", icon: "🚁", color: "text-blue-300", modelos: ["T100", "T25", "T25P", "T40", "T50", "T70P"] },
+                    { cat: "Generador", icon: "⚡", color: "text-cyan-300", modelos: ["D12000IE", "D12000IEP", "D14000IEP", "D6000IE"] },
+                    { cat: "Bateria", icon: "🔋", color: "text-fuchsia-300", modelos: ["DB1560", "DB2160", "DB800"] },
+                    { cat: "Otros", icon: "📦", color: "text-slate-400", modelos: [] },
+                  ] as { cat: string; icon: string; color: string; modelos: string[] }[]).map(({ cat, icon, color, modelos }) => (
+                    <div key={cat}>
+                      <label className="flex items-center px-3 py-1.5 hover:bg-slate-700/50 cursor-pointer border-t border-slate-700/50">
+                        <input type="checkbox" className="mr-2 rounded border-slate-600 bg-slate-900 accent-indigo-500"
+                          checked={equipoFiltro.includes(cat)}
+                          onChange={() => setEquipoFiltro(prev => prev.includes(cat) ? prev.filter(x => x !== cat) : [...prev, cat])} />
+                        <span className={`text-xs font-semibold ${color}`}>{icon} {cat}</span>
+                      </label>
+                      {modelos.map(m => (
+                        <label key={m} className="flex items-center px-6 py-1 hover:bg-slate-700/30 cursor-pointer">
+                          <input type="checkbox" className="mr-2 rounded border-slate-600 bg-slate-900 accent-indigo-500"
+                            checked={equipoFiltro.includes(m)}
+                            onChange={() => setEquipoFiltro(prev => prev.includes(m) ? prev.filter(x => x !== m) : [...prev, m])} />
+                          <span className="text-xs text-slate-400">{m}</span>
+                        </label>
+                      ))}
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
 
           {/* Agrupación Histograma (Bin Size) */}
           <select
@@ -607,6 +725,7 @@ export function EstadisticasDashboard({
             <option value={2}>Agrupar 2 días</option>
             <option value={5}>Agrupar 5 días</option>
           </select>
+
 
         </div>
 

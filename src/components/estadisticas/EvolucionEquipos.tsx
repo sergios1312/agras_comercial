@@ -113,6 +113,7 @@ export function EvolucionEquipos({ evolucionData, sucursalData }: Props) {
             </Bar>
             <Bar yAxisId="left" dataKey="Otros" stackId="a" fill="#64748b" radius={[4, 4, 0, 0]}>
                <LabelList dataKey={(d: EvolucionEquipoRow) => d.Otros >= 3 ? d.Otros : ""} position="center" fill="#fff" fontSize={10} />
+               <LabelList dataKey={(d: EvolucionEquipoRow) => d.totalCasos > 0 ? d.totalCasos : ""} position="top" fill="#94a3b8" fontSize={11} fontWeight={700} />
             </Bar>
 
             <Line 
@@ -210,6 +211,7 @@ export function EvolucionEquipos({ evolucionData, sucursalData }: Props) {
             </Bar>
             <Bar yAxisId="left" dataKey="Otros" stackId="a" fill="#64748b" radius={[4, 4, 0, 0]}>
                <LabelList dataKey={(d: EvolucionEquipoRow) => d.Otros >= 3 ? d.Otros : ""} position="center" fill="#fff" fontSize={10} />
+               <LabelList dataKey={(d: EvolucionEquipoRow) => d.totalCasos > 0 ? d.totalCasos : ""} position="top" fill="#94a3b8" fontSize={11} fontWeight={700} />
             </Bar>
 
             <Line 
