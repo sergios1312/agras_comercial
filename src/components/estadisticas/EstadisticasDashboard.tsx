@@ -396,12 +396,6 @@ export function EstadisticasDashboard({
     setEquipoFiltro([]);
   };
 
-  // Mapping categorias de equipos para filtrado
-  const EQUIPO_GRUPOS: Record<string, string[]> = {
-    "Dron": ["T100", "T25", "T25P", "T40", "T50", "T70P"],
-    "Generador": ["D12000IE", "D12000IEP", "D14000IEP", "D6000IE"],
-    "Bateria": ["DB1560", "DB2160", "DB800"],
-  };
 
   const casosKPI = useMemo(() => {
     return casos.filter(c => {
@@ -414,12 +408,16 @@ export function EstadisticasDashboard({
       if (estadoCasoFiltro && c.estadoCaso !== estadoCasoFiltro) return false;
       if (tipoFiltro && c.tipoTrabajo !== tipoFiltro) return false;
       if (equipoFiltro.length > 0) {
-        const equipoVal = c.equipo?.trim() ?? "";
         const matchesAny = equipoFiltro.some(f => {
-          if (f === "SIN_EQUIPO") return equipoVal === "";
-          if (f === "Otros") return equipoVal !== "" && !Object.values(EQUIPO_GRUPOS).flat().includes(equipoVal);
-          if (f in EQUIPO_GRUPOS) return EQUIPO_GRUPOS[f].includes(equipoVal);
-          return c.equipo === f;
+          if (f === "SIN_EQUIPO") return !c.equipo || c.equipo.trim() === "";
+          
+          // Categorías principales (Dron, Generador, Bateria, Otros)
+          if (f === "Dron" || f === "Generador" || f === "Bateria" || f === "Otros") {
+            return agruparEquipo(c.equipo) === f;
+          }
+          
+          // Modelos específicos (T100, D12000IE, etc.)
+          return c.equipo?.toUpperCase().includes(f.toUpperCase());
         });
         if (!matchesAny) return false;
       }
