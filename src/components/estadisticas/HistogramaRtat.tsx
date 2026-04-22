@@ -15,26 +15,7 @@ interface Props {
   data: DataRow[];
 }
 
-// Custom logarithmic tick positions to give more visual space to 0-25 range
-const LOG_TICKS = [0, 1, 2, 3, 5, 7, 10, 15, 20, 25, 35, 50, 75, 100];
-
-// Map a real day value to its visual X position (logarithmic-like scale)
-function daysToLogX(days: number): number {
-  if (days <= 0) return 0;
-  // Custom piecewise: 0-25 gets ~55% of space, 25-50 ~28%, 50-100 ~17%
-  if (days <= 25) return (days / 25) * 55;
-  if (days <= 50) return 55 + ((days - 25) / 25) * 28;
-  return 83 + ((days - 50) / 50) * 17;
-}
-
 export function HistogramaRtat({ data }: Props) {
-  // Transform data to use log-scaled x position
-  const transformedData = data.map(d => ({
-    ...d,
-    xPos: daysToLogX(d.dias),
-    label: `${d.dias} días`,
-  }));
-
   const getColor = (dias: number) => {
     if (dias <= 10) return "#22c55e";
     if (dias <= 25) return "#84cc16";
@@ -48,25 +29,24 @@ export function HistogramaRtat({ data }: Props) {
         Histograma RTAT (Frecuencia de Días)
       </h3>
       <p className="text-xs text-slate-600 mb-4">
-        Escala logarítmica · eje X en días · 0–100 días · mayor detalle en el rango 0–25
+        Escala raíz cuadrada (compresión no lineal) · eje X en días · 0–100 días · mayor detalle en 0–25
       </p>
       <ResponsiveContainer width="100%" height={280}>
         <BarChart
-          data={transformedData}
+          data={data}
           margin={{ top: 20, right: 16, left: 0, bottom: 4 }}
-          barCategoryGap="2%"
+          barCategoryGap={0}
         >
-          <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
+          <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
           <XAxis
             dataKey="dias"
             type="number"
             domain={[0, 100]}
-            scale="log"
+            scale="sqrt"
             allowDataOverflow
-            ticks={[1, 2, 3, 5, 10, 20, 50, 100]}
+            ticks={[0, 5, 10, 15, 25, 50, 75, 100]}
             tick={{ fill: "#64748b", fontSize: 11 }}
-            label={{ value: "Días (escala logarítmica)", position: "insideBottomRight", offset: -4, fill: "#475569", fontSize: 11 }}
-            tickFormatter={(v) => `${v}`}
+            label={{ value: "Días (escala expandida 0-25)", position: "insideBottomRight", offset: -4, fill: "#475569", fontSize: 11 }}
           />
           <YAxis
             tick={{ fill: "#64748b", fontSize: 11 }}
@@ -83,8 +63,8 @@ export function HistogramaRtat({ data }: Props) {
             ]) as Fmt}
             labelFormatter={(label) => `${label} días`}
           />
-          <Bar dataKey="frecuencia" radius={[3, 3, 0, 0]} maxBarSize={30}>
-            {transformedData.map((entry, index) => (
+          <Bar dataKey="frecuencia" radius={[2, 2, 0, 0]}>
+            {data.map((entry, index) => (
               <Cell key={`cell-${index}`} fill={getColor(entry.dias)} />
             ))}
           </Bar>
