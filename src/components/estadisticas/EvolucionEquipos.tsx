@@ -18,6 +18,7 @@ export interface EvolucionEquipoRow {
   eficienciaETD: number; // Porcentaje de "A Tiempo"
   eficienciaTAT: number; // Porcentaje de "A Tiempo" + "APLAZADO"
   totalCasos: number;
+  rtatPromedio: number | null;
 }
 
 interface Props {
@@ -36,6 +37,40 @@ export function EvolucionEquipos({ evolucionData, sucursalData }: Props) {
     }
     const n = Number(v);
     return [`${n} casos`, name];
+  };
+
+  const formatTopLabel = (d: EvolucionEquipoRow) => {
+    const total = d.totalCasos;
+    if (total === 0) return "";
+    if (d.rtatPromedio !== null && d.rtatPromedio !== undefined) {
+      return `${total} (${d.rtatPromedio}d)`;
+    }
+    return `${total}`;
+  };
+
+  // Custom Tooltip with rtatPromedio
+  const CustomTooltip = ({ active, payload, label }: any) => {
+    if (!active || !payload || !payload.length) return null;
+    const d: EvolucionEquipoRow = payload[0]?.payload;
+    return (
+      <div style={{ background: "#1e293b", border: "1px solid #334155", borderRadius: 8, padding: "10px 14px", fontSize: 12 }}>
+        <p style={{ color: "#94a3b8", marginBottom: 6, fontWeight: 600 }}>{label}</p>
+        {payload.map((entry: any) => (
+          <p key={entry.name} style={{ color: entry.color ?? "#e2e8f0", margin: "2px 0" }}>
+            <span style={{ fontWeight: 600 }}>{entry.name}:</span> {
+              (entry.name === "Eficiencia ETD" || entry.name === "Eficiencia TAT")
+                ? `${Number(entry.value).toFixed(1)}%`
+                : `${entry.value} casos`
+            }
+          </p>
+        ))}
+        {d.rtatPromedio !== null && d.rtatPromedio !== undefined && (
+          <p style={{ color: "#f59e0b", marginTop: 6, paddingTop: 6, borderTop: "1px solid #334155" }}>
+            <span style={{ fontWeight: 600 }}>Promedio de demora:</span> {d.rtatPromedio} días
+          </p>
+        )}
+      </div>
+    );
   };
 
   return (
@@ -94,12 +129,7 @@ export function EvolucionEquipos({ evolucionData, sucursalData }: Props) {
               tickLine={false}
             />
 
-            <Tooltip
-              contentStyle={{ background: "#1e293b", border: "1px solid #334155", borderRadius: 8 }}
-              labelStyle={{ color: "#94a3b8" }}
-              itemStyle={{ color: "#e2e8f0" }}
-              formatter={formatterTooltip}
-            />
+            <Tooltip content={<CustomTooltip />} />
             <Legend wrapperStyle={{ fontSize: 12, color: "#94a3b8" }} verticalAlign="top" height={36} />
             
             <Bar yAxisId="left" dataKey="Dron" stackId="a" fill="#3b82f6">
@@ -113,7 +143,7 @@ export function EvolucionEquipos({ evolucionData, sucursalData }: Props) {
             </Bar>
             <Bar yAxisId="left" dataKey="Otros" stackId="a" fill="#64748b" radius={[4, 4, 0, 0]}>
                <LabelList dataKey={(d: EvolucionEquipoRow) => d.Otros >= 3 ? d.Otros : ""} position="center" fill="#fff" fontSize={10} />
-               <LabelList dataKey={(d: EvolucionEquipoRow) => d.totalCasos > 0 ? d.totalCasos : ""} position="top" fill="#94a3b8" fontSize={11} fontWeight={700} />
+               <LabelList dataKey={formatTopLabel} position="top" fill="#94a3b8" fontSize={11} fontWeight={700} />
             </Bar>
 
             <Line 
@@ -192,12 +222,7 @@ export function EvolucionEquipos({ evolucionData, sucursalData }: Props) {
               tickLine={false}
             />
 
-            <Tooltip
-              contentStyle={{ background: "#1e293b", border: "1px solid #334155", borderRadius: 8 }}
-              labelStyle={{ color: "#94a3b8" }}
-              itemStyle={{ color: "#e2e8f0" }}
-              formatter={formatterTooltip}
-            />
+            <Tooltip content={<CustomTooltip />} />
             <Legend wrapperStyle={{ fontSize: 12, color: "#94a3b8" }} verticalAlign="top" height={36} />
             
             <Bar yAxisId="left" dataKey="Dron" stackId="a" fill="#3b82f6">
@@ -211,7 +236,7 @@ export function EvolucionEquipos({ evolucionData, sucursalData }: Props) {
             </Bar>
             <Bar yAxisId="left" dataKey="Otros" stackId="a" fill="#64748b" radius={[4, 4, 0, 0]}>
                <LabelList dataKey={(d: EvolucionEquipoRow) => d.Otros >= 3 ? d.Otros : ""} position="center" fill="#fff" fontSize={10} />
-               <LabelList dataKey={(d: EvolucionEquipoRow) => d.totalCasos > 0 ? d.totalCasos : ""} position="top" fill="#94a3b8" fontSize={11} fontWeight={700} />
+               <LabelList dataKey={formatTopLabel} position="top" fill="#94a3b8" fontSize={11} fontWeight={700} />
             </Bar>
 
             <Line 

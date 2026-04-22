@@ -153,15 +153,16 @@ function agruparEquipo(equipo: string | null | undefined): "Dron" | "Generador" 
 
 function evolucionEquiposLogic(casos: Caso[]) {
   const cerrados = casos.filter((c) => c.clasificacionSLA && c.periodoMensual);
-  const periodos: Record<string, { Dron: number; Generador: number; Bateria: number; Otros: number; total: number; aTiempo: number; aplazado: number }> = {};
+  const periodos: Record<string, { Dron: number; Generador: number; Bateria: number; Otros: number; total: number; aTiempo: number; aplazado: number; rtatSum: number; rtatCount: number }> = {};
 
   for (const c of cerrados) {
     const p = c.periodoMensual!;
-    if (!periodos[p]) periodos[p] = { Dron: 0, Generador: 0, Bateria: 0, Otros: 0, total: 0, aTiempo: 0, aplazado: 0 };
+    if (!periodos[p]) periodos[p] = { Dron: 0, Generador: 0, Bateria: 0, Otros: 0, total: 0, aTiempo: 0, aplazado: 0, rtatSum: 0, rtatCount: 0 };
     periodos[p].total++;
     
     if (c.clasificacionSLA === "A TIEMPO") periodos[p].aTiempo++;
     if (c.clasificacionSLA === "APLAZADO") periodos[p].aplazado++;
+    if (c.rtat !== null && c.rtat !== undefined) { periodos[p].rtatSum += c.rtat; periodos[p].rtatCount++; }
 
     const cat = agruparEquipo(c.equipo);
     periodos[p][cat]++;
@@ -178,20 +179,22 @@ function evolucionEquiposLogic(casos: Caso[]) {
       eficienciaETD: g.total > 0 ? parseFloat(((g.aTiempo / g.total) * 100).toFixed(1)) : 0,
       eficienciaTAT: g.total > 0 ? parseFloat((((g.aTiempo + g.aplazado) / g.total) * 100).toFixed(1)) : 0,
       totalCasos: g.total,
+      rtatPromedio: g.rtatCount > 0 ? parseFloat((g.rtatSum / g.rtatCount).toFixed(1)) : null,
     }));
 }
 
 function sucursalEquiposLogic(casos: Caso[]) {
   const cerrados = casos.filter((c) => c.clasificacionSLA);
-  const sucursales: Record<string, { Dron: number; Generador: number; Bateria: number; Otros: number; total: number; aTiempo: number; aplazado: number }> = {};
+  const sucursales: Record<string, { Dron: number; Generador: number; Bateria: number; Otros: number; total: number; aTiempo: number; aplazado: number; rtatSum: number; rtatCount: number }> = {};
 
   for (const c of cerrados) {
     const s = c.sucursal;
-    if (!sucursales[s]) sucursales[s] = { Dron: 0, Generador: 0, Bateria: 0, Otros: 0, total: 0, aTiempo: 0, aplazado: 0 };
+    if (!sucursales[s]) sucursales[s] = { Dron: 0, Generador: 0, Bateria: 0, Otros: 0, total: 0, aTiempo: 0, aplazado: 0, rtatSum: 0, rtatCount: 0 };
     sucursales[s].total++;
     
     if (c.clasificacionSLA === "A TIEMPO") sucursales[s].aTiempo++;
     if (c.clasificacionSLA === "APLAZADO") sucursales[s].aplazado++;
+    if (c.rtat !== null && c.rtat !== undefined) { sucursales[s].rtatSum += c.rtat; sucursales[s].rtatCount++; }
 
     const cat = agruparEquipo(c.equipo);
     sucursales[s][cat]++;
@@ -213,15 +216,16 @@ function sucursalEquiposLogic(casos: Caso[]) {
       eficienciaETD: g.total > 0 ? parseFloat(((g.aTiempo / g.total) * 100).toFixed(1)) : 0,
       eficienciaTAT: g.total > 0 ? parseFloat((((g.aTiempo + g.aplazado) / g.total) * 100).toFixed(1)) : 0,
       totalCasos: g.total,
+      rtatPromedio: g.rtatCount > 0 ? parseFloat((g.rtatSum / g.rtatCount).toFixed(1)) : null,
     }));
 }
 
-function histogramaRtat(casos: Caso[], binSize: number) {
+function histogramaRtat(casos: Caso[]) {
   const rtats = casos.filter((c) => c.estadoGeneral === "CERRADO" && c.rtat !== null).map((c) => c.rtat!);
   const buckets: Record<number, number> = {};
   for (const r of rtats) {
     if (r > 100) continue;
-    const bucket = Math.floor(r / binSize) * binSize;
+    const bucket = Math.floor(r); // 1-day bin
     buckets[bucket] = (buckets[bucket] ?? 0) + 1;
   }
   return Object.entries(buckets)
@@ -362,10 +366,11 @@ export function EstadisticasDashboard({
   const [openPeriodo, setOpenPeriodo] = useState<boolean>(false);
   const [openSucursal, setOpenSucursal] = useState<boolean>(false);
   const [openEquipo, setOpenEquipo] = useState<boolean>(false);
-  const [estadoCasoFiltro, setEstadoCasoFiltro] = useState<string>("");
-  const [tipoFiltro, setTipoFiltro] = useState<string>("");
+  const [openEstadoCaso, setOpenEstadoCaso] = useState<boolean>(false);
+  const [openTipo, setOpenTipo] = useState<boolean>(false);
+  const [estadoCasoFiltro, setEstadoCasoFiltro] = useState<string[]>([]);
+  const [tipoFiltro, setTipoFiltro] = useState<string[]>([]);  
   const [equipoFiltro, setEquipoFiltro] = useState<string[]>([]); // ← array: valores raw OR categoria especial
-  const [binSize, setBinSize] = useState<number>(5);
 
   const estadosCasoDisponibles = useMemo(() => {
     const s = new Set(casos.map(c => c.estadoCaso).filter(Boolean));
@@ -382,7 +387,7 @@ export function EstadisticasDashboard({
   const periodoDesact = estadoFiltro === "ABIERTO";
 
   const hayFiltros = useMemo(() => {
-    return estadoFiltro !== "TODOS" || sucursalFiltro.length > 0 || garantiaFiltro !== "" || periodoFiltro.length > 0 || ingresoFiltro !== "" || estadoCasoFiltro !== "" || tipoFiltro !== "" || equipoFiltro.length > 0;
+    return estadoFiltro !== "TODOS" || sucursalFiltro.length > 0 || garantiaFiltro !== "" || periodoFiltro.length > 0 || ingresoFiltro !== "" || estadoCasoFiltro.length > 0 || tipoFiltro.length > 0 || equipoFiltro.length > 0;
   }, [estadoFiltro, sucursalFiltro, garantiaFiltro, periodoFiltro, ingresoFiltro, estadoCasoFiltro, tipoFiltro, equipoFiltro]);
 
   const handleLimpiarFiltros = () => {
@@ -391,8 +396,8 @@ export function EstadisticasDashboard({
     setGarantiaFiltro("");
     setPeriodoFiltro([]);
     setIngresoFiltro("");
-    setEstadoCasoFiltro("");
-    setTipoFiltro("");
+    setEstadoCasoFiltro([]);
+    setTipoFiltro([]);
     setEquipoFiltro([]);
   };
 
@@ -405,8 +410,8 @@ export function EstadisticasDashboard({
       if (periodoFiltro.length > 0 && !periodoDesact && (!c.periodoMensual || !periodoFiltro.includes(c.periodoMensual))) return false;
       if (ingresoFiltro === "INGRESADOS" && !c.fechaIngreso) return false;
       if (ingresoFiltro === "NO INGRESADOS" && c.fechaIngreso) return false;
-      if (estadoCasoFiltro && c.estadoCaso !== estadoCasoFiltro) return false;
-      if (tipoFiltro && c.tipoTrabajo !== tipoFiltro) return false;
+      if (estadoCasoFiltro.length > 0 && !estadoCasoFiltro.includes(c.estadoCaso as string)) return false;
+      if (tipoFiltro.length > 0 && !tipoFiltro.includes(c.tipoTrabajo)) return false;
       if (equipoFiltro.length > 0) {
         const matchesAny = equipoFiltro.some(f => {
           if (f === "SIN_EQUIPO") return !c.equipo || c.equipo.trim() === "";
@@ -445,7 +450,7 @@ export function EstadisticasDashboard({
   const sucEquiposData = useMemo(() => sucursalEquiposLogic(casosKPI), [casosKPI]);
   const resumenData = useMemo(() => resumenSucursal(casosKPI), [casosKPI]);
   const desviacionData = useMemo(() => barrasDesviacion(casosKPI), [casosKPI]);
-  const histData = useMemo(() => histogramaRtat(casosKPI, binSize), [casosKPI, binSize]);
+  const histData = useMemo(() => histogramaRtat(casosKPI), [casosKPI]);
   const demoraSucData = useMemo(() => demoraSucursal(casosKPI), [casosKPI]);
   const demoraTipoData = useMemo(() => demoraTipoTrabajo(casosKPI), [casosKPI]);
 
@@ -634,29 +639,69 @@ export function EstadisticasDashboard({
             <option value="NO INGRESADOS">No ingresados</option>
           </select>
 
-          {/* F5: Estado de Caso */}
-          <select
-            value={estadoCasoFiltro}
-            onChange={(e) => setEstadoCasoFiltro(e.target.value)}
-            className="px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-xs text-slate-300 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-          >
-            <option value="">Todos los estados</option>
-            {estadosCasoDisponibles.map((s) => (
-              <option key={s} value={s}>{s}</option>
-            ))}
-          </select>
+          {/* F5: Estado de Caso — multi-select */}
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => { setOpenEstadoCaso(!openEstadoCaso); setOpenSucursal(false); setOpenPeriodo(false); setOpenEquipo(false); setOpenTipo(false); }}
+              className="px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-xs flex items-center justify-between min-w-[140px] text-slate-300 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+            >
+              <span className="truncate pr-2">
+                {estadoCasoFiltro.length > 0 ? `${estadoCasoFiltro.length} estado(s)` : "Todos los estados"}
+              </span>
+              <span className="text-[10px] opacity-70">▼</span>
+            </button>
+            {openEstadoCaso && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setOpenEstadoCaso(false)} />
+                <div className="absolute top-full mt-1 z-50 bg-slate-800 border border-slate-700 rounded-lg shadow-xl py-1 w-52 max-h-60 overflow-y-auto">
+                  <div className="flex gap-2 px-3 py-1.5 border-b border-slate-700">
+                    <button onClick={() => setEstadoCasoFiltro([])} className="text-[10px] text-slate-400 hover:text-slate-200">Limpiar</button>
+                  </div>
+                  {estadosCasoDisponibles.map(s => (
+                    <label key={s} className="flex items-center px-3 py-1.5 hover:bg-slate-700/50 cursor-pointer">
+                      <input type="checkbox" className="mr-2 rounded border-slate-600 bg-slate-900 accent-indigo-500"
+                        checked={estadoCasoFiltro.includes(s)}
+                        onChange={() => setEstadoCasoFiltro(prev => prev.includes(s) ? prev.filter(x => x !== s) : [...prev, s])} />
+                      <span className="text-xs text-slate-300">{s}</span>
+                    </label>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
 
-          {/* F6: Tipo de Trabajo */}
-          <select
-            value={tipoFiltro}
-            onChange={(e) => setTipoFiltro(e.target.value)}
-            className="px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-xs text-slate-300 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-          >
-            <option value="">Todos los tipos</option>
-            {tiposTrabajoDisponibles.map((t) => (
-              <option key={t} value={t}>{t}</option>
-            ))}
-          </select>
+          {/* F6: Tipo de Trabajo — multi-select */}
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => { setOpenTipo(!openTipo); setOpenSucursal(false); setOpenPeriodo(false); setOpenEquipo(false); setOpenEstadoCaso(false); }}
+              className="px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-xs flex items-center justify-between min-w-[140px] text-slate-300 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+            >
+              <span className="truncate pr-2">
+                {tipoFiltro.length > 0 ? `${tipoFiltro.length} tipo(s)` : "Todos los tipos"}
+              </span>
+              <span className="text-[10px] opacity-70">▼</span>
+            </button>
+            {openTipo && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setOpenTipo(false)} />
+                <div className="absolute top-full mt-1 z-50 bg-slate-800 border border-slate-700 rounded-lg shadow-xl py-1 w-56 max-h-60 overflow-y-auto">
+                  <div className="flex gap-2 px-3 py-1.5 border-b border-slate-700">
+                    <button onClick={() => setTipoFiltro([])} className="text-[10px] text-slate-400 hover:text-slate-200">Limpiar</button>
+                  </div>
+                  {tiposTrabajoDisponibles.map(t => (
+                    <label key={t} className="flex items-center px-3 py-1.5 hover:bg-slate-700/50 cursor-pointer">
+                      <input type="checkbox" className="mr-2 rounded border-slate-600 bg-slate-900 accent-indigo-500"
+                        checked={tipoFiltro.includes(t)}
+                        onChange={() => setTipoFiltro(prev => prev.includes(t) ? prev.filter(x => x !== t) : [...prev, t])} />
+                      <span className="text-xs text-slate-300">{t}</span>
+                    </label>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
 
           {/* F8: Equipo — Categorías con submodelos */}
           <div className="relative">
@@ -713,17 +758,6 @@ export function EstadisticasDashboard({
             )}
           </div>
 
-          {/* Agrupación Histograma (Bin Size) */}
-          <select
-            value={binSize}
-            onChange={(e) => setBinSize(Number(e.target.value))}
-            className="px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-xs text-slate-300 focus:outline-none focus:ring-1 focus:ring-indigo-500 ml-auto"
-          >
-            <option value={1}>Agrupar 1 día</option>
-            <option value={2}>Agrupar 2 días</option>
-            <option value={5}>Agrupar 5 días</option>
-          </select>
-
 
         </div>
 
@@ -749,7 +783,7 @@ export function EstadisticasDashboard({
         <PieDistribucion data={pieDistData} />
         <PieEficiencia
           data={pieEficData}
-          titulo={sucursalFiltro ? `Eficiencia SLA — ${sucursalFiltro}` : "Eficiencia SLA (todas las sucursales)"}
+          titulo={sucursalFiltro.length === 1 ? `Eficiencia SLA — ${sucursalFiltro[0]}` : sucursalFiltro.length > 1 ? `Eficiencia SLA — ${sucursalFiltro.length} sedes` : "Eficiencia SLA (todas las sucursales)"}
         />
       </div>
 
@@ -775,7 +809,7 @@ export function EstadisticasDashboard({
       />
 
       {/* ── Histograma ───────────────────────────────────────── */}
-      <HistogramaRtat data={histData} binSize={binSize} />
+      <HistogramaRtat data={histData} />
 
       {/* ── Heatmap SLA (Tabbed + Radio ETD/TAT) ─────────────── */}
       <HeatmapSLA
