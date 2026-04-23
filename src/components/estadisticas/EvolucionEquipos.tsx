@@ -143,8 +143,18 @@ export function EvolucionEquipos({ evolucionData, sucursalData }: Props) {
             </Bar>
             <Bar yAxisId="left" dataKey="Otros" stackId="a" fill="#64748b" radius={[4, 4, 0, 0]}>
                <LabelList dataKey={(d: EvolucionEquipoRow) => d.Otros >= 3 ? d.Otros : ""} position="center" fill="#fff" fontSize={10} />
-               <LabelList dataKey={formatTopLabel} position="top" fill="#94a3b8" fontSize={11} fontWeight={700} />
             </Bar>
+
+            {/* Invisible line to anchor total labels on top of stack */}
+            <Line
+              yAxisId="left"
+              dataKey="totalCasos"
+              stroke="none"
+              legendType="none"
+              isAnimationActive={false}
+            >
+              <LabelList dataKey={formatTopLabel} position="top" fill="#94a3b8" fontSize={11} fontWeight={700} offset={10} />
+            </Line>
 
             <Line 
               yAxisId="right"
@@ -236,8 +246,18 @@ export function EvolucionEquipos({ evolucionData, sucursalData }: Props) {
             </Bar>
             <Bar yAxisId="left" dataKey="Otros" stackId="a" fill="#64748b" radius={[4, 4, 0, 0]}>
                <LabelList dataKey={(d: EvolucionEquipoRow) => d.Otros >= 3 ? d.Otros : ""} position="center" fill="#fff" fontSize={10} />
-               <LabelList dataKey={formatTopLabel} position="top" fill="#94a3b8" fontSize={11} fontWeight={700} />
             </Bar>
+
+            {/* Invisible line to anchor total labels on top of stack */}
+            <Line
+              yAxisId="left"
+              dataKey="totalCasos"
+              stroke="none"
+              legendType="none"
+              isAnimationActive={false}
+            >
+              <LabelList dataKey={formatTopLabel} position="top" fill="#94a3b8" fontSize={11} fontWeight={700} offset={10} />
+            </Line>
 
             <Line 
               yAxisId="right"
