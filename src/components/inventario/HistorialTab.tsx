@@ -23,7 +23,8 @@ import {
   asignarATransferencia,
   removerDeTransferencia,
   despacharTransferencia,
-  eliminarTransferencia
+  eliminarTransferencia,
+  editarTransferencia
 } from "@/app/(dashboard)/inventario/historial-actions";
 import type { HistorialPedido, EstadoPedido, TipoReporte, CasoReposicion, Transferencia } from "@/types/database.types";
 
@@ -718,7 +719,7 @@ function TablaTransferencias({
                 >
                   Eliminar Transferencia
                 </button>
-                <DespacharTransferenciaBoton transferencia={t} />
+                <TransferenciaAcciones transferencia={t} />
               </div>
             </div>
             
@@ -763,7 +764,7 @@ function TablaTransferencias({
   );
 }
 
-function DespacharTransferenciaBoton({ transferencia }: { transferencia: Transferencia }) {
+function TransferenciaAcciones({ transferencia }: { transferencia: Transferencia }) {
   const [showForm, setShowForm] = useState(false);
   const [codigo, setCodigo] = useState(transferencia.codigo_transferencia || "");
   const [orden, setOrden] = useState(transferencia.orden_venta || "");
@@ -772,13 +773,41 @@ function DespacharTransferenciaBoton({ transferencia }: { transferencia: Transfe
 
   if (!showForm) {
     return (
-      <button
-        onClick={() => setShowForm(true)}
-        className="px-4 py-1.5 text-xs font-semibold rounded bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20 transition-colors border border-emerald-500/20 flex items-center gap-1.5"
-      >
-        <Send className="w-3.5 h-3.5" />
-        Despachar
-      </button>
+      <div className="flex items-center gap-3">
+        {(transferencia.codigo_transferencia || transferencia.orden_venta || transferencia.factura) && (
+          <div className="flex flex-col text-[10px] text-slate-400 bg-slate-800/50 px-2 py-1 rounded">
+            {transferencia.codigo_transferencia && <span>Cód: {transferencia.codigo_transferencia}</span>}
+            {transferencia.orden_venta && <span>OV: {transferencia.orden_venta}</span>}
+            {transferencia.factura && <span>Fac: {transferencia.factura}</span>}
+          </div>
+        )}
+        <button
+          onClick={() => setShowForm(true)}
+          className="p-1.5 rounded bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 transition-colors border border-blue-500/20"
+          title="Editar datos de transferencia"
+        >
+          <Edit className="w-3.5 h-3.5" />
+        </button>
+        <button
+          onClick={async () => {
+            if (confirm("¿Estás seguro de despachar esta transferencia?")) {
+              setIsSubmitting(true);
+              const res = await despacharTransferencia(transferencia.id, {
+                codigo_transferencia: transferencia.codigo_transferencia || "",
+                orden_venta: transferencia.orden_venta || "",
+                factura: transferencia.factura || ""
+              });
+              if (res.error) alert(res.error);
+              setIsSubmitting(false);
+            }
+          }}
+          disabled={isSubmitting}
+          className="px-4 py-1.5 text-xs font-semibold rounded bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20 transition-colors border border-emerald-500/20 flex items-center gap-1.5 disabled:opacity-50"
+        >
+          <Send className="w-3.5 h-3.5" />
+          Despachar
+        </button>
+      </div>
     );
   }
 
@@ -801,7 +830,7 @@ function DespacharTransferenciaBoton({ transferencia }: { transferencia: Transfe
       />
       <button
         onClick={() => setShowForm(false)}
-        className="px-2 py-1 text-slate-400 hover:text-white transition-colors"
+        className="px-2 py-1 text-slate-400 hover:text-white transition-colors text-[11px]"
       >
         Cancelar
       </button>
@@ -809,7 +838,7 @@ function DespacharTransferenciaBoton({ transferencia }: { transferencia: Transfe
         disabled={isSubmitting}
         onClick={async () => {
           setIsSubmitting(true);
-          const res = await despacharTransferencia(transferencia.id, {
+          const res = await editarTransferencia(transferencia.id, {
             codigo_transferencia: codigo,
             orden_venta: orden,
             factura: factura
@@ -818,9 +847,9 @@ function DespacharTransferenciaBoton({ transferencia }: { transferencia: Transfe
           setIsSubmitting(false);
           setShowForm(false);
         }}
-        className="px-3 py-1.5 text-[11px] font-bold rounded bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white transition-colors flex items-center gap-1"
+        className="px-3 py-1 text-[11px] font-bold rounded bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white transition-colors flex items-center gap-1"
       >
-        Confirmar Envío
+        Guardar
       </button>
     </div>
   );

@@ -352,6 +352,26 @@ export async function crearTransferencia(
   return { id: data.id, error: null };
 }
 
+export async function editarTransferencia(
+  transferenciaId: number,
+  datos: { codigo_transferencia?: string; orden_venta?: string; factura?: string }
+): Promise<{ error: string | null }> {
+  const supabase = await createClient();
+  const user = await getSession();
+  if (!user || user.role !== "admin") return { error: "No autorizado." };
+
+  const rawClient = supabase as unknown as any;
+  const { error } = await rawClient
+    .from("transferencias")
+    .update(datos)
+    .eq("id", transferenciaId);
+
+  if (error) return { error: `Error al editar transferencia: ${error.message}` };
+  
+  revalidatePath("/inventario");
+  return { error: null };
+}
+
 export async function asignarATransferencia(
   pedidoIds: number[],
   transferenciaId: number
