@@ -137,6 +137,15 @@ export async function editarPedidoAdmin(
 
   const rawClient = supabase as unknown as any;
   const tabla = is_test ? "historial_pedidos_prueba" : "historial_pedidos";
+
+  if (datos.estado) {
+    const { data: currentPedido } = await rawClient.from(tabla).select("estado").eq("id", id).single();
+    if (currentPedido && currentPedido.estado !== datos.estado) {
+      const fechas = fechaParaEstado(datos.estado);
+      Object.assign(datos, fechas);
+    }
+  }
+
   const { error } = await rawClient
     .from(tabla)
     .update(datos)

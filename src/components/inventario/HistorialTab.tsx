@@ -59,6 +59,7 @@ function ModalEditarPedido({
     sucursal_origen: pedido.sucursal_origen,
     tecnico_destino: pedido.tecnico_destino,
     tipo_reporte: pedido.tipo_reporte,
+    estado: pedido.estado,
   });
   const [loading, setLoading] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -168,9 +169,22 @@ function ModalEditarPedido({
               </select>
             </div>
           </div>
-          <div className="space-y-1">
-             <label className="text-xs text-slate-400">Tipo de Reporte</label>
-             <input type="text" readOnly name="tipo_reporte" value={formData.tipo_reporte} className="w-full bg-slate-800/50 border border-slate-700/30 rounded-lg p-2 text-xs text-slate-400 cursor-not-allowed uppercase font-medium tracking-wide" />
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1">
+               <label className="text-xs text-slate-400">Tipo de Reporte</label>
+               <input type="text" readOnly name="tipo_reporte" value={formData.tipo_reporte} className="w-full bg-slate-800/50 border border-slate-700/30 rounded-lg p-2 text-xs text-slate-400 cursor-not-allowed uppercase font-medium tracking-wide" />
+            </div>
+            <div className="space-y-1">
+               <label className="text-xs text-slate-400">Estado del Pedido</label>
+               <select required name="estado" value={formData.estado} onChange={handleChange} className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-xs text-slate-200 focus:ring-1 focus:ring-indigo-500 font-semibold">
+                 <option value="Pendiente">Pendiente</option>
+                 <option value="Aprobado">Aprobado</option>
+                 <option value="Enviado">Enviado</option>
+                 <option value="Recibido">Recibido</option>
+                 <option value="Finalizado">Finalizado</option>
+                 <option value="Rechazado">Rechazado</option>
+               </select>
+            </div>
           </div>
           <div className="pt-2 flex justify-between items-center border-t border-slate-800 mt-4 pt-4">
             <button type="button" onClick={handleDelete} disabled={isDeleting} className="flex items-center gap-1.5 px-3 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-500 rounded-lg text-xs font-semibold transition-colors disabled:opacity-50 border border-red-500/20">
