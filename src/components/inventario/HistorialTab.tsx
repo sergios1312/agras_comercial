@@ -987,17 +987,45 @@ function VistaAdmin({
     );
   };
 
-  const transferenciasPendientes = transferencias.filter(t => t.estado === "Pendiente");
+  const [filtroSucursal, setFiltroSucursal] = useState<string>("Todas");
+
+  const historialFiltrado = filtroSucursal === "Todas" 
+    ? historial 
+    : historial.filter(p => 
+        p.sucursal_origen.toLowerCase().trim() === filtroSucursal.toLowerCase().trim() || 
+        p.tecnico_destino.toLowerCase().trim() === filtroSucursal.toLowerCase().trim()
+      );
+
+  const transferenciasFiltradas = filtroSucursal === "Todas"
+    ? transferencias
+    : transferencias.filter(t => t.sucursal_destino?.toLowerCase().trim() === filtroSucursal.toLowerCase().trim());
+
+  const transferenciasPendientes = transferenciasFiltradas.filter(t => t.estado === "Pendiente");
 
   return (
     <div className="space-y-4">
+      {/* Filtro por Sucursal */}
+      <div className="flex items-center gap-2 mb-2">
+        <label className="text-xs font-semibold text-slate-400">Filtrar por Sucursal:</label>
+        <select
+          value={filtroSucursal}
+          onChange={(e) => setFiltroSucursal(e.target.value)}
+          className="bg-slate-800 border border-slate-700 text-xs font-semibold rounded-lg px-3 py-1.5 text-indigo-300 focus:ring-1 focus:ring-indigo-500"
+        >
+          <option value="Todas">Todas las sucursales</option>
+          {sucursales.map(s => (
+            <option key={s} value={s}>{s}</option>
+          ))}
+        </select>
+      </div>
+
       {/* Tabs Menu */}
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex gap-1 border-b border-slate-800 w-full mb-1">
           {tabs.map((t) => {
             const count = t.id === "aprobaciones" 
-               ? historial.filter(p => p.estado === "Pendiente").length 
-               : historial.filter(p => p.tipo_reporte.toLowerCase() === t.id.toLowerCase() && p.estado !== "Pendiente" && p.estado !== "Rechazado").length;
+               ? historialFiltrado.filter(p => p.estado === "Pendiente").length 
+               : historialFiltrado.filter(p => p.tipo_reporte.toLowerCase() === t.id.toLowerCase() && p.estado !== "Pendiente" && p.estado !== "Rechazado").length;
             
             return (
               <button
@@ -1025,7 +1053,7 @@ function VistaAdmin({
       {/* Renderizado de tablas */}
       {activeTab === "aprobaciones" ? (
         <TablaPedidos
-          pedidos={historial.filter(p => p.estado === "Pendiente")}
+          pedidos={historialFiltrado.filter(p => p.estado === "Pendiente")}
           isAdmin
           onActualizarEstado={onActualizarEstado}
           onEditarPedido={onEditarPedido}
@@ -1092,7 +1120,7 @@ function VistaAdmin({
             )}
 
             <TablaPedidos 
-              pedidos={historial.filter(p => p.tipo_reporte.toLowerCase() === activeTab.toLowerCase() && p.estado === "Aprobado" && (activeTab === "Abastecimiento" ? p.transferencia_id == null : true))}
+              pedidos={historialFiltrado.filter(p => p.tipo_reporte.toLowerCase() === activeTab.toLowerCase() && p.estado === "Aprobado" && (activeTab === "Abastecimiento" ? p.transferencia_id == null : true))}
               isAdmin
               ocultarTipo={true}
               isReposicion={activeTab === "Reposición"}
@@ -1123,7 +1151,7 @@ function VistaAdmin({
               ) : (
                 <TablaTransferencias
                   transferencias={transferenciasPendientes}
-                  historial={historial}
+                  historial={historialFiltrado}
                 />
               )}
             </div>
@@ -1134,7 +1162,7 @@ function VistaAdmin({
             <div>
               <TablaCasosReposicion
                  casos={casosReposicion}
-                 repuestosTotales={historial}
+                 repuestosTotales={historialFiltrado}
                  sucursales={sucursales}
                  onCreate={() => { setCasoToEdit(null); setShowModalCaso(true); }}
                  onEdit={(caso) => { setCasoToEdit(caso); setShowModalCaso(true); }}
@@ -1148,7 +1176,7 @@ function VistaAdmin({
                <span className="w-2 h-2 rounded-full bg-emerald-500"></span> Historial de pedidos
             </h3>
             <TablaPedidos 
-              pedidos={historial.filter(p => p.tipo_reporte.toLowerCase() === activeTab.toLowerCase() && (p.estado === "Enviado" || p.estado === "Recibido"))}
+              pedidos={historialFiltrado.filter(p => p.tipo_reporte.toLowerCase() === activeTab.toLowerCase() && (p.estado === "Enviado" || p.estado === "Recibido"))}
               isAdmin
               ocultarTipo={true}
               isReposicion={activeTab === "Reposición"}
