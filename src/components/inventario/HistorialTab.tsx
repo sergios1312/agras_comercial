@@ -18,11 +18,19 @@ import {
   editarCasoReposicion,
   eliminarCasoReposicion
 } from "@/app/(dashboard)/inventario/historial-actions";
-import type { HistorialPedido, EstadoPedido, TipoReporte, CasoReposicion } from "@/types/database.types";
+import {
+  crearTransferencia,
+  asignarATransferencia,
+  removerDeTransferencia,
+  despacharTransferencia,
+  eliminarTransferencia
+} from "@/app/(dashboard)/inventario/historial-actions";
+import type { HistorialPedido, EstadoPedido, TipoReporte, CasoReposicion, Transferencia } from "@/types/database.types";
 
 interface HistorialTabProps {
   historial: HistorialPedido[];
   casosReposicion?: CasoReposicion[]; // Opcional para vista tecnico
+  transferencias?: Transferencia[];
   isAdmin: boolean;
   ciudadUsuario: string;
   sucursales?: string[];
@@ -430,6 +438,10 @@ function TablaPedidos({
   isReposicion = false,
   isPedidosActuales = false,
   validCasos = [],
+  selectable = false,
+  selectedIds = [],
+  onToggleSelect,
+  isAbastecimiento = false,
   onActualizarEstado,
   onEditarPedido,
   onUpdateCasoReposicion,
@@ -443,6 +455,10 @@ function TablaPedidos({
   isReposicion?: boolean;
   isPedidosActuales?: boolean;
   validCasos?: string[];
+  selectable?: boolean;
+  selectedIds?: number[];
+  onToggleSelect?: (id: number) => void;
+  isAbastecimiento?: boolean;
   onActualizarEstado?: (id: number, estado: EstadoPedido) => Promise<void>;
   onEditarPedido?: (pedido: HistorialPedido) => void;
   onUpdateCasoReposicion?: (id: number, val: string) => void;
@@ -464,6 +480,7 @@ function TablaPedidos({
   }
 
   const headers = [
+    ...(selectable ? ["✓"] : []),
     ...(isAdmin ? ["Acciones"] : []),
     "Fecha",
     "Código",
@@ -476,7 +493,8 @@ function TablaPedidos({
     ...(mostrarDestino ? ["Destino"] : []),
     ...(ocultarTipo ? [] : ["Tipo"]),
     "Estado",
-    ...(isPedidosActuales && isAdmin ? ["Despachado"] : []),
+    ...(isPedidosActuales && isAdmin && !isAbastecimiento ? ["Despachado"] : []),
+    ...(isAbastecimiento && !isPedidosActuales ? ["Transf."] : []),
   ];
 
   return (
@@ -510,6 +528,16 @@ function TablaPedidos({
                     className={`border-b border-slate-800 hover:bg-slate-800/50 transition-colors
                       ${i % 2 === 0 ? "bg-slate-900" : "bg-slate-900/50"}`}
                   >
+                    {selectable && onToggleSelect && (
+                      <td className="px-4 py-3 text-center">
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.includes(p.id)}
+                          onChange={() => onToggleSelect(p.id)}
+                          className="w-4 h-4 rounded border-slate-600 bg-slate-800 text-indigo-500 focus:ring-indigo-500/20 cursor-pointer"
+                        />
+                      </td>
+                    )}
                     {isAdmin && onActualizarEstado && onEditarPedido && (
                       <td className="px-4 py-3 whitespace-nowrap">
                           <div className="flex items-center justify-center gap-1.5">
@@ -588,7 +616,12 @@ function TablaPedidos({
                     <td className="px-4 py-3">
                       <Badge label={p.estado} variant={estadoToVariant(p.estado)} />
                     </td>
-                    {isPedidosActuales && isAdmin && onActualizarEstado && (
+                    {isAbastecimiento && !isPedidosActuales && (
+                      <td className="px-4 py-3 font-mono text-xs text-amber-500 whitespace-nowrap">
+                        {p.transferencia_id ? `TR-${p.transferencia_id}` : "-"}
+                      </td>
+                    )}
+                    {isPedidosActuales && isAdmin && !isAbastecimiento && onActualizarEstado && (
                       <td className="px-4 py-3 text-center whitespace-nowrap">
                         <button
                           title={isReposicion && !isStrictlyValid ? "Debe asignar un código de caso válido primero." : "Marcar como Despachado"}
@@ -637,6 +670,158 @@ function TablaPedidos({
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+// ─── Tabla Transferencias ───────────────────────────────────────
+function TablaTransferencias({
+  transferencias,
+  historial
+}: {
+  transferencias: Transferencia[];
+  historial: HistorialPedido[];
+}) {
+  const [despachandoId, setDespachandoId] = useState<number | null>(null);
+  
+  return (
+    <div className="space-y-3">
+      {transferencias.map(t => {
+        const pedidosDeTransferencia = historial.filter(p => p.transferencia_id === t.id);
+        
+        return (
+          <div key={t.id} className="bg-slate-900 border border-slate-700 rounded-xl overflow-hidden">
+            <div className="p-4 flex flex-wrap gap-4 items-center justify-between border-b border-slate-800 bg-slate-800/30">
+              <div className="flex items-center gap-4">
+                <div>
+                  <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mb-0.5">ID</p>
+                  <p className="text-sm font-mono text-slate-200">TR-{t.id}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mb-0.5">Destino</p>
+                  <p className="text-sm text-slate-300 font-medium capitalize">{t.sucursal_destino || "Varias"}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mb-0.5">Repuestos</p>
+                  <p className="text-sm text-slate-300 font-medium">{pedidosDeTransferencia.length}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={async () => {
+                    if (confirm("¿Estás seguro de eliminar esta transferencia? Los pedidos volverán a estar por despachar.")) {
+                      const res = await eliminarTransferencia(t.id);
+                      if (res.error) alert(res.error);
+                    }
+                  }}
+                  className="px-3 py-1.5 text-xs font-semibold rounded bg-red-500/10 text-red-500 hover:bg-red-500/20 transition-colors border border-red-500/20"
+                >
+                  Eliminar Transferencia
+                </button>
+                <DespacharTransferenciaBoton transferencia={t} />
+              </div>
+            </div>
+            
+            {/* Lista interna de pedidos abreviada */}
+            <div className="p-3 bg-slate-900/50">
+              {pedidosDeTransferencia.length === 0 ? (
+                <p className="text-xs text-slate-500 italic">No hay repuestos en esta transferencia aún.</p>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
+                  {pedidosDeTransferencia.map(p => (
+                    <div key={p.id} className="flex items-center justify-between bg-slate-800 border border-slate-700/50 rounded p-2">
+                      <div className="flex flex-col">
+                        <span className="text-[11px] font-mono text-indigo-400">{p.repuestos?.codigo}</span>
+                        <span className="text-[10px] text-slate-400 truncate max-w-[120px]" title={p.repuestos?.nombre || ""}>
+                          {p.repuestos?.nombre}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] font-bold text-slate-300 bg-slate-700 px-1.5 py-0.5 rounded">
+                          x{p.cantidad}
+                        </span>
+                        <button
+                          title="Remover de la transferencia"
+                          onClick={async () => {
+                            const res = await removerDeTransferencia([p.id]);
+                            if (res.error) alert(res.error);
+                          }}
+                          className="text-red-400 hover:text-red-300 ml-1 p-0.5 rounded hover:bg-red-500/20"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function DespacharTransferenciaBoton({ transferencia }: { transferencia: Transferencia }) {
+  const [showForm, setShowForm] = useState(false);
+  const [codigo, setCodigo] = useState(transferencia.codigo_transferencia || "");
+  const [orden, setOrden] = useState(transferencia.orden_venta || "");
+  const [factura, setFactura] = useState(transferencia.factura || "");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  if (!showForm) {
+    return (
+      <button
+        onClick={() => setShowForm(true)}
+        className="px-4 py-1.5 text-xs font-semibold rounded bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20 transition-colors border border-emerald-500/20 flex items-center gap-1.5"
+      >
+        <Send className="w-3.5 h-3.5" />
+        Despachar
+      </button>
+    );
+  }
+
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <input 
+        type="text" placeholder="Código Transfer..." 
+        className="text-[11px] bg-slate-800 border-slate-700 rounded px-2 py-1 w-28 text-white focus:ring-1 focus:ring-emerald-500"
+        value={codigo} onChange={e => setCodigo(e.target.value)}
+      />
+      <input 
+        type="text" placeholder="Orden de Venta..." 
+        className="text-[11px] bg-slate-800 border-slate-700 rounded px-2 py-1 w-28 text-white focus:ring-1 focus:ring-emerald-500"
+        value={orden} onChange={e => setOrden(e.target.value)}
+      />
+      <input 
+        type="text" placeholder="Factura..." 
+        className="text-[11px] bg-slate-800 border-slate-700 rounded px-2 py-1 w-24 text-white focus:ring-1 focus:ring-emerald-500"
+        value={factura} onChange={e => setFactura(e.target.value)}
+      />
+      <button
+        onClick={() => setShowForm(false)}
+        className="px-2 py-1 text-slate-400 hover:text-white transition-colors"
+      >
+        Cancelar
+      </button>
+      <button
+        disabled={isSubmitting}
+        onClick={async () => {
+          setIsSubmitting(true);
+          const res = await despacharTransferencia(transferencia.id, {
+            codigo_transferencia: codigo,
+            orden_venta: orden,
+            factura: factura
+          });
+          if (res.error) alert(res.error);
+          setIsSubmitting(false);
+          setShowForm(false);
+        }}
+        className="px-3 py-1.5 text-[11px] font-bold rounded bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white transition-colors flex items-center gap-1"
+      >
+        Confirmar Envío
+      </button>
     </div>
   );
 }
@@ -701,6 +886,7 @@ function ExportBtn({
 function VistaAdmin({
   historial,
   casosReposicion,
+  transferencias,
   ciudadUsuario,
   sucursales,
   onActualizarEstado,
@@ -713,6 +899,7 @@ function VistaAdmin({
 }: {
   historial: HistorialPedido[];
   casosReposicion: CasoReposicion[];
+  transferencias: Transferencia[];
   ciudadUsuario: string;
   sucursales: string[];
   onActualizarEstado: (id: number, estado: EstadoPedido) => Promise<void>;
@@ -744,6 +931,20 @@ function VistaAdmin({
   };
 
   const validCasos = casosReposicion.map(c => c.codigo_caso.trim());
+
+  // Estado para Transferencias (Abastecimiento)
+  const [selectedIds, setSelectedIds] = useState<number[]>([]);
+  const [selectedTransferenciaId, setSelectedTransferenciaId] = useState<string>("");
+  const [isAbasteciendo, setIsAbasteciendo] = useState(false);
+  const [isGenerandoTransferencia, setIsGenerandoTransferencia] = useState(false);
+
+  const handleToggleSelect = (id: number) => {
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
+    );
+  };
+
+  const transferenciasPendientes = transferencias.filter(t => t.estado === "Pendiente");
 
   return (
     <div className="space-y-4">
@@ -791,22 +992,99 @@ function VistaAdmin({
         <div className="space-y-8">
           {/* TABLA 1: PEDIDOS ACTUALES (Repuestos por despachar) */}
           <div>
-            <h3 className="text-xs uppercase text-slate-400 font-bold mb-3 tracking-wider flex items-center gap-2">
-               <span className="w-2 h-2 rounded-full bg-indigo-500"></span> Repuestos por despachar
-            </h3>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-xs uppercase text-slate-400 font-bold tracking-wider flex items-center gap-2">
+                 <span className="w-2 h-2 rounded-full bg-indigo-500"></span> Repuestos por despachar
+              </h3>
+            </div>
+
+            {activeTab === "Abastecimiento" && (
+              <div className="flex flex-wrap items-center gap-3 mb-4 p-3 bg-slate-800/40 border border-slate-700/50 rounded-xl">
+                <div className="flex items-center gap-2">
+                  <select
+                    className="bg-slate-800 border border-slate-700 text-sm rounded-lg px-3 py-2 text-slate-300 min-w-[200px]"
+                    value={selectedTransferenciaId}
+                    onChange={(e) => setSelectedTransferenciaId(e.target.value)}
+                  >
+                    <option value="">Seleccionar transferencia...</option>
+                    {transferenciasPendientes.map(t => (
+                      <option key={t.id} value={t.id}>
+                        TR-{t.id} - Destino: {t.sucursal_destino || "No asig."}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    onClick={async () => {
+                      if (!selectedTransferenciaId) return alert("Selecciona una transferencia.");
+                      if (selectedIds.length === 0) return alert("Selecciona repuestos.");
+                      setIsAbasteciendo(true);
+                      const res = await asignarATransferencia(selectedIds, Number(selectedTransferenciaId));
+                      if (res.error) alert(res.error);
+                      else {
+                        setSelectedIds([]);
+                      }
+                      setIsAbasteciendo(false);
+                    }}
+                    disabled={isAbasteciendo || selectedIds.length === 0 || !selectedTransferenciaId}
+                    className="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors disabled:opacity-50"
+                  >
+                    {isAbasteciendo ? "Asignando..." : "Asignar seleccionados"}
+                  </button>
+                </div>
+                <div className="ml-auto">
+                  <button
+                    onClick={async () => {
+                      setIsGenerandoTransferencia(true);
+                      const res = await crearTransferencia({ codigo_transferencia: "", orden_venta: "", factura: "" });
+                      if (res.error) alert(res.error);
+                      setIsGenerandoTransferencia(false);
+                    }}
+                    disabled={isGenerandoTransferencia}
+                    className="flex items-center gap-2 bg-emerald-600/20 text-emerald-400 hover:bg-emerald-600/30 border border-emerald-500/30 px-3 py-2 rounded-lg text-sm font-semibold transition-colors disabled:opacity-50"
+                  >
+                    {isGenerandoTransferencia ? "Creando..." : "+ Nueva Transferencia Vacía"}
+                  </button>
+                </div>
+              </div>
+            )}
+
             <TablaPedidos 
-              pedidos={historial.filter(p => p.tipo_reporte.toLowerCase() === activeTab.toLowerCase() && p.estado === "Aprobado")}
+              pedidos={historial.filter(p => p.tipo_reporte.toLowerCase() === activeTab.toLowerCase() && p.estado === "Aprobado" && (activeTab === "Abastecimiento" ? p.transferencia_id == null : true))}
               isAdmin
               ocultarTipo={true}
               isReposicion={activeTab === "Reposición"}
               isPedidosActuales={true}
               validCasos={validCasos}
+              selectable={activeTab === "Abastecimiento"}
+              selectedIds={selectedIds}
+              onToggleSelect={handleToggleSelect}
+              isAbastecimiento={activeTab === "Abastecimiento"}
               onActualizarEstado={onActualizarEstado}
               onEditarPedido={onEditarPedido}
               onUpdateCasoReposicion={onUpdateCasoReposicion}
               onFechasUpdated={onFechasUpdated}
             />
           </div>
+
+          {/* TABLA TRANSFERENCIAS (Abastecimiento) */}
+          {activeTab === "Abastecimiento" && (
+            <div>
+              <h3 className="text-xs uppercase text-slate-400 font-bold mb-3 tracking-wider flex items-center gap-2">
+                 <span className="w-2 h-2 rounded-full bg-amber-500"></span> Transferencias en Curso
+              </h3>
+              {transferenciasPendientes.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-8 text-slate-600 bg-slate-800/20 rounded-xl border border-slate-700/50">
+                  <Package className="w-8 h-8 mb-2 opacity-30" />
+                  <p className="text-xs">No hay transferencias pendientes.</p>
+                </div>
+              ) : (
+                <TablaTransferencias
+                  transferencias={transferenciasPendientes}
+                  historial={historial}
+                />
+              )}
+            </div>
+          )}
 
           {/* TABLA 2: CASOS DE REPOSICION (Solo si la pestaña es Reposición) */}
           {activeTab === "Reposición" && (
@@ -832,6 +1110,7 @@ function VistaAdmin({
               ocultarTipo={true}
               isReposicion={activeTab === "Reposición"}
               isPedidosActuales={false}
+              isAbastecimiento={activeTab === "Abastecimiento"}
               onActualizarEstado={onActualizarEstado}
               onEditarPedido={onEditarPedido}
               onUpdateCasoReposicion={onUpdateCasoReposicion}
@@ -1237,10 +1516,15 @@ function TablaDespachadosHistorial({ pedidos }: { pedidos: HistorialPedido[] }) 
   );
 }
 
-
-
 // ─── Componente principal ─────────────────────────────────────
-export function HistorialTab({ historial, casosReposicion = [], isAdmin, ciudadUsuario, sucursales = [] }: HistorialTabProps) {
+export function HistorialTab({
+  historial,
+  casosReposicion = [],
+  transferencias = [],
+  isAdmin,
+  ciudadUsuario,
+  sucursales = [],
+}: HistorialTabProps) {
   const [pedidoToEdit, setPedidoToEdit] = useState<HistorialPedido | null>(null);
   
   // Optimistic UI states
@@ -1349,6 +1633,7 @@ export function HistorialTab({ historial, casosReposicion = [], isAdmin, ciudadU
         <VistaAdmin
           historial={localHistorial}
           casosReposicion={localCasos}
+          transferencias={transferencias}
           ciudadUsuario={ciudadUsuario}
           sucursales={sucursales}
           onActualizarEstado={handleActualizarEstado}

@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
 import type { Metadata } from "next";
 import { InventarioClientWrapper } from "@/components/inventario/InventarioClientWrapper";
-import type { RepuestoConStock, HistorialPedido, InventarioRow, CasoReposicion } from "@/types/database.types";
+import type { RepuestoConStock, HistorialPedido, InventarioRow, CasoReposicion, Transferencia } from "@/types/database.types";
 import { Search, Package, History } from "lucide-react";
 import { SUCURSALES_DATA } from "@/lib/constants";
 
@@ -37,7 +37,7 @@ export default async function InventarioPage() {
 
   // ─── Fetch de datos en paralelo (Recursivo para tablas grandes) ─────
   // Nota: fetchAll maneja el bucle de 1000 en 1000 automáticamente
-  const [repuestos, sucursalesRes, inventario, historialOriginal, historialPrueba, casosReposicion] = await Promise.all([
+  const [repuestos, sucursalesRes, inventario, historialOriginal, historialPrueba, casosReposicion, transferencias] = await Promise.all([
     fetchAllParallel<import("@/types/database.types").Repuesto>(db, "repuestos", "*", "id"),
     db.from("sucursales").select("id, nombre_ciudad"),
     fetchAllParallel<InventarioRow>(db, "inventario", "id, repuesto_id, sucursal_id, cantidad", "id"),
@@ -46,6 +46,7 @@ export default async function InventarioPage() {
       ? fetchAllParallel<HistorialPedido>(db, "historial_pedidos_prueba", "*", "fecha_pedido", false)
       : Promise.resolve([]),
     fetchAllParallel<CasoReposicion>(db, "casos_reposicion", "*", "fecha", false),
+    fetchAllParallel<Transferencia>(db, "transferencias", "*", "fecha_hora", false),
   ]);
 
   // Si hay modo prueba, combinamos. Las pruebas tendrán prioridad visual si las ordenamos después.
@@ -90,6 +91,7 @@ export default async function InventarioPage() {
         isAdmin={isAdmin}
         historial={historial}
         casosReposicion={casosReposicion}
+        transferencias={transferencias}
         ciudadUsuario={ciudadUsuario}
         configPedidos={configPedidos}
         ultimaActualizacion={actualizaciones.stock}

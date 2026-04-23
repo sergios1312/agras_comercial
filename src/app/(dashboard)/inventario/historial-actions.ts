@@ -329,3 +329,173 @@ export async function eliminarCasoReposicion(
   revalidatePath("/inventario");
   return { error: null };
 }
+
+// ─── CRUD: Transferencias de Abastecimiento ────────────────────────
+
+export async function crearTransferencia(
+  datos: { codigo_transferencia: string; orden_venta: string; factura: string }
+): Promise<{ id: number | null; error: string | null }> {
+  const supabase = await createClient();
+  const user = await getSession();
+  if (!user || user.role !== "admin") return { id: null, error: "No autorizado." };
+
+  const rawClient = supabase as unknown as any;
+  const { data, error } = await rawClient
+    .from("transferencias")
+    .insert([{ ...datos, estado: "Pendiente" }])
+    .select("id")
+    .single();
+
+  if (error) return { id: null, error: `Error al crear transferencia: ${error.message}` };
+  
+  revalidatePath("/inventario");
+  return { id: data.id, error: null };
+}
+
+export async function asignarATransferencia(
+  pedidoIds: number[],
+  transferenciaId: number
+): Promise<{ error: string | null }> {
+  if (pedidoIds.length === 0) return { error: null };
+  const supabase = await createClient();
+  const user = await getSession();
+  if (!user || user.role !== "admin") return { error: "No autorizado." };
+
+  const rawClient = supabase as unknown as any;
+
+  // 1. Obtener la transferencia
+  const { data: trans, error: errTrans } = await rawClient
+    .from("transferencias")
+    .select("*")
+    .eq("id", transferenciaId)
+    .single();
+
+  if (errTrans || !trans) return { error: "Transferencia no encontrada." };
+  if (trans.estado !== "Pendiente") return { error: "La transferencia ya fue despachada." };
+
+  // 2. Obtener los pedidos para verificar sucursal de destino y estado
+  const { data: pedidos, error: errPedidos } = await rawClient
+    .from("historial_pedidos")
+    .select("id, tecnico_destino, estado")
+    .in("id", pedidoIds);
+  
+  if (errPedidos || !pedidos) return { error: "Error al validar pedidos." };
+
+  // Validaciones
+  const invalidState = pedidos.find((p: any) => p.estado !== "Aprobado");
+  if (invalidState) return { error: "Solo puedes asignar pedidos en estado 'Aprobado'." };
+
+  // Validar destinos unicos
+  const destinos = new Set(pedidos.map((p: any) => p.tecnico_destino));
+  if (destinos.size > 1) {
+    return { error: "Todos los pedidos seleccionados deben ir a la misma sucursal." };
+  }
+
+  const destinoPedidos = destinos.values().next().value as string;
+  let destinoTransferencia = trans.sucursal_destino;
+
+  // Si la transferencia estaba vacía, se "ancla" a esta sucursal
+  if (!destinoTransferencia) {
+    destinoTransferencia = destinoPedidos;
+    await rawClient
+      .from("transferencias")
+      .update({ sucursal_destino: destinoTransferencia })
+      .eq("id", transferenciaId);
+  } else if (destinoTransferencia !== destinoPedidos) {
+    return { error: `La transferencia es para ${destinoTransferencia}. No se pueden añadir pedidos para ${destinoPedidos}.` };
+  }
+
+  // 3. Asignar los IDs a la transferencia
+  const { error: errUpdate } = await rawClient
+    .from("historial_pedidos")
+    .update({ transferencia_id: transferenciaId })
+    .in("id", pedidoIds);
+
+  if (errUpdate) return { error: `Error al asignar: ${errUpdate.message}` };
+
+  revalidatePath("/inventario");
+  return { error: null };
+}
+
+export async function removerDeTransferencia(
+  pedidoIds: number[]
+): Promise<{ error: string | null }> {
+  if (pedidoIds.length === 0) return { error: null };
+  const supabase = await createClient();
+  const user = await getSession();
+  if (!user || user.role !== "admin") return { error: "No autorizado." };
+
+  const rawClient = supabase as unknown as any;
+  const { error } = await rawClient
+    .from("historial_pedidos")
+    .update({ transferencia_id: null })
+    .in("id", pedidoIds);
+
+  if (error) return { error: `Error al remover: ${error.message}` };
+
+  revalidatePath("/inventario");
+  return { error: null };
+}
+
+export async function despacharTransferencia(
+  transferenciaId: number,
+  datosFinales?: { codigo_transferencia: string; orden_venta: string; factura: string }
+): Promise<{ error: string | null }> {
+  const supabase = await createClient();
+  const user = await getSession();
+  if (!user || user.role !== "admin") return { error: "No autorizado." };
+
+  const rawClient = supabase as unknown as any;
+
+  // Actualizar la transferencia a Enviado
+  const { error: errTrans } = await rawClient
+    .from("transferencias")
+    .update({
+      estado: "Enviado",
+      ...(datosFinales || {})
+    })
+    .eq("id", transferenciaId);
+
+  if (errTrans) return { error: `Error al despachar transferencia: ${errTrans.message}` };
+
+  // Ahora actualizar los pedidos que pertenezcan a esta transferencia
+  const ahora = new Date().toISOString();
+  const { error: errPedidos } = await rawClient
+    .from("historial_pedidos")
+    .update({
+      estado: "Enviado",
+      fecha_envio: ahora
+    })
+    .eq("transferencia_id", transferenciaId);
+
+  if (errPedidos) return { error: `Transferencia marcada como despachada, pero error en repuestos: ${errPedidos.message}` };
+
+  revalidatePath("/inventario");
+  return { error: null };
+}
+
+export async function eliminarTransferencia(
+  transferenciaId: number
+): Promise<{ error: string | null }> {
+  const supabase = await createClient();
+  const user = await getSession();
+  if (!user || user.role !== "admin") return { error: "No autorizado." };
+
+  const rawClient = supabase as unknown as any;
+  
+  // Primero desvincular los pedidos
+  await rawClient
+    .from("historial_pedidos")
+    .update({ transferencia_id: null })
+    .eq("transferencia_id", transferenciaId);
+
+  const { error } = await rawClient
+    .from("transferencias")
+    .delete()
+    .eq("id", transferenciaId);
+
+  if (error) return { error: `Error al eliminar transferencia: ${error.message}` };
+
+  revalidatePath("/inventario");
+  return { error: null };
+}

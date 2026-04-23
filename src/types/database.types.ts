@@ -64,6 +64,17 @@ export interface InventarioPivot extends Repuesto {
   stock_total: number;
 }
 
+// ─── Tabla: transferencias ───────────────────────────────────
+export interface Transferencia {
+  id: number;
+  estado: "Pendiente" | "Enviado";
+  sucursal_destino: string | null;
+  codigo_transferencia: string | null;
+  orden_venta: string | null;
+  factura: string | null;
+  fecha_hora: string;
+}
+
 // ─── Tabla: historial_pedidos ────────────────────────────────
 export interface HistorialPedido {
   id: number;
@@ -80,8 +91,10 @@ export interface HistorialPedido {
   fecha_aprobacion?: string | null;
   fecha_envio?: string | null;
   fecha_recepcion?: string | null;
+  transferencia_id?: number | null; // FK -> transferencias
   is_test?: boolean; // Bandera virtual para UI
   // Join expandido desde Supabase (disponible cuando se hace select con FK join)
+  transferencias?: Transferencia | null;
   repuestos?: {
     id: number;
     codigo: string;
@@ -179,6 +192,11 @@ export interface Database {
         Row: CasoReposicion;
         Insert: Omit<CasoReposicion, "id" | "fecha">;
         Update: Partial<Omit<CasoReposicion, "id">>;
+      };
+      transferencias: {
+        Row: Transferencia;
+        Insert: Omit<Transferencia, "id" | "fecha_hora">;
+        Update: Partial<Omit<Transferencia, "id" | "fecha_hora">>;
       };
     };
     Views: Record<string, never>;
