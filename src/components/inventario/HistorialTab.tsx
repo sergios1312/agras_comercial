@@ -690,13 +690,23 @@ function TablaPedidos({
   );
 }
 
+const INTERCOMPANY_BRANCHES = ["bellavista", "pucallpa", "nueva cajamarca", "huánuco", "jaén", "yurimaguas"];
+
+function getTransferType(sucursal: string | null) {
+  if (!sucursal) return "—";
+  if (INTERCOMPANY_BRANCHES.some(s => sucursal.toLowerCase().includes(s))) return "Intercompany";
+  return "Transferencia";
+}
+
 // ─── Tabla Transferencias ───────────────────────────────────────
 function TablaTransferencias({
   transferencias,
-  historial
+  historial,
+  sucursales
 }: {
   transferencias: Transferencia[];
   historial: HistorialPedido[];
+  sucursales: string[];
 }) {
   const [despachandoId, setDespachandoId] = useState<number | null>(null);
   
@@ -715,7 +725,21 @@ function TablaTransferencias({
                 </div>
                 <div>
                   <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mb-0.5">Destino</p>
-                  <p className="text-sm text-slate-300 font-medium capitalize">{t.sucursal_destino || "Varias"}</p>
+                  <select
+                    className="bg-slate-800 border border-slate-700 text-sm font-medium rounded px-2 py-0.5 text-slate-300 min-w-[120px] focus:ring-1 focus:ring-indigo-500 capitalize"
+                    value={t.sucursal_destino || ""}
+                    onChange={async (e) => {
+                       const res = await editarTransferencia(t.id, { sucursal_destino: e.target.value });
+                       if (res.error) alert(res.error);
+                    }}
+                  >
+                    <option value="">Seleccionar...</option>
+                    {sucursales.map(s => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mb-0.5">Tipo</p>
+                  <p className="text-sm text-slate-400 font-medium">{getTransferType(t.sucursal_destino)}</p>
                 </div>
                 <div>
                   <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mb-0.5">Repuestos</p>
@@ -732,9 +756,9 @@ function TablaTransferencias({
                   }}
                   className="px-3 py-1.5 text-xs font-semibold rounded bg-red-500/10 text-red-500 hover:bg-red-500/20 transition-colors border border-red-500/20"
                 >
-                  Eliminar Transferencia
+                  Eliminar
                 </button>
-                <TransferenciaAcciones transferencia={t} />
+                <TransferenciaAcciones transferencia={t} hasError={pedidosDeTransferencia.some(p => t.sucursal_destino && p.tecnico_destino !== t.sucursal_destino)} pedidos={pedidosDeTransferencia} />
               </div>
             </div>
             
@@ -744,13 +768,16 @@ function TablaTransferencias({
                 <p className="text-xs text-slate-500 italic">No hay repuestos en esta transferencia aún.</p>
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
-                  {pedidosDeTransferencia.map(p => (
-                    <div key={p.id} className="flex items-center justify-between bg-slate-800 border border-slate-700/50 rounded p-2">
+                  {pedidosDeTransferencia.map(p => {
+                    const isError = t.sucursal_destino && p.tecnico_destino !== t.sucursal_destino;
+                    return (
+                    <div key={p.id} className={`flex items-center justify-between border rounded p-2 transition-colors ${isError ? 'bg-red-500/10 border-red-500/50' : 'bg-slate-800 border-slate-700/50'}`}>
                       <div className="flex flex-col">
                         <span className="text-[11px] font-mono text-indigo-400">{p.repuestos?.codigo}</span>
                         <span className="text-[10px] text-slate-400 truncate max-w-[120px]" title={p.repuestos?.nombre || ""}>
                           {p.repuestos?.nombre}
                         </span>
+                        {isError && <span className="text-[10px] text-red-400 font-bold mt-0.5">Destino incorrecto ({p.tecnico_destino})</span>}
                       </div>
                       <div className="flex items-center gap-2">
                         <span className="text-[10px] font-bold text-slate-300 bg-slate-700 px-1.5 py-0.5 rounded">
@@ -768,7 +795,7 @@ function TablaTransferencias({
                         </button>
                       </div>
                     </div>
-                  ))}
+                  )})}
                 </div>
               )}
             </div>
@@ -779,8 +806,89 @@ function TablaTransferencias({
   );
 }
 
-function TransferenciaAcciones({ transferencia }: { transferencia: Transferencia }) {
+function ModalPrevisualizacionCorreo({
+  transferencia,
+  pedidos,
+  onClose,
+  onConfirm
+}: {
+  transferencia: Transferencia;
+  pedidos: HistorialPedido[];
+  onClose: () => void;
+  onConfirm: () => Promise<void>;
+}) {
+  const [isSending, setIsSending] = useState(false);
+  const tipo = getTransferType(transferencia.sucursal_destino);
+  const destinatario = "sergio.araujo@quetalcompra.com";
+  const asunto = `Despacho de ${tipo} - TR-${transferencia.id}`;
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4">
+      <div className="w-full max-w-2xl bg-slate-900 border border-slate-700/60 rounded-xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+        <div className="px-5 py-4 border-b border-slate-800 flex justify-between items-center bg-slate-800/50">
+          <h3 className="text-sm font-semibold text-slate-200">Previsualización de Correo</h3>
+          <button onClick={onClose} className="text-slate-500 hover:text-slate-300 transition-colors">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+        
+        <div className="p-5 flex-1 overflow-y-auto space-y-4">
+          <div className="bg-slate-800/50 rounded-lg p-4 border border-slate-700/50 space-y-2 text-sm">
+            <div className="flex gap-2">
+              <span className="text-slate-500 font-semibold w-16">Para:</span>
+              <span className="text-slate-300">{destinatario}</span>
+            </div>
+            <div className="flex gap-2">
+              <span className="text-slate-500 font-semibold w-16">Asunto:</span>
+              <span className="text-slate-300">{asunto}</span>
+            </div>
+          </div>
+          
+          <div className="bg-slate-950 rounded-lg p-5 border border-slate-800 text-sm text-slate-300 whitespace-pre-wrap font-sans">
+            <p>Estimados,</p>
+            <p className="mt-2">Se ha procedido con el despacho de la siguiente {tipo.toLowerCase()} con destino a {transferencia.sucursal_destino}.</p>
+            
+            <p className="mt-4 font-semibold text-slate-200">Detalle de Repuestos:</p>
+            <ul className="list-disc pl-5 mt-2 space-y-1 text-slate-400">
+              {pedidos.map(p => (
+                <li key={p.id}>
+                  {p.cantidad}x {p.repuestos?.nombre} ({p.repuestos?.codigo}) - Caso: {p.numero_caso}
+                </li>
+              ))}
+            </ul>
+            
+            <p className="mt-4 text-emerald-400 text-xs italic flex items-center gap-1.5">
+              <Paperclip className="w-3.5 h-3.5" />
+              Se ha adjuntado el documento PDF con el comprobante de despacho.
+            </p>
+          </div>
+        </div>
+
+        <div className="px-5 py-4 border-t border-slate-800 bg-slate-800/50 flex justify-end gap-3">
+          <button onClick={onClose} className="px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-xs font-semibold text-slate-300 transition-colors">
+            Cancelar
+          </button>
+          <button 
+            onClick={async () => {
+              setIsSending(true);
+              await onConfirm();
+              setIsSending(false);
+            }} 
+            disabled={isSending}
+            className="px-5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-semibold flex items-center gap-2 transition-colors disabled:opacity-50"
+          >
+            {isSending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+            Confirmar Despacho (Sin enviar correo por ahora)
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function TransferenciaAcciones({ transferencia, hasError, pedidos }: { transferencia: Transferencia, hasError?: boolean, pedidos?: HistorialPedido[] }) {
   const [showForm, setShowForm] = useState(false);
+  const [showEmailPreview, setShowEmailPreview] = useState(false);
   const [codigo, setCodigo] = useState(transferencia.codigo_transferencia || "");
   const [orden, setOrden] = useState(transferencia.orden_venta || "");
   const [factura, setFactura] = useState(transferencia.factura || "");
@@ -793,6 +901,7 @@ function TransferenciaAcciones({ transferencia }: { transferencia: Transferencia
       : null;
 
     return (
+      <>
       <div className="flex items-center gap-3">
         {(transferencia.codigo_transferencia || transferencia.orden_venta || transferencia.factura) && (
           <div className="flex flex-col text-[10px] text-slate-400 bg-slate-800/50 px-2 py-1 rounded">
@@ -816,17 +925,16 @@ function TransferenciaAcciones({ transferencia }: { transferencia: Transferencia
           <Edit className="w-3.5 h-3.5" />
         </button>
         <button
-          onClick={async () => {
-            if (confirm("¿Estás seguro de despachar esta transferencia?")) {
-              setIsSubmitting(true);
-              const res = await despacharTransferencia(transferencia.id, {
-                codigo_transferencia: transferencia.codigo_transferencia || "",
-                orden_venta: transferencia.orden_venta || "",
-                factura: transferencia.factura || ""
-              });
-              if (res.error) alert(res.error);
-              setIsSubmitting(false);
+          onClick={() => {
+            if (hasError) {
+              alert("No puedes despachar esta transferencia porque contiene repuestos con destino incorrecto. Corrige el destino o remueve el repuesto de la transferencia.");
+              return;
             }
+            if (!transferencia.sucursal_destino) {
+              alert("Por favor selecciona una sucursal de destino antes de despachar.");
+              return;
+            }
+            setShowEmailPreview(true);
           }}
           disabled={isSubmitting}
           className="px-4 py-1.5 text-xs font-semibold rounded bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20 transition-colors border border-emerald-500/20 flex items-center gap-1.5 disabled:opacity-50"
@@ -835,6 +943,25 @@ function TransferenciaAcciones({ transferencia }: { transferencia: Transferencia
           Despachar
         </button>
       </div>
+      {showEmailPreview && (
+        <ModalPrevisualizacionCorreo
+          transferencia={transferencia}
+          pedidos={pedidos || []}
+          onClose={() => setShowEmailPreview(false)}
+          onConfirm={async () => {
+             setIsSubmitting(true);
+             const res = await despacharTransferencia(transferencia.id, {
+                codigo_transferencia: transferencia.codigo_transferencia || "",
+                orden_venta: transferencia.orden_venta || "",
+                factura: transferencia.factura || ""
+             });
+             if (res.error) alert(res.error);
+             setIsSubmitting(false);
+             setShowEmailPreview(false);
+          }}
+        />
+      )}
+    </>
     );
   }
 
@@ -1193,6 +1320,7 @@ function VistaAdmin({
                 <TablaTransferencias
                   transferencias={transferenciasPendientes}
                   historial={historialFiltrado}
+                  sucursales={sucursales}
                 />
               )}
             </div>

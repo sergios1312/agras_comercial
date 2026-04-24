@@ -363,7 +363,7 @@ export async function crearTransferencia(
 
 export async function editarTransferencia(
   transferenciaId: number,
-  datos: { codigo_transferencia?: string; orden_venta?: string; factura?: string }
+  datos: { codigo_transferencia?: string; orden_venta?: string; factura?: string; sucursal_destino?: string }
 ): Promise<{ error: string | null }> {
   const supabase = await createClient();
   const user = await getSession();
