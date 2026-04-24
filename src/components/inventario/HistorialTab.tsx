@@ -3,8 +3,9 @@
 import React, { useState, useTransition, useEffect } from "react";
 import {
   RefreshCw, Download, Package, Truck, ArrowLeftRight,
-  CheckCircle2, Loader2, Edit, X, Check, Trash2, Send, ChevronDown, ChevronRight, Plus
+  CheckCircle2, Loader2, Edit, X, Check, Trash2, Send, ChevronDown, ChevronRight, Plus, FileUp, ExternalLink, Paperclip
 } from "lucide-react";
+import { createBrowserClient } from "@/utils/supabase/client";
 import { Badge, estadoToVariant } from "@/components/ui/Badge";
 import { formatDate } from "@/lib/utils";
 import { FechasPopover } from "@/components/inventario/FechasPopover";
@@ -786,11 +787,23 @@ function TransferenciaAcciones({ transferencia }: { transferencia: Transferencia
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   if (!showForm) {
+    // URL del PDF si existe (asumiendo que el bucket es público)
+    const pdfUrl = transferencia.codigo_transferencia 
+      ? `https://ffaqsyprvehybfprfmyf.supabase.co/storage/v1/object/public/transferencias_pdfs/${transferencia.codigo_transferencia}`
+      : null;
+
     return (
       <div className="flex items-center gap-3">
         {(transferencia.codigo_transferencia || transferencia.orden_venta || transferencia.factura) && (
           <div className="flex flex-col text-[10px] text-slate-400 bg-slate-800/50 px-2 py-1 rounded">
-            {transferencia.codigo_transferencia && <span>Cód: {transferencia.codigo_transferencia}</span>}
+            {transferencia.codigo_transferencia && (
+              <div className="flex items-center gap-1">
+                <Paperclip className="w-2.5 h-2.5" />
+                <a href={pdfUrl!} target="_blank" rel="noopener noreferrer" className="text-indigo-400 hover:underline truncate max-w-[80px]">
+                  {transferencia.codigo_transferencia}
+                </a>
+              </div>
+            )}
             {transferencia.orden_venta && <span>OV: {transferencia.orden_venta}</span>}
             {transferencia.factura && <span>Fac: {transferencia.factura}</span>}
           </div>
@@ -827,11 +840,39 @@ function TransferenciaAcciones({ transferencia }: { transferencia: Transferencia
 
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <input 
-        type="text" placeholder="Código Transfer..." 
-        className="text-[11px] bg-slate-800 border-slate-700 rounded px-2 py-1 w-28 text-white focus:ring-1 focus:ring-emerald-500"
-        value={codigo} onChange={e => setCodigo(e.target.value)}
-      />
+      {/* Botón para adjuntar PDF */}
+      <div className="relative group">
+        <label className="flex items-center gap-1.5 px-3 py-1 bg-slate-800 border border-slate-700 rounded text-[11px] text-slate-300 hover:bg-slate-700 cursor-pointer transition-colors">
+          <FileUp className="w-3.5 h-3.5" />
+          {codigo ? "PDF Listo" : "Adjuntar PDF"}
+          <input 
+            type="file" 
+            accept="application/pdf" 
+            className="hidden" 
+            onChange={async (e) => {
+              const file = e.target.files?.[0];
+              if (!file) return;
+              
+              setIsSubmitting(true);
+              const supabase = createBrowserClient();
+              const fileName = `tr_${transferencia.id}_${Date.now()}.pdf`;
+              
+              const { error: uploadError } = await supabase.storage
+                .from('transferencias_pdfs')
+                .upload(fileName, file);
+
+              if (uploadError) {
+                alert("Error al subir PDF: " + uploadError.message);
+              } else {
+                setCodigo(fileName); // Guardamos el nombre del archivo como el código
+              }
+              setIsSubmitting(false);
+            }} 
+          />
+        </label>
+        {codigo && <span className="absolute -top-1 -right-1 w-2 h-2 bg-emerald-500 rounded-full border border-slate-900"></span>}
+      </div>
+
       <input 
         type="text" placeholder="Orden de Venta..." 
         className="text-[11px] bg-slate-800 border-slate-700 rounded px-2 py-1 w-28 text-white focus:ring-1 focus:ring-emerald-500"
