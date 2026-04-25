@@ -468,7 +468,8 @@ export async function removerDeTransferencia(
 
 export async function despacharTransferencia(
   transferenciaId: number,
-  datosFinales?: { codigo_transferencia: string; orden_venta: string; factura: string }
+  datosFinales?: { codigo_transferencia: string; orden_venta: string; factura: string },
+  fecha_envio_custom?: string
 ): Promise<{ error: string | null }> {
   const supabase = await createClient();
   const user = await getSession();
@@ -488,7 +489,7 @@ export async function despacharTransferencia(
   if (errTrans) return { error: `Error al despachar transferencia: ${errTrans.message}` };
 
   // Ahora actualizar los pedidos que pertenezcan a esta transferencia
-  const ahora = new Date().toISOString();
+  const ahora = fecha_envio_custom || new Date().toISOString();
   const { error: errPedidos } = await rawClient
     .from("historial_pedidos")
     .update({

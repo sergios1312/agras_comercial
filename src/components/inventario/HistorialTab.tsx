@@ -808,19 +808,27 @@ function TablaTransferencias({
 
 function ModalPrevisualizacionCorreo({
   transferencia,
-  pedidos,
+  bultos,
+  empresa,
+  ordenVenta,
+  factura,
+  codigoPDF,
   onClose,
   onConfirm
 }: {
   transferencia: Transferencia;
-  pedidos: HistorialPedido[];
+  bultos: string;
+  empresa: string;
+  ordenVenta: string;
+  factura: string;
+  codigoPDF: string;
   onClose: () => void;
   onConfirm: () => Promise<void>;
 }) {
   const [isSending, setIsSending] = useState(false);
-  const tipo = getTransferType(transferencia.sucursal_destino);
   const destinatario = "sergio.araujo@quetalcompra.com";
-  const asunto = `Despacho de ${tipo} - TR-${transferencia.id}`;
+  const identifier = codigoPDF || `TR-${transferencia.id}`;
+  const asunto = `Envío a ${transferencia.sucursal_destino || 'Varias'} - ${identifier}`;
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4">
@@ -846,15 +854,14 @@ function ModalPrevisualizacionCorreo({
           
           <div className="bg-slate-950 rounded-lg p-5 border border-slate-800 text-sm text-slate-300 whitespace-pre-wrap font-sans">
             <p>Estimados,</p>
-            <p className="mt-2">Se ha procedido con el despacho de la siguiente {tipo.toLowerCase()} con destino a {transferencia.sucursal_destino}.</p>
+            <p className="mt-2">Se ha procedido con el despacho de la transferencia con destino a {transferencia.sucursal_destino || 'Varias'}.</p>
             
-            <p className="mt-4 font-semibold text-slate-200">Detalle de Repuestos:</p>
+            <p className="mt-4 font-semibold text-slate-200">Detalles del Envío:</p>
             <ul className="list-disc pl-5 mt-2 space-y-1 text-slate-400">
-              {pedidos.map(p => (
-                <li key={p.id}>
-                  {p.cantidad}x {p.repuestos?.nombre} ({p.repuestos?.codigo}) - Caso: {p.numero_caso}
-                </li>
-              ))}
+              <li><strong>Empresa de Transportes:</strong> {empresa || "No especificado"}</li>
+              <li><strong>Cantidad de Bultos:</strong> {bultos || "No especificado"}</li>
+              <li><strong>Número de Orden de Venta:</strong> {ordenVenta || "No especificado"}</li>
+              <li><strong>Código de Factura:</strong> {factura || "No especificado"}</li>
             </ul>
             
             <p className="mt-4 text-emerald-400 text-xs italic flex items-center gap-1.5">
@@ -886,22 +893,128 @@ function ModalPrevisualizacionCorreo({
   );
 }
 
-function TransferenciaAcciones({ transferencia, hasError, pedidos }: { transferencia: Transferencia, hasError?: boolean, pedidos?: HistorialPedido[] }) {
-  const [showForm, setShowForm] = useState(false);
-  const [showEmailPreview, setShowEmailPreview] = useState(false);
+function ModalEditarTransferencia({
+  transferencia,
+  bultosInit,
+  empresaInit,
+  fechaEnvioInit,
+  onClose,
+  onSave
+}: {
+  transferencia: Transferencia;
+  bultosInit: string;
+  empresaInit: string;
+  fechaEnvioInit: string;
+  onClose: () => void;
+  onSave: (datos: { bultos: string; empresa: string; fechaEnvio: string; codigo: string; orden: string; factura: string }) => Promise<void>;
+}) {
   const [codigo, setCodigo] = useState(transferencia.codigo_transferencia || "");
   const [orden, setOrden] = useState(transferencia.orden_venta || "");
   const [factura, setFactura] = useState(transferencia.factura || "");
+  const [bultos, setBultos] = useState(bultosInit);
+  const [empresa, setEmpresa] = useState(empresaInit);
+  const [fechaEnvio, setFechaEnvio] = useState(fechaEnvioInit || transferencia.fecha_hora.slice(0, 16));
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  if (!showForm) {
-    // URL del PDF si existe (asumiendo que el bucket es público)
-    const pdfUrl = transferencia.codigo_transferencia 
-      ? `https://ffaqsyprvehybfprfmyf.supabase.co/storage/v1/object/public/transferencias_pdfs/${transferencia.codigo_transferencia}`
-      : null;
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4">
+      <div className="w-full max-w-md bg-slate-900 border border-slate-700/60 rounded-xl shadow-2xl overflow-hidden flex flex-col">
+        <div className="px-5 py-4 border-b border-slate-800 flex justify-between items-center bg-slate-800/50">
+          <h3 className="text-sm font-semibold text-slate-200">Editar Datos de Despacho</h3>
+          <button onClick={onClose} className="text-slate-500 hover:text-slate-300 transition-colors">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+        
+        <div className="p-5 space-y-4">
+          <div className="space-y-1">
+             <label className="text-xs font-semibold text-slate-400">PDF de Transferencia</label>
+             <div className="relative">
+               <label className="flex items-center justify-center gap-2 w-full py-2 bg-slate-800 border border-slate-700 border-dashed rounded-lg text-xs text-slate-300 hover:bg-slate-700 cursor-pointer transition-colors">
+                 <FileUp className="w-4 h-4" />
+                 {codigo ? "Reemplazar PDF" : "Subir archivo PDF"}
+                 <input 
+                   type="file" accept="application/pdf" className="hidden"
+                   onChange={async (e) => {
+                     const file = e.target.files?.[0];
+                     if (!file) return;
+                     setIsSubmitting(true);
+                     const supabase = createBrowserClient();
+                     const fileName = `tr_${transferencia.id}_${Date.now()}.pdf`;
+                     const { error: uploadError } = await supabase.storage.from('transferencias_pdfs').upload(fileName, file);
+                     if (uploadError) alert("Error al subir PDF: " + uploadError.message);
+                     else setCodigo(fileName);
+                     setIsSubmitting(false);
+                   }} 
+                 />
+               </label>
+               {codigo && <div className="mt-2 text-xs text-emerald-400 flex items-center gap-1"><Check className="w-3.5 h-3.5" /> PDF Adjunto: {codigo}</div>}
+             </div>
+          </div>
 
-    return (
-      <>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <label className="text-xs text-slate-400">Orden de Venta</label>
+              <input type="text" className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-xs text-slate-200 focus:ring-1 focus:ring-indigo-500" value={orden} onChange={e => setOrden(e.target.value)} />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs text-slate-400">Factura</label>
+              <input type="text" className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-xs text-slate-200 focus:ring-1 focus:ring-indigo-500" value={factura} onChange={e => setFactura(e.target.value)} />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs text-slate-400">Empresa Transportes</label>
+              <input type="text" className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-xs text-slate-200 focus:ring-1 focus:ring-indigo-500" value={empresa} onChange={e => setEmpresa(e.target.value)} />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs text-slate-400">Cant. Bultos</label>
+              <input type="text" className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-xs text-slate-200 focus:ring-1 focus:ring-indigo-500" value={bultos} onChange={e => setBultos(e.target.value)} />
+            </div>
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-xs text-slate-400">Fecha de Envío (Despacho)</label>
+            <input type="datetime-local" className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-xs text-slate-200 focus:ring-1 focus:ring-indigo-500" value={fechaEnvio} onChange={e => setFechaEnvio(e.target.value)} />
+          </div>
+        </div>
+
+        <div className="px-5 py-4 border-t border-slate-800 bg-slate-800/50 flex justify-end gap-3">
+          <button onClick={onClose} className="px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-xs font-semibold text-slate-300 transition-colors">
+            Cancelar
+          </button>
+          <button 
+            disabled={isSubmitting}
+            onClick={async () => {
+              setIsSubmitting(true);
+              await onSave({ bultos, empresa, fechaEnvio, codigo, orden, factura });
+              setIsSubmitting(false);
+            }} 
+            className="px-5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-semibold flex items-center gap-2 transition-colors disabled:opacity-50"
+          >
+            {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+            Guardar Cambios
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function TransferenciaAcciones({ transferencia, hasError, pedidos }: { transferencia: Transferencia, hasError?: boolean, pedidos?: HistorialPedido[] }) {
+  const [showModalEditar, setShowModalEditar] = useState(false);
+  const [showEmailPreview, setShowEmailPreview] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  // Variables en memoria para el correo y la fecha custom
+  const [bultos, setBultos] = useState("");
+  const [empresa, setEmpresa] = useState("");
+  const [fechaEnvio, setFechaEnvio] = useState("");
+
+  const pdfUrl = transferencia.codigo_transferencia 
+    ? `https://ffaqsyprvehybfprfmyf.supabase.co/storage/v1/object/public/transferencias_pdfs/${transferencia.codigo_transferencia}`
+    : null;
+
+  return (
+    <>
       <div className="flex items-center gap-3">
         {(transferencia.codigo_transferencia || transferencia.orden_venta || transferencia.factura) && (
           <div className="flex flex-col text-[10px] text-slate-400 bg-slate-800/50 px-2 py-1 rounded">
@@ -918,7 +1031,7 @@ function TransferenciaAcciones({ transferencia, hasError, pedidos }: { transfere
           </div>
         )}
         <button
-          onClick={() => setShowForm(true)}
+          onClick={() => setShowModalEditar(true)}
           className="p-1.5 rounded bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 transition-colors border border-blue-500/20"
           title="Editar datos de transferencia"
         >
@@ -943,18 +1056,48 @@ function TransferenciaAcciones({ transferencia, hasError, pedidos }: { transfere
           Despachar
         </button>
       </div>
+
+      {showModalEditar && (
+        <ModalEditarTransferencia
+          transferencia={transferencia}
+          bultosInit={bultos}
+          empresaInit={empresa}
+          fechaEnvioInit={fechaEnvio}
+          onClose={() => setShowModalEditar(false)}
+          onSave={async (datos) => {
+            // Guardamos Bultos, Empresa y FechaEnvio en memoria
+            setBultos(datos.bultos);
+            setEmpresa(datos.empresa);
+            setFechaEnvio(datos.fechaEnvio);
+            // Guardamos Código (PDF), Orden y Factura en BD
+            const res = await editarTransferencia(transferencia.id, {
+              codigo_transferencia: datos.codigo,
+              orden_venta: datos.orden,
+              factura: datos.factura
+            });
+            if (res.error) alert(res.error);
+            else setShowModalEditar(false);
+          }}
+        />
+      )}
+
       {showEmailPreview && (
         <ModalPrevisualizacionCorreo
           transferencia={transferencia}
-          pedidos={pedidos || []}
+          bultos={bultos}
+          empresa={empresa}
+          ordenVenta={transferencia.orden_venta || ""}
+          factura={transferencia.factura || ""}
+          codigoPDF={transferencia.codigo_transferencia || ""}
           onClose={() => setShowEmailPreview(false)}
           onConfirm={async () => {
              setIsSubmitting(true);
+             const fechaISO = fechaEnvio ? new Date(fechaEnvio).toISOString() : new Date().toISOString();
              const res = await despacharTransferencia(transferencia.id, {
                 codigo_transferencia: transferencia.codigo_transferencia || "",
                 orden_venta: transferencia.orden_venta || "",
                 factura: transferencia.factura || ""
-             });
+             }, fechaISO);
              if (res.error) alert(res.error);
              setIsSubmitting(false);
              setShowEmailPreview(false);
@@ -964,78 +1107,6 @@ function TransferenciaAcciones({ transferencia, hasError, pedidos }: { transfere
     </>
     );
   }
-
-  return (
-    <div className="flex flex-wrap items-center gap-2">
-      {/* Botón para adjuntar PDF */}
-      <div className="relative group">
-        <label className="flex items-center gap-1.5 px-3 py-1 bg-slate-800 border border-slate-700 rounded text-[11px] text-slate-300 hover:bg-slate-700 cursor-pointer transition-colors">
-          <FileUp className="w-3.5 h-3.5" />
-          {codigo ? "PDF Listo" : "Adjuntar PDF"}
-          <input 
-            type="file" 
-            accept="application/pdf" 
-            className="hidden" 
-            onChange={async (e) => {
-              const file = e.target.files?.[0];
-              if (!file) return;
-              
-              setIsSubmitting(true);
-              const supabase = createBrowserClient();
-              const fileName = `tr_${transferencia.id}_${Date.now()}.pdf`;
-              
-              const { error: uploadError } = await supabase.storage
-                .from('transferencias_pdfs')
-                .upload(fileName, file);
-
-              if (uploadError) {
-                alert("Error al subir PDF: " + uploadError.message);
-              } else {
-                setCodigo(fileName); // Guardamos el nombre del archivo como el código
-              }
-              setIsSubmitting(false);
-            }} 
-          />
-        </label>
-        {codigo && <span className="absolute -top-1 -right-1 w-2 h-2 bg-emerald-500 rounded-full border border-slate-900"></span>}
-      </div>
-
-      <input 
-        type="text" placeholder="Orden de Venta..." 
-        className="text-[11px] bg-slate-800 border-slate-700 rounded px-2 py-1 w-28 text-white focus:ring-1 focus:ring-emerald-500"
-        value={orden} onChange={e => setOrden(e.target.value)}
-      />
-      <input 
-        type="text" placeholder="Factura..." 
-        className="text-[11px] bg-slate-800 border-slate-700 rounded px-2 py-1 w-24 text-white focus:ring-1 focus:ring-emerald-500"
-        value={factura} onChange={e => setFactura(e.target.value)}
-      />
-      <button
-        onClick={() => setShowForm(false)}
-        className="px-2 py-1 text-slate-400 hover:text-white transition-colors text-[11px]"
-      >
-        Cancelar
-      </button>
-      <button
-        disabled={isSubmitting}
-        onClick={async () => {
-          setIsSubmitting(true);
-          const res = await editarTransferencia(transferencia.id, {
-            codigo_transferencia: codigo,
-            orden_venta: orden,
-            factura: factura
-          });
-          if (res.error) alert(res.error);
-          setIsSubmitting(false);
-          setShowForm(false);
-        }}
-        className="px-3 py-1 text-[11px] font-bold rounded bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white transition-colors flex items-center gap-1"
-      >
-        Guardar
-      </button>
-    </div>
-  );
-}
 
 // ─── Botón de Export CSV ──────────────────────────────────────
 function ExportBtn({
