@@ -102,7 +102,7 @@ export async function enviarCorreoTransferencia(datos: {
   factura: string;
   pdfFileName: string;
 }) {
-  const destinatario = "sergio.araujo@quetalcompra.com";
+  const { to, cc } = resolverReceptorPedido("Lima", datos.sucursalDestino, false);
   const asunto = `Envío a ${datos.sucursalDestino || 'Varias'} - ${datos.identifier}`;
   
   const pdfUrl = datos.pdfFileName 
@@ -134,7 +134,8 @@ export async function enviarCorreoTransferencia(datos: {
   try {
     await transporter.sendMail({
       from: FROM,
-      to: destinatario,
+      to,
+      cc: cc.length > 0 ? cc.join(", ") : undefined,
       subject: asunto,
       html,
       attachments: pdfUrl ? [
@@ -144,7 +145,7 @@ export async function enviarCorreoTransferencia(datos: {
         }
       ] : []
     });
-    console.log(`[EMAIL TRANSFERENCIA] Enviado a ${destinatario} para transferencia ${datos.identifier}`);
+    console.log(`[EMAIL TRANSFERENCIA] Enviado a ${to} (CC: ${cc.join(", ")}) para transferencia ${datos.identifier}`);
   } catch (err) {
     console.error("[EMAIL ERROR] Transferencia:", err);
   }

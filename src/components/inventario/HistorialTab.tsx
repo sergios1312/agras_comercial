@@ -690,7 +690,7 @@ function TablaPedidos({
   );
 }
 
-import { getTransferType } from "@/lib/transferencias";
+import { getTransferType, resolverReceptorPedido } from "@/lib/transferencias";
 
 // ─── Tabla Transferencias ───────────────────────────────────────
 function TablaTransferencias({
@@ -820,7 +820,8 @@ function ModalPrevisualizacionCorreo({
   onConfirm: () => Promise<void>;
 }) {
   const [isSending, setIsSending] = useState(false);
-  const destinatario = "sergio.araujo@quetalcompra.com";
+  const { to } = resolverReceptorPedido("Lima", transferencia.sucursal_destino, false);
+  const destinatario = to;
   const identifier = codigoPDF || `TR-${transferencia.id}`;
   const asunto = `Envío a ${transferencia.sucursal_destino || 'Varias'} - ${identifier}`;
   const tipo = getTransferType(transferencia.sucursal_destino);
@@ -885,7 +886,7 @@ function ModalPrevisualizacionCorreo({
             className="px-5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-semibold flex items-center gap-2 transition-colors disabled:opacity-50"
           >
             {isSending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-            Confirmar Despacho (Sin enviar correo por ahora)
+            Confirmar Despacho
           </button>
         </div>
       </div>
