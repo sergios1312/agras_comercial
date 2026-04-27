@@ -1132,7 +1132,11 @@ function TransferenciaAcciones({ transferencia, hasError, pedidos }: { transfere
                 codigo_transferencia: transferencia.codigo_transferencia || "",
                 orden_venta: transferencia.orden_venta || "",
                 factura: transferencia.factura || ""
-             }, fechaISO);
+             }, fechaISO, {
+                bultos,
+                empresa,
+                sucursal_destino: transferencia.sucursal_destino || ""
+             });
              if (res.error) alert(res.error);
              setIsSubmitting(false);
              setShowEmailPreview(false);
