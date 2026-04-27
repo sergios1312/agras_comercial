@@ -690,13 +690,7 @@ function TablaPedidos({
   );
 }
 
-const INTERCOMPANY_BRANCHES = ["bellavista", "pucallpa", "nueva cajamarca", "huánuco", "jaén", "yurimaguas"];
-
-function getTransferType(sucursal: string | null) {
-  if (!sucursal) return "—";
-  if (INTERCOMPANY_BRANCHES.some(s => sucursal.toLowerCase().includes(s))) return "Intercompany";
-  return "Transferencia";
-}
+import { getTransferType } from "@/lib/transferencias";
 
 // ─── Tabla Transferencias ───────────────────────────────────────
 function TablaTransferencias({
@@ -829,6 +823,8 @@ function ModalPrevisualizacionCorreo({
   const destinatario = "sergio.araujo@quetalcompra.com";
   const identifier = codigoPDF || `TR-${transferencia.id}`;
   const asunto = `Envío a ${transferencia.sucursal_destino || 'Varias'} - ${identifier}`;
+  const tipo = getTransferType(transferencia.sucursal_destino);
+  const isNormal = tipo === "Transferencia";
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4">
@@ -860,8 +856,12 @@ function ModalPrevisualizacionCorreo({
             <ul className="list-disc pl-5 mt-2 space-y-1 text-slate-400">
               <li><strong>Empresa de Transportes:</strong> {empresa || "No especificado"}</li>
               <li><strong>Cantidad de Bultos:</strong> {bultos || "No especificado"}</li>
-              <li><strong>Número de Orden de Venta:</strong> {ordenVenta || "No especificado"}</li>
-              <li><strong>Código de Factura:</strong> {factura || "No especificado"}</li>
+              {!isNormal && (
+                <>
+                  <li><strong>Número de Orden de Venta:</strong> {ordenVenta || "No especificado"}</li>
+                  <li><strong>Código de Factura:</strong> {factura || "No especificado"}</li>
+                </>
+              )}
             </ul>
             
             <p className="mt-4 text-emerald-400 text-xs italic flex items-center gap-1.5">
@@ -915,6 +915,8 @@ function ModalEditarTransferencia({
   const [empresa, setEmpresa] = useState(empresaInit);
   const [fechaEnvio, setFechaEnvio] = useState(fechaEnvioInit || transferencia.fecha_hora.slice(0, 16));
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const tipo = getTransferType(transferencia.sucursal_destino);
+  const isNormal = tipo === "Transferencia";
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4">
@@ -955,11 +957,23 @@ function ModalEditarTransferencia({
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
               <label className="text-xs text-slate-400">Orden de Venta</label>
-              <input type="text" className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-xs text-slate-200 focus:ring-1 focus:ring-indigo-500" value={orden} onChange={e => setOrden(e.target.value)} />
+              <input 
+                type="text" 
+                className={`w-full border rounded-lg p-2 text-xs focus:ring-1 focus:ring-indigo-500 transition-colors ${isNormal ? 'bg-slate-800/50 border-slate-700/50 text-slate-500 cursor-not-allowed' : 'bg-slate-800 border-slate-700 text-slate-200'}`}
+                value={isNormal ? "No aplica" : orden} 
+                onChange={e => setOrden(e.target.value)} 
+                disabled={isNormal}
+              />
             </div>
             <div className="space-y-1">
               <label className="text-xs text-slate-400">Factura</label>
-              <input type="text" className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-xs text-slate-200 focus:ring-1 focus:ring-indigo-500" value={factura} onChange={e => setFactura(e.target.value)} />
+              <input 
+                type="text" 
+                className={`w-full border rounded-lg p-2 text-xs focus:ring-1 focus:ring-indigo-500 transition-colors ${isNormal ? 'bg-slate-800/50 border-slate-700/50 text-slate-500 cursor-not-allowed' : 'bg-slate-800 border-slate-700 text-slate-200'}`}
+                value={isNormal ? "No aplica" : factura} 
+                onChange={e => setFactura(e.target.value)} 
+                disabled={isNormal}
+              />
             </div>
             <div className="space-y-1">
               <label className="text-xs text-slate-400">Empresa Transportes</label>
@@ -1047,6 +1061,26 @@ function TransferenciaAcciones({ transferencia, hasError, pedidos }: { transfere
               alert("Por favor selecciona una sucursal de destino antes de despachar.");
               return;
             }
+
+            const tipo = getTransferType(transferencia.sucursal_destino);
+            const isNormal = tipo === "Transferencia";
+            
+            const faltantes = [];
+            if (!empresa.trim()) faltantes.push("Empresa de Transportes");
+            if (!bultos.trim()) faltantes.push("Cant. Bultos");
+            if (!fechaEnvio) faltantes.push("Fecha de Envío");
+            if (!transferencia.codigo_transferencia) faltantes.push("PDF de Transferencia");
+            
+            if (!isNormal) {
+              if (!transferencia.orden_venta?.trim()) faltantes.push("Orden de Venta");
+              if (!transferencia.factura?.trim()) faltantes.push("Factura");
+            }
+
+            if (faltantes.length > 0) {
+              alert(`Para despachar, por favor completa los siguientes datos en el botón "Editar":\n\n- ${faltantes.join("\n- ")}`);
+              return;
+            }
+
             setShowEmailPreview(true);
           }}
           disabled={isSubmitting}

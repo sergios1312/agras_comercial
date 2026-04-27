@@ -9,6 +9,7 @@ import {
   agruparPorSucursal,
   resolverReceptorPedido,
   generarCuerpoEmailHTML,
+  getTransferType
 } from "@/lib/transferencias";
 import { SUCURSALES_DATA } from "@/lib/constants";
 
@@ -89,5 +90,62 @@ export async function enviarNotificacionPedido(
   } catch (err) {
     // El error de email nunca bloquea el flujo del pedido
     console.error("[EMAIL ERROR]", err);
+  }
+}
+
+export async function enviarCorreoTransferencia(datos: {
+  sucursalDestino: string;
+  identifier: string;
+  bultos: string;
+  empresa: string;
+  ordenVenta: string;
+  factura: string;
+  pdfFileName: string;
+}) {
+  const destinatario = "sergio.araujo@quetalcompra.com";
+  const asunto = `Envío a ${datos.sucursalDestino || 'Varias'} - ${datos.identifier}`;
+  
+  const pdfUrl = datos.pdfFileName 
+      ? `https://ffaqsyprvehybfprfmyf.supabase.co/storage/v1/object/public/transferencias_pdfs/${datos.pdfFileName}`
+      : undefined;
+
+  const tipo = getTransferType(datos.sucursalDestino);
+  const isNormal = tipo === "Transferencia";
+
+  const html = `
+    <div style="font-family: sans-serif; color: #333;">
+      <p>Estimados,</p>
+      <p>Se ha procedido con el despacho de la transferencia con destino a <b>${datos.sucursalDestino || 'Varias'}</b>.</p>
+      
+      <p><b>Detalles del Envío:</b></p>
+      <ul>
+        <li><b>Empresa de Transportes:</b> ${datos.empresa || "No especificado"}</li>
+        <li><b>Cantidad de Bultos:</b> ${datos.bultos || "No especificado"}</li>
+        ${!isNormal ? `
+        <li><b>Número de Orden de Venta:</b> ${datos.ordenVenta || "No especificado"}</li>
+        <li><b>Código de Factura:</b> ${datos.factura || "No especificado"}</li>
+        ` : ''}
+      </ul>
+      
+      ${pdfUrl ? `<p>Se ha adjuntado el documento PDF con el comprobante de despacho.</p>` : ''}
+    </div>
+  `;
+
+  try {
+    await transporter.sendMail({
+      from: FROM,
+      to: destinatario,
+      subject: asunto,
+      html,
+      attachments: pdfUrl ? [
+        {
+          filename: datos.pdfFileName,
+          path: pdfUrl,
+        }
+      ] : []
+    });
+    console.log(`[EMAIL TRANSFERENCIA] Enviado a ${destinatario} para transferencia ${datos.identifier}`);
+  } catch (err) {
+    console.error("[EMAIL ERROR] Transferencia:", err);
   }
 }

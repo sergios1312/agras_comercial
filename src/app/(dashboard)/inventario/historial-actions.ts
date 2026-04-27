@@ -469,7 +469,8 @@ export async function removerDeTransferencia(
 export async function despacharTransferencia(
   transferenciaId: number,
   datosFinales?: { codigo_transferencia: string; orden_venta: string; factura: string },
-  fecha_envio_custom?: string
+  fecha_envio_custom?: string,
+  datosCorreo?: { bultos: string; empresa: string; sucursal_destino: string }
 ): Promise<{ error: string | null }> {
   const supabase = await createClient();
   const user = await getSession();
@@ -499,6 +500,23 @@ export async function despacharTransferencia(
     .eq("transferencia_id", transferenciaId);
 
   if (errPedidos) return { error: `Transferencia marcada como despachada, pero error en repuestos: ${errPedidos.message}` };
+
+  if (datosCorreo) {
+    try {
+      const { enviarCorreoTransferencia } = await import("@/lib/email");
+      await enviarCorreoTransferencia({
+        sucursalDestino: datosCorreo.sucursal_destino,
+        identifier: datosFinales?.codigo_transferencia || `TR-${transferenciaId}`,
+        bultos: datosCorreo.bultos,
+        empresa: datosCorreo.empresa,
+        ordenVenta: datosFinales?.orden_venta || "",
+        factura: datosFinales?.factura || "",
+        pdfFileName: datosFinales?.codigo_transferencia || ""
+      });
+    } catch (e) {
+      console.error("Error enviando correo de transferencia:", e);
+    }
+  }
 
   revalidatePath("/inventario");
   return { error: null };
