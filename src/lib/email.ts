@@ -102,7 +102,11 @@ export async function enviarCorreoTransferencia(datos: {
   factura: string;
   pdfFileName: string;
 }) {
-  const { to, cc } = resolverReceptorPedido("Lima", datos.sucursalDestino, false);
+  const { to, cc: ccOriginal } = resolverReceptorPedido("Lima", datos.sucursalDestino, false);
+  
+  // Agregar Edson y Fernando a CC (junto con Jesus y Sergio que ya vienen en ccOriginal)
+  const cc = [...ccOriginal, "edson.quispe@quetalcompra.com", "fernando.chung@quetalcompra.com"];
+
   const asunto = `Envío a ${datos.sucursalDestino || 'Varias'} - ${datos.identifier}`;
   
   const pdfUrl = datos.pdfFileName 
