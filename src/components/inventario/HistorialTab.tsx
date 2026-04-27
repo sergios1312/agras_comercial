@@ -703,6 +703,7 @@ function TablaTransferencias({
   sucursales: string[];
 }) {
   const [despachandoId, setDespachandoId] = useState<number | null>(null);
+  const [isPending, startTransition] = useTransition();
   
   return (
     <div className="space-y-3">
@@ -779,11 +780,14 @@ function TablaTransferencias({
                         </span>
                         <button
                           title="Remover de la transferencia"
-                          onClick={async () => {
-                            const res = await removerDeTransferencia([p.id]);
-                            if (res.error) alert(res.error);
+                          onClick={() => {
+                            startTransition(async () => {
+                              const res = await removerDeTransferencia([p.id]);
+                              if (res?.error) alert(res.error);
+                            });
                           }}
-                          className="text-red-400 hover:text-red-300 ml-1 p-0.5 rounded hover:bg-red-500/20"
+                          className="text-red-400 hover:text-red-300 ml-1 p-0.5 rounded hover:bg-red-500/20 disabled:opacity-50"
+                          disabled={isPending}
                         >
                           <X className="w-3 h-3" />
                         </button>

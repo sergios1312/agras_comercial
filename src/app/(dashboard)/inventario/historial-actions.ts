@@ -403,12 +403,19 @@ export async function asignarATransferencia(
   if (trans.estado !== "Pendiente") return { error: "La transferencia ya fue despachada." };
 
   // 2. Obtener los pedidos para verificar sucursal de destino y estado
-  const { data: pedidos, error: errPedidos } = await rawClient
+  const { data: p1 } = await rawClient
     .from("historial_pedidos")
     .select("id, tecnico_destino, estado")
     .in("id", pedidoIds);
+    
+  const { data: p2 } = await rawClient
+    .from("historial_pedidos_prueba")
+    .select("id, tecnico_destino, estado")
+    .in("id", pedidoIds);
   
-  if (errPedidos || !pedidos) return { error: "Error al validar pedidos." };
+  const pedidos = [...(p1 || []), ...(p2 || [])];
+
+  if (pedidos.length === 0) return { error: "No se encontraron los pedidos a asignar." };
 
   // Validaciones
   const invalidState = pedidos.find((p: any) => p.estado !== "Aprobado");
@@ -440,6 +447,11 @@ export async function asignarATransferencia(
     .update({ transferencia_id: transferenciaId })
     .in("id", pedidoIds);
 
+  await rawClient
+    .from("historial_pedidos_prueba")
+    .update({ transferencia_id: transferenciaId })
+    .in("id", pedidoIds);
+
   if (errUpdate) return { error: `Error al asignar: ${errUpdate.message}` };
 
   revalidatePath("/inventario");
@@ -457,6 +469,11 @@ export async function removerDeTransferencia(
   const rawClient = supabase as unknown as any;
   const { error } = await rawClient
     .from("historial_pedidos")
+    .update({ transferencia_id: null })
+    .in("id", pedidoIds);
+
+  await rawClient
+    .from("historial_pedidos_prueba")
     .update({ transferencia_id: null })
     .in("id", pedidoIds);
 
@@ -493,6 +510,14 @@ export async function despacharTransferencia(
   const ahora = fecha_envio_custom || new Date().toISOString();
   const { error: errPedidos } = await rawClient
     .from("historial_pedidos")
+    .update({
+      estado: "Enviado",
+      fecha_envio: ahora
+    })
+    .eq("transferencia_id", transferenciaId);
+
+  await rawClient
+    .from("historial_pedidos_prueba")
     .update({
       estado: "Enviado",
       fecha_envio: ahora
