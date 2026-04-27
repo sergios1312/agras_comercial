@@ -110,7 +110,7 @@ export async function enviarCorreoTransferencia(datos: {
   const asunto = `Envío a ${datos.sucursalDestino || 'Varias'} - ${datos.identifier}`;
   
   const pdfUrl = datos.pdfFileName 
-      ? `https://ffaqsyprvehybfprfmyf.supabase.co/storage/v1/object/public/transferencias_pdfs/${datos.pdfFileName}.pdf`
+      ? `https://ffaqsyprvehybfprfmyf.supabase.co/storage/v1/object/public/transferencias_pdfs/${datos.pdfFileName}${datos.pdfFileName.endsWith('.pdf') ? '' : '.pdf'}`
       : undefined;
 
   const tipo = getTransferType(datos.sucursalDestino);
@@ -135,6 +135,21 @@ export async function enviarCorreoTransferencia(datos: {
     </div>
   `;
 
+  let attachmentContent: Buffer | undefined = undefined;
+  if (pdfUrl) {
+    try {
+      const res = await fetch(pdfUrl);
+      if (res.ok) {
+        const arrayBuffer = await res.arrayBuffer();
+        attachmentContent = Buffer.from(arrayBuffer);
+      } else {
+        console.warn(`[EMAIL WARNING] PDF no encontrado o error en Supabase: ${pdfUrl} (Status: ${res.status})`);
+      }
+    } catch (err) {
+      console.warn(`[EMAIL WARNING] Error descargando PDF para adjuntar:`, err);
+    }
+  }
+
   try {
     await transporter.sendMail({
       from: FROM,
@@ -142,10 +157,10 @@ export async function enviarCorreoTransferencia(datos: {
       cc: cc.length > 0 ? cc.join(", ") : undefined,
       subject: asunto,
       html,
-      attachments: pdfUrl ? [
+      attachments: attachmentContent ? [
         {
-          filename: datos.pdfFileName,
-          path: pdfUrl,
+          filename: datos.pdfFileName.endsWith('.pdf') ? datos.pdfFileName : `${datos.pdfFileName}.pdf`,
+          content: attachmentContent,
         }
       ] : []
     });

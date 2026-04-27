@@ -1066,7 +1066,7 @@ function TransferenciaAcciones({ transferencia, hasError, pedidos }: { transfere
   const [fechaEnvio, setFechaEnvio] = useState("");
 
   const pdfUrl = transferencia.codigo_transferencia 
-    ? `https://ffaqsyprvehybfprfmyf.supabase.co/storage/v1/object/public/transferencias_pdfs/${transferencia.codigo_transferencia}.pdf`
+    ? `https://ffaqsyprvehybfprfmyf.supabase.co/storage/v1/object/public/transferencias_pdfs/${transferencia.codigo_transferencia}${transferencia.codigo_transferencia.endsWith('.pdf') ? '' : '.pdf'}`
     : null;
 
   return (
