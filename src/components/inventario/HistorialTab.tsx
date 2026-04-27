@@ -1315,9 +1315,8 @@ function VistaAdmin({
         p.tecnico_destino.toLowerCase().trim() === filtroSucursal.toLowerCase().trim()
       );
 
-  const transferenciasFiltradas = filtroSucursal === "Todas"
-    ? transferencias
-    : transferencias.filter(t => t.sucursal_destino?.toLowerCase().trim() === filtroSucursal.toLowerCase().trim());
+  // A petición del usuario, el filtro de sucursal NO debe aplicar a las transferencias
+  const transferenciasFiltradas = transferencias;
 
   const transferenciasPendientes = transferenciasFiltradas.filter(t => t.estado === "Pendiente");
 
