@@ -909,7 +909,6 @@ function ModalEditarTransferencia({
   onClose: () => void;
   onSave: (datos: { bultos: string; empresa: string; fechaEnvio: string; codigo: string; orden: string; factura: string }) => Promise<void>;
 }) {
-  const [codigo, setCodigo] = useState(transferencia.codigo_transferencia || "");
   const [orden, setOrden] = useState(transferencia.orden_venta || "");
   const [factura, setFactura] = useState(transferencia.factura || "");
   const [bultos, setBultos] = useState(bultosInit);
@@ -918,6 +917,18 @@ function ModalEditarTransferencia({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const tipo = getTransferType(transferencia.sucursal_destino);
   const isNormal = tipo === "Transferencia";
+  const prefix = isNormal ? "T050-" : "T021-";
+
+  const [manualCodigo, setManualCodigo] = useState(() => {
+    if (transferencia.codigo_transferencia?.startsWith(prefix)) {
+      return transferencia.codigo_transferencia.slice(prefix.length);
+    }
+    return transferencia.codigo_transferencia || "";
+  });
+
+  const [pdfFile, setPdfFile] = useState<string | null>(transferencia.codigo_transferencia ? `${transferencia.codigo_transferencia}.pdf` : null);
+  const fullCodigo = manualCodigo.trim() ? `${prefix}${manualCodigo.trim()}` : "";
+
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4">
@@ -931,27 +942,53 @@ function ModalEditarTransferencia({
         
         <div className="p-5 space-y-4">
           <div className="space-y-1">
+             <label className="text-xs font-semibold text-slate-400">Código de Transferencia</label>
+             <div className="flex gap-2">
+                <div className="bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-400 font-mono flex items-center">
+                  {prefix}
+                </div>
+                <input 
+                  type="text" 
+                  className="flex-1 bg-slate-800 border border-slate-700 rounded-lg p-2 text-xs text-slate-200 focus:ring-1 focus:ring-indigo-500 font-mono" 
+                  placeholder="Ej: 12345"
+                  value={manualCodigo}
+                  onChange={e => setManualCodigo(e.target.value)}
+                />
+             </div>
+          </div>
+
+          <div className="space-y-1">
              <label className="text-xs font-semibold text-slate-400">PDF de Transferencia</label>
              <div className="relative">
-               <label className="flex items-center justify-center gap-2 w-full py-2 bg-slate-800 border border-slate-700 border-dashed rounded-lg text-xs text-slate-300 hover:bg-slate-700 cursor-pointer transition-colors">
+               <label className={`flex items-center justify-center gap-2 w-full py-2 bg-slate-800 border border-slate-700 border-dashed rounded-lg text-xs text-slate-300 transition-colors ${!manualCodigo.trim() ? 'opacity-50 cursor-not-allowed' : 'hover:bg-slate-700 cursor-pointer'}`}>
                  <FileUp className="w-4 h-4" />
-                 {codigo ? "Reemplazar PDF" : "Subir archivo PDF"}
+                 {pdfFile ? "Reemplazar PDF" : "Subir archivo PDF"}
                  <input 
                    type="file" accept="application/pdf" className="hidden"
+                   disabled={!manualCodigo.trim()}
                    onChange={async (e) => {
                      const file = e.target.files?.[0];
                      if (!file) return;
+                     if (!manualCodigo.trim()) {
+                       alert("Primero ingresa el código de transferencia.");
+                       return;
+                     }
                      setIsSubmitting(true);
                      const supabase = createBrowserClient();
-                     const fileName = `tr_${transferencia.id}_${Date.now()}.pdf`;
-                     const { error: uploadError } = await supabase.storage.from('transferencias_pdfs').upload(fileName, file);
+                     const fileName = `${fullCodigo}.pdf`;
+                     const { error: uploadError } = await supabase.storage.from('transferencias_pdfs').upload(fileName, file, {
+                       upsert: true
+                     });
                      if (uploadError) alert("Error al subir PDF: " + uploadError.message);
-                     else setCodigo(fileName);
+                     else {
+                        setPdfFile(fileName);
+                     }
                      setIsSubmitting(false);
                    }} 
                  />
                </label>
-               {codigo && <div className="mt-2 text-xs text-emerald-400 flex items-center gap-1"><Check className="w-3.5 h-3.5" /> PDF Adjunto: {codigo}</div>}
+               {pdfFile && <div className="mt-2 text-xs text-emerald-400 flex items-center gap-1"><Check className="w-3.5 h-3.5" /> PDF Adjunto: {pdfFile}</div>}
+               {!manualCodigo.trim() && <p className="mt-1 text-[10px] text-slate-500">Ingresa el código antes de subir el PDF</p>}
              </div>
           </div>
 
@@ -999,8 +1036,12 @@ function ModalEditarTransferencia({
           <button 
             disabled={isSubmitting}
             onClick={async () => {
+              if (!manualCodigo.trim()) {
+                alert("El código de transferencia es obligatorio.");
+                return;
+              }
               setIsSubmitting(true);
-              await onSave({ bultos, empresa, fechaEnvio, codigo, orden, factura });
+              await onSave({ bultos, empresa, fechaEnvio, codigo: fullCodigo, orden, factura });
               setIsSubmitting(false);
             }} 
             className="px-5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-semibold flex items-center gap-2 transition-colors disabled:opacity-50"
@@ -1025,7 +1066,7 @@ function TransferenciaAcciones({ transferencia, hasError, pedidos }: { transfere
   const [fechaEnvio, setFechaEnvio] = useState("");
 
   const pdfUrl = transferencia.codigo_transferencia 
-    ? `https://ffaqsyprvehybfprfmyf.supabase.co/storage/v1/object/public/transferencias_pdfs/${transferencia.codigo_transferencia}`
+    ? `https://ffaqsyprvehybfprfmyf.supabase.co/storage/v1/object/public/transferencias_pdfs/${transferencia.codigo_transferencia}.pdf`
     : null;
 
   return (

@@ -110,7 +110,7 @@ export async function enviarCorreoTransferencia(datos: {
   const asunto = `Envío a ${datos.sucursalDestino || 'Varias'} - ${datos.identifier}`;
   
   const pdfUrl = datos.pdfFileName 
-      ? `https://ffaqsyprvehybfprfmyf.supabase.co/storage/v1/object/public/transferencias_pdfs/${datos.pdfFileName}`
+      ? `https://ffaqsyprvehybfprfmyf.supabase.co/storage/v1/object/public/transferencias_pdfs/${datos.pdfFileName}.pdf`
       : undefined;
 
   const tipo = getTransferType(datos.sucursalDestino);
