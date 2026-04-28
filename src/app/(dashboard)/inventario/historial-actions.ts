@@ -340,25 +340,26 @@ export async function eliminarCasoReposicion(
 }
 
 // ─── CRUD: Transferencias de Abastecimiento ────────────────────────
+// NOTA: Las funciones de transferencia NO usan revalidatePath.
+// El cliente gestiona el estado de forma optimista (Optimistic UI),
+// actualizando la UI instantáneamente sin esperar al servidor.
 
 export async function crearTransferencia(
   datos: { codigo_transferencia: string; orden_venta: string; factura: string }
-): Promise<{ id: number | null; error: string | null }> {
+): Promise<{ transferencia: { id: number; codigo_transferencia: string; orden_venta: string; factura: string; sucursal_destino: string | null; estado: string } | null; error: string | null }> {
   const supabase = await createClient();
   const user = await getSession();
-  if (!user || user.role !== "admin") return { id: null, error: "No autorizado." };
+  if (!user || user.role !== "admin") return { transferencia: null, error: "No autorizado." };
 
   const rawClient = supabase as unknown as any;
   const { data, error } = await rawClient
     .from("transferencias")
     .insert([{ ...datos, estado: "Pendiente" }])
-    .select("id")
+    .select("id, codigo_transferencia, orden_venta, factura, sucursal_destino, estado")
     .single();
 
-  if (error) return { id: null, error: `Error al crear transferencia: ${error.message}` };
-  
-  revalidatePath("/inventario");
-  return { id: data.id, error: null };
+  if (error) return { transferencia: null, error: `Error al crear transferencia: ${error.message}` };
+  return { transferencia: data, error: null };
 }
 
 export async function editarTransferencia(
@@ -376,8 +377,6 @@ export async function editarTransferencia(
     .eq("id", transferenciaId);
 
   if (error) return { error: `Error al editar transferencia: ${error.message}` };
-  
-  revalidatePath("/inventario");
   return { error: null };
 }
 
@@ -392,69 +391,43 @@ export async function asignarATransferencia(
 
   const rawClient = supabase as unknown as any;
 
-  // 1. Obtener la transferencia
-  const { data: trans, error: errTrans } = await rawClient
-    .from("transferencias")
-    .select("*")
-    .eq("id", transferenciaId)
-    .single();
+  // Paralelizar: obtener la transferencia y los pedidos al mismo tiempo
+  const [{ data: trans, error: errTrans }, { data: pedidos, error: errPedidos }] = await Promise.all([
+    rawClient.from("transferencias").select("id, estado, sucursal_destino").eq("id", transferenciaId).single(),
+    rawClient.from("historial_pedidos").select("id, tecnico_destino, estado").in("id", pedidoIds),
+  ]);
 
   if (errTrans || !trans) return { error: "Transferencia no encontrada." };
   if (trans.estado !== "Pendiente") return { error: "La transferencia ya fue despachada." };
-
-  // 2. Obtener los pedidos para verificar sucursal de destino y estado
-  const { data: p1 } = await rawClient
-    .from("historial_pedidos")
-    .select("id, tecnico_destino, estado")
-    .in("id", pedidoIds);
-    
-  const { data: p2 } = await rawClient
-    .from("historial_pedidos_prueba")
-    .select("id, tecnico_destino, estado")
-    .in("id", pedidoIds);
-  
-  const pedidos = [...(p1 || []), ...(p2 || [])];
-
-  if (pedidos.length === 0) return { error: "No se encontraron los pedidos a asignar." };
+  if (errPedidos || !pedidos || pedidos.length === 0) return { error: "No se encontraron los pedidos a asignar." };
 
   // Validaciones
   const invalidState = pedidos.find((p: any) => p.estado !== "Aprobado");
   if (invalidState) return { error: "Solo puedes asignar pedidos en estado 'Aprobado'." };
 
-  // Validar destinos unicos
   const destinos = new Set(pedidos.map((p: any) => p.tecnico_destino));
-  if (destinos.size > 1) {
-    return { error: "Todos los pedidos seleccionados deben ir a la misma sucursal." };
-  }
+  if (destinos.size > 1) return { error: "Todos los pedidos seleccionados deben ir a la misma sucursal." };
 
   const destinoPedidos = destinos.values().next().value as string;
   let destinoTransferencia = trans.sucursal_destino;
 
-  // Si la transferencia estaba vacía, se "ancla" a esta sucursal
+  // Si la transferencia estaba vacía, anclarla a esta sucursal en paralelo con la asignación
+  const promises: Promise<any>[] = [
+    rawClient.from("historial_pedidos").update({ transferencia_id: transferenciaId }).in("id", pedidoIds),
+  ];
+
   if (!destinoTransferencia) {
-    destinoTransferencia = destinoPedidos;
-    await rawClient
-      .from("transferencias")
-      .update({ sucursal_destino: destinoTransferencia })
-      .eq("id", transferenciaId);
+    promises.push(
+      rawClient.from("transferencias").update({ sucursal_destino: destinoPedidos }).eq("id", transferenciaId)
+    );
   } else if (destinoTransferencia !== destinoPedidos) {
     return { error: `La transferencia es para ${destinoTransferencia}. No se pueden añadir pedidos para ${destinoPedidos}.` };
   }
 
-  // 3. Asignar los IDs a la transferencia
-  const { error: errUpdate } = await rawClient
-    .from("historial_pedidos")
-    .update({ transferencia_id: transferenciaId })
-    .in("id", pedidoIds);
-
-  await rawClient
-    .from("historial_pedidos_prueba")
-    .update({ transferencia_id: transferenciaId })
-    .in("id", pedidoIds);
-
+  const results = await Promise.all(promises);
+  const errUpdate = results[0].error;
   if (errUpdate) return { error: `Error al asignar: ${errUpdate.message}` };
 
-  revalidatePath("/inventario");
   return { error: null };
 }
 
@@ -472,14 +445,7 @@ export async function removerDeTransferencia(
     .update({ transferencia_id: null })
     .in("id", pedidoIds);
 
-  await rawClient
-    .from("historial_pedidos_prueba")
-    .update({ transferencia_id: null })
-    .in("id", pedidoIds);
-
   if (error) return { error: `Error al remover: ${error.message}` };
-
-  revalidatePath("/inventario");
   return { error: null };
 }
 
@@ -494,37 +460,16 @@ export async function despacharTransferencia(
   if (!user || user.role !== "admin") return { error: "No autorizado." };
 
   const rawClient = supabase as unknown as any;
+  const ahora = fecha_envio_custom || new Date().toISOString();
 
-  // Actualizar la transferencia a Enviado
-  const { error: errTrans } = await rawClient
-    .from("transferencias")
-    .update({
-      estado: "Enviado",
-      ...(datosFinales || {})
-    })
-    .eq("id", transferenciaId);
+  // Paralelizar: actualizar la transferencia y los pedidos al mismo tiempo
+  const [{ error: errTrans }, { error: errPedidos }] = await Promise.all([
+    rawClient.from("transferencias").update({ estado: "Enviado", ...(datosFinales || {}) }).eq("id", transferenciaId),
+    rawClient.from("historial_pedidos").update({ estado: "Enviado", fecha_envio: ahora }).eq("transferencia_id", transferenciaId),
+  ]);
 
   if (errTrans) return { error: `Error al despachar transferencia: ${errTrans.message}` };
-
-  // Ahora actualizar los pedidos que pertenezcan a esta transferencia
-  const ahora = fecha_envio_custom || new Date().toISOString();
-  const { error: errPedidos } = await rawClient
-    .from("historial_pedidos")
-    .update({
-      estado: "Enviado",
-      fecha_envio: ahora
-    })
-    .eq("transferencia_id", transferenciaId);
-
-  await rawClient
-    .from("historial_pedidos_prueba")
-    .update({
-      estado: "Enviado",
-      fecha_envio: ahora
-    })
-    .eq("transferencia_id", transferenciaId);
-
-  if (errPedidos) return { error: `Transferencia marcada como despachada, pero error en repuestos: ${errPedidos.message}` };
+  if (errPedidos) return { error: `Transferencia marcada, pero error en repuestos: ${errPedidos.message}` };
 
   if (datosCorreo) {
     try {
@@ -555,20 +500,14 @@ export async function eliminarTransferencia(
   if (!user || user.role !== "admin") return { error: "No autorizado." };
 
   const rawClient = supabase as unknown as any;
-  
-  // Primero desvincular los pedidos
-  await rawClient
-    .from("historial_pedidos")
-    .update({ transferencia_id: null })
-    .eq("transferencia_id", transferenciaId);
 
-  const { error } = await rawClient
-    .from("transferencias")
-    .delete()
-    .eq("id", transferenciaId);
+  // Desanclar pedidos y luego eliminar la transferencia
+  await rawClient.from("historial_pedidos").update({ transferencia_id: null }).eq("transferencia_id", transferenciaId);
 
+  const { error } = await rawClient.from("transferencias").delete().eq("id", transferenciaId);
   if (error) return { error: `Error al eliminar transferencia: ${error.message}` };
 
-  revalidatePath("/inventario");
   return { error: null };
 }
+
+

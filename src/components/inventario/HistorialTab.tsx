@@ -696,11 +696,17 @@ import { getTransferType, resolverReceptorPedido } from "@/lib/transferencias";
 function TablaTransferencias({
   transferencias,
   historial,
-  sucursales
+  sucursales,
+  onEliminarTransferencia,
+  onEditarTransferencia,
+  onRemoverItem,
 }: {
   transferencias: Transferencia[];
   historial: HistorialPedido[];
   sucursales: string[];
+  onEliminarTransferencia: (id: number) => void;
+  onEditarTransferencia: (id: number, datos: Partial<Transferencia>) => void;
+  onRemoverItem: (pedidoId: number, transferenciaId: number) => void;
 }) {
   const [despachandoId, setDespachandoId] = useState<number | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -723,9 +729,15 @@ function TablaTransferencias({
                   <select
                     className="bg-slate-800 border border-slate-700 text-sm font-medium rounded px-2 py-0.5 text-slate-300 min-w-[120px] focus:ring-1 focus:ring-indigo-500 capitalize"
                     value={t.sucursal_destino || ""}
-                    onChange={async (e) => {
-                       const res = await editarTransferencia(t.id, { sucursal_destino: e.target.value });
-                       if (res.error) alert(res.error);
+                    onChange={(e) => {
+                      const newVal = e.target.value;
+                      onEditarTransferencia(t.id, { sucursal_destino: newVal });
+                      editarTransferencia(t.id, { sucursal_destino: newVal }).then(res => {
+                        if (res.error) {
+                          alert(res.error);
+                          onEditarTransferencia(t.id, { sucursal_destino: t.sucursal_destino });
+                        }
+                      });
                     }}
                   >
                     <option value="">Seleccionar...</option>
@@ -743,10 +755,12 @@ function TablaTransferencias({
               </div>
               <div className="flex items-center gap-2">
                 <button
-                  onClick={async () => {
+                  onClick={() => {
                     if (confirm("¿Estás seguro de eliminar esta transferencia? Los pedidos volverán a estar por despachar.")) {
-                      const res = await eliminarTransferencia(t.id);
-                      if (res.error) alert(res.error);
+                      onEliminarTransferencia(t.id);
+                      eliminarTransferencia(t.id).then(res => {
+                        if (res.error) alert(`Error al eliminar: ${res.error}`);
+                      });
                     }
                   }}
                   className="px-3 py-1.5 text-xs font-semibold rounded bg-red-500/10 text-red-500 hover:bg-red-500/20 transition-colors border border-red-500/20"
@@ -780,14 +794,14 @@ function TablaTransferencias({
                         </span>
                         <button
                           title="Remover de la transferencia"
+                          disabled={isPending}
                           onClick={() => {
-                            startTransition(async () => {
-                              const res = await removerDeTransferencia([p.id]);
+                            onRemoverItem(p.id, t.id);
+                            removerDeTransferencia([p.id]).then(res => {
                               if (res?.error) alert(res.error);
                             });
                           }}
                           className="text-red-400 hover:text-red-300 ml-1 p-0.5 rounded hover:bg-red-500/20 disabled:opacity-50"
-                          disabled={isPending}
                         >
                           <X className="w-3 h-3" />
                         </button>
@@ -1262,6 +1276,11 @@ function VistaAdmin({
   onEditarCasoReposicion,
   onEliminarCasoReposicion,
   onFechasUpdated,
+  onCrearTransferencia,
+  onEliminarTransferencia,
+  onEditarTransferencia,
+  onAsignarItems,
+  onRemoverItem,
 }: {
   historial: HistorialPedido[];
   casosReposicion: CasoReposicion[];
@@ -1275,6 +1294,11 @@ function VistaAdmin({
   onEditarCasoReposicion: (id: number, datos: any) => Promise<void>;
   onEliminarCasoReposicion: (id: number) => Promise<void>;
   onFechasUpdated: (id: number, fechas: Partial<HistorialPedido>) => void;
+  onCrearTransferencia: () => void;
+  onEliminarTransferencia: (id: number) => void;
+  onEditarTransferencia: (id: number, datos: Partial<Transferencia>) => void;
+  onAsignarItems: (pedidoIds: number[], transferenciaId: number) => Promise<{ error: string | null }>;
+  onRemoverItem: (pedidoId: number, transferenciaId: number) => void;
 }) {
   const tabs: { id: TipoReporte | "aprobaciones"; label: string; icon: React.ReactNode }[] = [
     { id: "aprobaciones",  label: "Aprobaciones",     icon: <CheckCircle2 className="w-3.5 h-3.5" /> },
@@ -1302,7 +1326,6 @@ function VistaAdmin({
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [selectedTransferenciaId, setSelectedTransferenciaId] = useState<string>("");
   const [isAbasteciendo, setIsAbasteciendo] = useState(false);
-  const [isGenerandoTransferencia, setIsGenerandoTransferencia] = useState(false);
 
   const handleToggleSelect = (id: number) => {
     setSelectedIds((prev) =>
@@ -1411,11 +1434,9 @@ function VistaAdmin({
                       if (!selectedTransferenciaId) return alert("Selecciona una transferencia.");
                       if (selectedIds.length === 0) return alert("Selecciona repuestos.");
                       setIsAbasteciendo(true);
-                      const res = await asignarATransferencia(selectedIds, Number(selectedTransferenciaId));
+                      const res = await onAsignarItems(selectedIds, Number(selectedTransferenciaId));
                       if (res.error) alert(res.error);
-                      else {
-                        setSelectedIds([]);
-                      }
+                      else setSelectedIds([]);
                       setIsAbasteciendo(false);
                     }}
                     disabled={isAbasteciendo || selectedIds.length === 0 || !selectedTransferenciaId}
@@ -1425,17 +1446,11 @@ function VistaAdmin({
                   </button>
                 </div>
                 <div className="ml-auto">
-                  <button
-                    onClick={async () => {
-                      setIsGenerandoTransferencia(true);
-                      const res = await crearTransferencia({ codigo_transferencia: "", orden_venta: "", factura: "" });
-                      if (res.error) alert(res.error);
-                      setIsGenerandoTransferencia(false);
-                    }}
-                    disabled={isGenerandoTransferencia}
-                    className="flex items-center gap-2 bg-emerald-600/20 text-emerald-400 hover:bg-emerald-600/30 border border-emerald-500/30 px-3 py-2 rounded-lg text-sm font-semibold transition-colors disabled:opacity-50"
+                                    <button
+                    onClick={() => onCrearTransferencia()}
+                    className="flex items-center gap-2 bg-emerald-600/20 text-emerald-400 hover:bg-emerald-600/30 border border-emerald-500/30 px-3 py-2 rounded-lg text-sm font-semibold transition-colors"
                   >
-                    {isGenerandoTransferencia ? "Creando..." : "+ Nueva Transferencia Vacía"}
+                    + Nueva Transferencia Vacía
                   </button>
                 </div>
               </div>
@@ -1475,6 +1490,9 @@ function VistaAdmin({
                   transferencias={transferenciasPendientes}
                   historial={historialFiltrado}
                   sucursales={sucursales}
+                  onEliminarTransferencia={onEliminarTransferencia}
+                  onEditarTransferencia={onEditarTransferencia}
+                  onRemoverItem={onRemoverItem}
                 />
               )}
             </div>
@@ -1924,11 +1942,13 @@ export function HistorialTab({
   // Optimistic UI states
   const [localHistorial, setLocalHistorial] = useState<HistorialPedido[]>(historial);
   const [localCasos, setLocalCasos] = useState<CasoReposicion[]>(casosReposicion);
+  const [localTransferencias, setLocalTransferencias] = useState<Transferencia[]>(transferencias);
 
   useEffect(() => {
     setLocalHistorial(historial);
     setLocalCasos(casosReposicion);
-  }, [historial, casosReposicion]);
+    setLocalTransferencias(transferencias);
+  }, [historial, casosReposicion, transferencias]);
 
   // Función de actualización de estado de repuesto (admin) 
   async function handleActualizarEstado(id: number, estado: EstadoPedido) {
@@ -1997,6 +2017,40 @@ export function HistorialTab({
     await eliminarCasoReposicion(id);
   }
 
+  async function handleCrearTransferencia() {
+    const fakeId = Date.now();
+    const nueva = { id: fakeId, codigo_transferencia: "", orden_venta: "", factura: "", sucursal_destino: null, estado: "Pendiente" } as any;
+    setLocalTransferencias(prev => [nueva, ...prev]);
+    const { transferencia, error } = await crearTransferencia({ codigo_transferencia: "", orden_venta: "", factura: "" });
+    if (error) {
+      alert(error);
+      setLocalTransferencias(prev => prev.filter(t => t.id !== fakeId));
+    } else if (transferencia) {
+      setLocalTransferencias(prev => prev.map(t => t.id === fakeId ? (transferencia as any) : t));
+    }
+  }
+
+  function handleEliminarTransferencia(id: number) {
+    setLocalHistorial(prev => prev.map(p => p.transferencia_id === id ? { ...p, transferencia_id: null } : p));
+    setLocalTransferencias(prev => prev.filter(t => t.id !== id));
+  }
+
+  function handleEditarTransferencia(id: number, datos: Partial<Transferencia>) {
+    setLocalTransferencias(prev => prev.map(t => t.id === id ? { ...t, ...datos } : t));
+  }
+
+  async function handleAsignarItems(pedidoIds: number[], transferenciaId: number): Promise<{ error: string | null }> {
+    const snapshot = localHistorial;
+    setLocalHistorial(prev => prev.map(p => pedidoIds.includes(p.id) ? { ...p, transferencia_id: transferenciaId } : p));
+    const res = await asignarATransferencia(pedidoIds, transferenciaId);
+    if (res.error) setLocalHistorial(snapshot);
+    return res;
+  }
+
+  function handleRemoverItem(pedidoId: number) {
+    setLocalHistorial(prev => prev.map(p => p.id === pedidoId ? { ...p, transferencia_id: null } : p));
+  }
+
   return (
     <div className="space-y-4">
       {/* Header */}
@@ -2027,7 +2081,7 @@ export function HistorialTab({
         <VistaAdmin
           historial={localHistorial}
           casosReposicion={localCasos}
-          transferencias={transferencias}
+          transferencias={localTransferencias}
           ciudadUsuario={ciudadUsuario}
           sucursales={sucursales}
           onActualizarEstado={handleActualizarEstado}
@@ -2037,6 +2091,11 @@ export function HistorialTab({
           onEditarCasoReposicion={handleEditarCaso}
           onEliminarCasoReposicion={handleEliminarCaso}
           onFechasUpdated={handleFechasUpdated}
+          onCrearTransferencia={handleCrearTransferencia}
+          onEliminarTransferencia={handleEliminarTransferencia}
+          onEditarTransferencia={handleEditarTransferencia}
+          onAsignarItems={handleAsignarItems}
+          onRemoverItem={handleRemoverItem}
         />
       ) : (
         <VistaTecnico
