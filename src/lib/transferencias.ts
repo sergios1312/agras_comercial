@@ -9,11 +9,15 @@ import type { ItemCarrito } from "@/types/database.types";
 // ─── Tipos ───────────────────────────────────────────────────
 export type TipoReporte = "Abastecimiento" | "Reposición" | "Envío Interno";
 
-export const INTERCOMPANY_BRANCHES = ["bellavista", "pucallpa", "nueva cajamarca", "huánuco", "jaén", "yurimaguas"];
+export const INTERCOMPANY_BRANCHES = ["bellavista", "pucallpa", "nueva cajamarca", "huanuco", "jaen", "yurimaguas"];
 
 export function getTransferType(sucursal: string | null) {
   if (!sucursal) return "—";
-  if (INTERCOMPANY_BRANCHES.some(s => sucursal.toLowerCase().includes(s))) return "Intercompany";
+  
+  // Normalizar: quitar tildes y pasar a minúsculas para una comparación segura
+  const normalizedSucursal = sucursal.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  
+  if (INTERCOMPANY_BRANCHES.some(s => normalizedSucursal.includes(s))) return "Intercompany";
   return "Transferencia";
 }
 
