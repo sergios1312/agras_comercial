@@ -94,10 +94,10 @@ function parsearCsvTexto(raw: string, sucursalesDB: string[]): Caso[] {
     fechaIngreso: idx("Fecha de ingreso"),
     fechaSalida: idx("Fecha de salida"),
     // Equipo: prioridad Dron > Generador > Control > Batería
-    equipoDron:      idxNorm("dron"),
+    equipoDron: idxNorm("dron"),
     equipoGenerador: idxNorm("generador"),
-    equipoControl:   idxNorm("control"),
-    equipoBateria:   idxNorm("bateria"),
+    equipoControl: idxNorm("control"),
+    equipoBateria: idxNorm("bateria"),
   };
 
   // Validación de columnas críticas
@@ -286,7 +286,7 @@ export function CargaCasosPanel({ ultimaActualizacion, sucursalesDB }: Props) {
 
         // Comparar campos para ver si hay cambios reales
         const norm = (val: any) => (val ?? "").toString().trim().toUpperCase();
-        const identicos = 
+        const identicos =
           norm(c.estadoGeneral) === norm(dbCase.estado_general) &&
           norm(c.descripcion) === norm(dbCase.descripcion) &&
           norm(c.cliente) === norm(dbCase.cliente) &&
@@ -298,34 +298,34 @@ export function CargaCasosPanel({ ultimaActualizacion, sucursalesDB }: Props) {
           norm(c.fechaSalida) === norm(dbCase.fecha_salida) &&
           norm(c.sucursal) === norm(dbCase.sucursales?.nombre_ciudad);
 
-        return { 
-          ...c, 
-          estadoCarga: identicos ? "sin_cambios" : "modificado" 
+        return {
+          ...c,
+          estadoCarga: identicos ? "sin_cambios" : "modificado"
         };
       });
 
       let countPurgados = 0;
       existentes.forEach((dbCase) => {
         if (dbCase.estado_sistema === 'activo' && !procesadosNumeracion.has(dbCase.numeracion_caso)) {
-           countPurgados++;
-           casosConEstado.push({
-             id: Math.random() * 1000000,
-             numeracionCaso: dbCase.numeracion_caso,
-             estadoGeneral: dbCase.estado_general || "ABIERTO",
-             descripcion: dbCase.descripcion || "",
-             sucursal: dbCase.sucursales?.nombre_ciudad || "",
-             cliente: dbCase.cliente || "",
-             equipo: dbCase.equipo || "",
-             garantia: dbCase.garantia || "",
-             estadoCaso: dbCase.estado_caso || "SIN ESTADO",
-             tipoTrabajo: dbCase.tipo_trabajo || "SIN TIPO",
-             fechaIngreso: dbCase.fecha_ingreso,
-             fechaSalida: dbCase.fecha_salida,
-             periodoMensual: null,
-             rtat: null,
-             clasificacionSLA: null,
-             estadoCarga: "purgado"
-           });
+          countPurgados++;
+          casosConEstado.push({
+            id: Math.random() * 1000000,
+            numeracionCaso: dbCase.numeracion_caso,
+            estadoGeneral: dbCase.estado_general || "ABIERTO",
+            descripcion: dbCase.descripcion || "",
+            sucursal: dbCase.sucursales?.nombre_ciudad || "",
+            cliente: dbCase.cliente || "",
+            equipo: dbCase.equipo || "",
+            garantia: dbCase.garantia || "",
+            estadoCaso: dbCase.estado_caso || "SIN ESTADO",
+            tipoTrabajo: dbCase.tipo_trabajo || "SIN TIPO",
+            fechaIngreso: dbCase.fecha_ingreso,
+            fechaSalida: dbCase.fecha_salida,
+            periodoMensual: null,
+            rtat: null,
+            clasificacionSLA: null,
+            estadoCarga: "purgado"
+          });
         }
       });
 
@@ -380,7 +380,7 @@ export function CargaCasosPanel({ ultimaActualizacion, sucursalesDB }: Props) {
       setPanelState("uploading");
       setMensaje("");
       const casosAEnviar = casos.filter(c => c.estadoCarga !== "sin_cambios");
-      
+
       if (casosAEnviar.length === 0) {
         setMensaje("No hay cambios detectados para subir.");
         setPanelState("done");
@@ -429,38 +429,36 @@ export function CargaCasosPanel({ ultimaActualizacion, sucursalesDB }: Props) {
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
           onClick={() => fileInputRef.current?.click()}
-          className={`relative flex flex-col items-center justify-center gap-4 p-10 rounded-xl border-2 border-dashed cursor-pointer transition-all duration-200 ${
-            isDragging
+          className={`relative flex flex-col items-center justify-center gap-4 p-10 rounded-xl border-2 border-dashed cursor-pointer transition-all duration-200 ${isDragging
               ? "border-emerald-500 bg-emerald-500/10 scale-[1.01]"
               : "border-slate-700 bg-slate-900/40 hover:border-slate-500 hover:bg-slate-900/60"
-          }`}
+            }`}
         >
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept=".csv"
-          className="hidden"
-          onChange={handleFileInput}
-        />
-        <div
-          className={`flex items-center justify-center w-14 h-14 rounded-2xl border transition-colors ${
-            isDragging
-              ? "bg-emerald-500/20 border-emerald-500/50"
-              : "bg-slate-800 border-slate-700"
-          }`}
-        >
-          <UploadCloud
-            className={`w-7 h-7 transition-colors ${isDragging ? "text-emerald-400" : "text-slate-400"}`}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".csv"
+            className="hidden"
+            onChange={handleFileInput}
           />
-        </div>
-        <div className="text-center">
-          <p className="text-sm font-semibold text-slate-200">
-            Arrastra tu <code className="text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded text-xs">casos.csv</code> aquí
-          </p>
-          <p className="text-xs text-slate-500 mt-1">o haz click para seleccionar el archivo</p>
+          <div
+            className={`flex items-center justify-center w-14 h-14 rounded-2xl border transition-colors ${isDragging
+                ? "bg-emerald-500/20 border-emerald-500/50"
+                : "bg-slate-800 border-slate-700"
+              }`}
+          >
+            <UploadCloud
+              className={`w-7 h-7 transition-colors ${isDragging ? "text-emerald-400" : "text-slate-400"}`}
+            />
+          </div>
+          <div className="text-center">
+            <p className="text-sm font-semibold text-slate-200">
+              Arrastra tu <code className="text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded text-xs">casos.csv</code> aquí
+            </p>
+            <p className="text-xs text-slate-500 mt-1">o haz click para seleccionar el archivo</p>
+          </div>
         </div>
       </div>
-     </div>
     );
   }
 
@@ -560,7 +558,7 @@ export function CargaCasosPanel({ ultimaActualizacion, sucursalesDB }: Props) {
           <span className="text-2xl font-bold text-red-400">
             {resumen.purgados.toLocaleString()}
           </span>
-          <span className="text-xs text-red-600 text-center">A inactivar</span>
+          <span className="text-xs text-red-600 text-center">Eliminados</span>
         </div>
       </div>
 
@@ -616,11 +614,10 @@ export function CargaCasosPanel({ ultimaActualizacion, sucursalesDB }: Props) {
                   </td>
                   <td className="px-3 py-2 whitespace-nowrap">
                     <span
-                      className={`font-medium ${
-                        caso.estadoGeneral === "CERRADO"
+                      className={`font-medium ${caso.estadoGeneral === "CERRADO"
                           ? "text-slate-400"
                           : "text-emerald-400"
-                      }`}
+                        }`}
                     >
                       {caso.estadoGeneral}
                     </span>
