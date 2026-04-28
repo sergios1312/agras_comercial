@@ -34,7 +34,6 @@ export function TablaPrincipal({ casos }: Props) {
               <th className="text-left px-3 py-2.5 text-slate-400 font-semibold uppercase tracking-widest">Cliente</th>
               <th className="text-left px-3 py-2.5 text-slate-400 font-semibold uppercase tracking-widest">Equipo</th>
               <th className="text-left px-3 py-2.5 text-slate-400 font-semibold uppercase tracking-widest">Estado de caso</th>
-              <th className="text-left px-3 py-2.5 text-slate-400 font-semibold uppercase tracking-widest">Estado de caso</th>
               <th className="text-left px-3 py-2.5 text-slate-400 font-semibold uppercase tracking-widest">Tipo Trabajo</th>
               <th className="text-left px-3 py-2.5 text-slate-400 font-semibold uppercase tracking-widest">Ingreso</th>
               <th className="text-left px-3 py-2.5 text-slate-400 font-semibold uppercase tracking-widest">Salida</th>
@@ -58,7 +57,6 @@ export function TablaPrincipal({ casos }: Props) {
                 <td className="px-3 py-2 text-slate-400 max-w-[180px] truncate">{c.cliente || "—"}</td>
                 <td className="px-3 py-2 text-slate-400 max-w-[160px] truncate">{c.equipo || "—"}</td>
                 <td className="px-3 py-2 text-slate-400 max-w-[180px] truncate">{c.tipoTrabajo || "—"}</td>
-                <td className="px-3 py-2 text-slate-400 max-w-[180px] truncate">{c.estadoCaso || "—"}</td>
                 <td className="px-3 py-2 text-slate-400 max-w-[180px] truncate">{c.estadoCaso || "—"}</td>
                 <td className="px-3 py-2 text-slate-400 font-mono">{formatFecha(c.fechaIngreso)}</td>
                 <td className="px-3 py-2 text-slate-400 font-mono">{formatFecha(c.fechaSalida)}</td>
