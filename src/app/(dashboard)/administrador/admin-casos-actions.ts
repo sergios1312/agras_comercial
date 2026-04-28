@@ -3,7 +3,7 @@
 import { createAdminClient } from "@/utils/supabase/admin";
 import { getSession } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
-import type { Caso } from "@/types/casos.types";
+import type { Caso, CasoConEstado } from "@/types/casos.types";
 
 // ─── Tipos del resultado ──────────────────────────────────────
 interface ActionResult {
@@ -35,7 +35,7 @@ async function obtenerDictSucursales(
 
 // ─── Nueva Server Action: recibe casos ya parseados desde el cliente ──
 export async function confirmarSubidaCasos(
-  casosParseados: Caso[]
+  casosParseados: CasoConEstado[]
 ): Promise<ActionResult> {
   const user = await getSession();
   if (!user || user.role !== "admin") {
@@ -75,6 +75,7 @@ export async function confirmarSubidaCasos(
         tipo_trabajo: c.tipoTrabajo || null,
         fecha_ingreso: c.fechaIngreso || null,
         fecha_salida: c.fechaSalida || null,
+        estado_sistema: c.estadoCarga === "purgado" ? "inactivo" : "activo",
       };
     });
 
@@ -136,6 +137,7 @@ export async function obtenerCasosExistentesDetalle(): Promise<any[]> {
       tipo_trabajo, 
       fecha_ingreso, 
       fecha_salida,
+      estado_sistema,
       sucursales(nombre_ciudad)
     `);
 

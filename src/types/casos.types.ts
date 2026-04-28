@@ -25,13 +25,14 @@ export interface Caso {
 }
 
 export interface CasoConEstado extends Caso {
-  estadoCarga: "nuevo" | "modificado" | "sin_cambios";
+  estadoCarga: "nuevo" | "modificado" | "sin_cambios" | "purgado";
 }
 
 export interface ResumenCarga {
   nuevos: number;
   modificados: number;
   sinCambios: number;
+  purgados: number;
 }
 
 export const PLAZOS_IDEALES: Record<string, number> = {

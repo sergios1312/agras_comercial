@@ -191,7 +191,14 @@ function parsearCsvTexto(raw: string, sucursalesDB: string[]): Caso[] {
 }
 
 // ─── Badges de estado de carga ────────────────────────────────
-function BadgeCarga({ estado }: { estado: "nuevo" | "modificado" | "sin_cambios" }) {
+function BadgeCarga({ estado }: { estado: "nuevo" | "modificado" | "sin_cambios" | "purgado" }) {
+  if (estado === "purgado") {
+    return (
+      <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide bg-red-500/20 text-red-400 border border-red-500/30">
+        PURGADO
+      </span>
+    );
+  }
   if (estado === "nuevo") {
     return (
       <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
@@ -235,7 +242,7 @@ interface Props {
 export function CargaCasosPanel({ ultimaActualizacion, sucursalesDB }: Props) {
   const [panelState, setPanelState] = useState<PanelState>("idle");
   const [casos, setCasos] = useState<CasoConEstado[]>([]);
-  const [resumen, setResumen] = useState<ResumenCarga>({ nuevos: 0, modificados: 0, sinCambios: 0 });
+  const [resumen, setResumen] = useState<ResumenCarga>({ nuevos: 0, modificados: 0, sinCambios: 0, purgados: 0 });
   const [mensaje, setMensaje] = useState<string>("");
   const [errorMsg, setErrorMsg] = useState<string>("");
   const [isDragging, setIsDragging] = useState(false);
@@ -268,7 +275,10 @@ export function CargaCasosPanel({ ultimaActualizacion, sucursalesDB }: Props) {
       const mapExistentes = new Map<string, any>();
       existentes.forEach((r) => mapExistentes.set(r.numeracion_caso, r));
 
+      const procesadosNumeracion = new Set<string>();
+
       const casosConEstado: CasoConEstado[] = casosParseados.map((c) => {
+        procesadosNumeracion.add(c.numeracionCaso);
         const dbCase = mapExistentes.get(c.numeracionCaso);
         if (!dbCase) {
           return { ...c, estadoCarga: "nuevo" };
@@ -294,12 +304,37 @@ export function CargaCasosPanel({ ultimaActualizacion, sucursalesDB }: Props) {
         };
       });
 
+      let countPurgados = 0;
+      existentes.forEach((dbCase) => {
+        if (dbCase.estado_sistema === 'activo' && !procesadosNumeracion.has(dbCase.numeracion_caso)) {
+           countPurgados++;
+           casosConEstado.push({
+             id: Math.random() * 1000000,
+             numeracionCaso: dbCase.numeracion_caso,
+             estadoGeneral: dbCase.estado_general || "ABIERTO",
+             descripcion: dbCase.descripcion || "",
+             sucursal: dbCase.sucursales?.nombre_ciudad || "",
+             cliente: dbCase.cliente || "",
+             equipo: dbCase.equipo || "",
+             garantia: dbCase.garantia || "",
+             estadoCaso: dbCase.estado_caso || "SIN ESTADO",
+             tipoTrabajo: dbCase.tipo_trabajo || "SIN TIPO",
+             fechaIngreso: dbCase.fecha_ingreso,
+             fechaSalida: dbCase.fecha_salida,
+             periodoMensual: null,
+             rtat: null,
+             clasificacionSLA: null,
+             estadoCarga: "purgado"
+           });
+        }
+      });
+
       const nuevos = casosConEstado.filter((c) => c.estadoCarga === "nuevo").length;
       const modificados = casosConEstado.filter((c) => c.estadoCarga === "modificado").length;
       const sinCambios = casosConEstado.filter((c) => c.estadoCarga === "sin_cambios").length;
 
       setCasos(casosConEstado);
-      setResumen({ nuevos, modificados, sinCambios });
+      setResumen({ nuevos, modificados, sinCambios, purgados: countPurgados });
       setPaginaActual(0);
       setPanelState("preview");
     } catch (err: unknown) {
@@ -365,7 +400,7 @@ export function CargaCasosPanel({ ultimaActualizacion, sucursalesDB }: Props) {
 
   const handleReset = () => {
     setCasos([]);
-    setResumen({ nuevos: 0, modificados: 0, sinCambios: 0 });
+    setResumen({ nuevos: 0, modificados: 0, sinCambios: 0, purgados: 0 });
     setMensaje("");
     setErrorMsg("");
     setPaginaActual(0);
@@ -498,7 +533,7 @@ export function CargaCasosPanel({ ultimaActualizacion, sucursalesDB }: Props) {
   return (
     <div className="flex flex-col gap-4">
       {/* Banner de resumen */}
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <div className="flex flex-col items-center justify-center gap-1 p-4 rounded-xl bg-emerald-950/40 border border-emerald-800/50">
           <UploadCloud className="w-4 h-4 text-emerald-400 mb-0.5" />
           <span className="text-2xl font-bold text-emerald-400">
@@ -519,6 +554,13 @@ export function CargaCasosPanel({ ultimaActualizacion, sucursalesDB }: Props) {
             {resumen.sinCambios.toLocaleString()}
           </span>
           <span className="text-xs text-slate-600 text-center">Sin cambios</span>
+        </div>
+        <div className="flex flex-col items-center justify-center gap-1 p-4 rounded-xl bg-red-950/40 border border-red-800/50">
+          <X className="w-4 h-4 text-red-400 mb-0.5" />
+          <span className="text-2xl font-bold text-red-400">
+            {resumen.purgados.toLocaleString()}
+          </span>
+          <span className="text-xs text-red-600 text-center">A inactivar</span>
         </div>
       </div>
 
