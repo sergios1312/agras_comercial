@@ -52,7 +52,8 @@ export async function actualizarEstadoPedidoTecnico(
 export async function actualizarEstadoPedido(
   id: number,
   nuevoEstado: EstadoPedido,
-  is_test: boolean = false
+  is_test: boolean = false,
+  extraData: any = {}
 ): Promise<{ error: string | null }> {
   const supabase = await createClient();
 
@@ -66,7 +67,11 @@ export async function actualizarEstadoPedido(
   const tabla = is_test ? "historial_pedidos_prueba" : "historial_pedidos";
   const { error } = await rawClient
     .from(tabla)
-    .update({ estado: nuevoEstado, ...fechaParaEstado(nuevoEstado) })
+    .update({ 
+      estado: nuevoEstado, 
+      ...fechaParaEstado(nuevoEstado),
+      ...extraData 
+    })
     .eq("id", id);
 
   if (error) return { error: `Error al actualizar: ${error.message}` };

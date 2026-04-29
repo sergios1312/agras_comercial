@@ -483,14 +483,16 @@ function TablaCasosReposicion({
   sucursales,
   onCreate,
   onEdit,
-  onAddRepuesto
+  onAddRepuesto,
+  onEditPedido
 }: {
   casos: CasoReposicion[],
   repuestosTotales: HistorialPedido[],
   sucursales: string[],
   onCreate: () => void,
   onEdit: (caso: CasoReposicion) => void,
-  onAddRepuesto: (casoId: number) => void
+  onAddRepuesto: (casoId: number) => void,
+  onEditPedido: (pedido: HistorialPedido) => void
 }) {
   const [expandedRows, setExpandedRows] = useState<Record<number, boolean>>({});
 
@@ -583,7 +585,8 @@ function TablaCasosReposicion({
                                    <th className="px-2 py-1.5 text-[10px] text-slate-500 font-medium">Nombre de Repuesto</th>
                                    <th className="px-2 py-1.5 text-[10px] text-slate-500 font-medium">Cant.</th>
                                    <th className="px-2 py-1.5 text-[10px] text-slate-500 font-medium">N° Caso del Pedido</th>
-                                   <th className="px-2 py-1.5 text-[10px] text-slate-500 font-medium">Estado</th>
+                                    <th className="px-2 py-1.5 text-[10px] text-slate-500 font-medium">Estado</th>
+                                    <th className="px-2 py-1.5 text-[10px] text-slate-500 font-medium text-center">Acción</th>
                                  </tr>
                                </thead>
                                <tbody className="bg-slate-900/50 rounded-lg">
@@ -595,7 +598,16 @@ function TablaCasosReposicion({
                                      <td className="px-2 py-2 text-[10px] text-slate-300 truncate max-w-[200px]" title={r.repuestos?.nombre ?? "N/A"}>{r.repuestos?.nombre ?? "N/A"}</td>
                                      <td className="px-2 py-2 text-[10px] text-slate-300 text-center">{r.cantidad}</td>
                                      <td className="px-2 py-2 text-[10px] text-slate-400 font-mono">{r.numero_caso === "0000" ? "VENTA" : r.numero_caso}</td>
-                                     <td className="px-2 py-2"><Badge label={r.estado} variant={estadoToVariant(r.estado)} /></td>
+                                      <td className="px-2 py-2"><Badge label={r.estado} variant={estadoToVariant(r.estado)} /></td>
+                                      <td className="px-2 py-2 text-center">
+                                        <button 
+                                          onClick={() => onEditPedido(r)}
+                                          className="p-1 rounded bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 transition-colors border border-blue-500/20"
+                                          title="Editar Pedido"
+                                        >
+                                          <Edit className="w-3 h-3" />
+                                        </button>
+                                      </td>
                                    </tr>
                                  ))}
                                </tbody>
@@ -633,6 +645,7 @@ function TablaPedidos({
   selectedIds = [],
   onToggleSelect,
   isAbastecimiento = false,
+  selectedCasoId = "",
   onActualizarEstado,
   onEditarPedido,
   onFechasUpdated,
@@ -648,6 +661,7 @@ function TablaPedidos({
   selectedIds?: number[];
   onToggleSelect?: (id: number) => void;
   isAbastecimiento?: boolean;
+  selectedCasoId?: string;
   onActualizarEstado?: (id: number, estado: EstadoPedido) => Promise<void>;
   onEditarPedido?: (pedido: HistorialPedido) => void;
   onFechasUpdated?: (id: number, fechas: Partial<HistorialPedido>) => void;
@@ -705,8 +719,9 @@ function TablaPedidos({
             <tbody>
               {slice.map((p, i) => {
                 const hasValidCaso = p.caso_reposicion_id !== null && p.caso_reposicion_id !== undefined;
-                // Como ahora usamos ID relacional, si tiene ID entonces el caso existe
-                const isStrictlyValid = hasValidCaso;
+                // Como ahora usamos ID relacional, si tiene ID entonces el caso existe. 
+                // O si estamos en modo reposición y hay un caso seleccionado globalmente.
+                const isStrictlyValid = hasValidCaso || (isReposicion && !!selectedCasoId);
 
                 return (
                   <tr
@@ -1452,7 +1467,7 @@ function VistaAdmin({
   transferencias: Transferencia[];
   ciudadUsuario: string;
   sucursales: string[];
-  onActualizarEstado: (id: number, estado: EstadoPedido) => Promise<void>;
+  onActualizarEstado: (id: number, estado: EstadoPedido, extraData?: any) => Promise<void>;
   onEditarPedido: (pedido: HistorialPedido) => void;
   onCrearCasoReposicion: (datos: any) => Promise<void>;
   onEditarCasoReposicion: (id: number, datos: any) => Promise<void>;
@@ -1494,6 +1509,7 @@ function VistaAdmin({
   // Estado para Transferencias (Abastecimiento)
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [selectedTransferenciaId, setSelectedTransferenciaId] = useState<string>("");
+  const [selectedCasoId, setSelectedCasoId] = useState<string>("");
   const [isAbasteciendo, setIsAbasteciendo] = useState(false);
 
   const handleToggleSelect = (id: number) => {
@@ -1625,17 +1641,50 @@ function VistaAdmin({
               </div>
             )}
 
+            {activeTab === "Reposición" && (
+              <div className="flex flex-wrap items-center gap-3 mb-4 p-3 bg-slate-800/40 border border-slate-700/50 rounded-xl">
+                <div className="flex items-center gap-2">
+                  <select
+                    className="bg-slate-800 border border-slate-700 text-sm rounded-lg px-3 py-2 text-slate-300 min-w-[200px] focus:ring-2 focus:ring-indigo-500/50 transition-all outline-none"
+                    value={selectedCasoId}
+                    onChange={(e) => setSelectedCasoId(e.target.value)}
+                  >
+                    <option value="">Seleccionar caso de reposición...</option>
+                    {casosReposicion.map(c => (
+                      <option key={c.id} value={c.id}>
+                        {c.codigo_caso} - {c.tipo_equipo || "S/M"} ({c.ubicacion})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="flex items-center gap-2 text-[11px] text-slate-400">
+                  <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse"></div>
+                  Selecciona un caso para habilitar el despacho de repuestos sin vincular.
+                </div>
+              </div>
+            )}
+
             <TablaPedidos 
               pedidos={historialFiltrado.filter(p => p.tipo_reporte.toLowerCase() === activeTab.toLowerCase() && p.estado === "Aprobado" && (activeTab === "Abastecimiento" ? p.transferencia_id == null : true))}
               isAdmin
               ocultarTipo={true}
               isReposicion={activeTab === "Reposición"}
               isPedidosActuales={true}
+              selectedCasoId={selectedCasoId}
               selectable={activeTab === "Abastecimiento"}
               selectedIds={selectedIds}
               onToggleSelect={handleToggleSelect}
               isAbastecimiento={activeTab === "Abastecimiento"}
-              onActualizarEstado={onActualizarEstado}
+              onActualizarEstado={async (id, estado) => {
+                if (estado === "Enviado" && activeTab === "Reposición" && selectedCasoId) {
+                   const pedido = historial.find(p => p.id === id);
+                   if (pedido && !pedido.caso_reposicion_id) {
+                      await onActualizarEstado(id, estado, { caso_reposicion_id: Number(selectedCasoId) });
+                      return;
+                   }
+                }
+                await onActualizarEstado(id, estado);
+              }}
               onEditarPedido={onEditarPedido}
               onFechasUpdated={onFechasUpdated}
             />
@@ -1678,6 +1727,7 @@ function VistaAdmin({
                    setCasoIdForRepuesto(casoId);
                    setShowModalAddRepuesto(true);
                  }}
+                 onEditPedido={onEditarPedido}
               />
             </div>
           )}
@@ -2152,10 +2202,10 @@ export function HistorialTab({
   }, [catalogo]);
 
   // Función de actualización de estado de repuesto (admin) 
-  async function handleActualizarEstado(id: number, estado: EstadoPedido) {
+  async function handleActualizarEstado(id: number, estado: EstadoPedido, extraData: any = {}) {
     const pedido = localHistorial.find(p => p.id === id);
-    setLocalHistorial(prev => prev.map(p => p.id === id ? { ...p, estado } : p));
-    await actualizarEstadoPedido(id, estado, pedido?.is_test);
+    setLocalHistorial(prev => prev.map(p => p.id === id ? { ...p, estado, ...extraData } : p));
+    await actualizarEstadoPedido(id, estado, pedido?.is_test, extraData);
   }
 
   // Edit in-line repuesto completo
