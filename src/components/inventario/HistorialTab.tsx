@@ -3,7 +3,7 @@
 import React, { useState, useTransition, useEffect } from "react";
 import {
   RefreshCw, Download, Package, Truck, ArrowLeftRight,
-  CheckCircle2, Loader2, Edit, X, Check, Trash2, Send, ChevronDown, ChevronRight, Plus, FileUp, ExternalLink, Paperclip
+  CheckCircle2, Loader2, Edit, X, Check, Trash2, Send, ChevronDown, ChevronRight, Plus, FileUp, ExternalLink, Paperclip, AlertTriangle
 } from "lucide-react";
 import { createBrowserClient } from "@/utils/supabase/client";
 import { Badge, estadoToVariant } from "@/components/ui/Badge";
@@ -17,7 +17,8 @@ import {
   eliminarPedidoAdmin,
   crearCasoReposicion,
   editarCasoReposicion,
-  eliminarCasoReposicion
+  eliminarCasoReposicion,
+  fusionarPedidos
 } from "@/app/(dashboard)/inventario/historial-actions";
 import {
   crearTransferencia,
@@ -37,6 +38,152 @@ interface HistorialTabProps {
   ciudadUsuario: string;
   sucursales?: string[];
   catalogo?: import("@/types/database.types").RepuestoConStock[];
+}
+
+type MapaDuplicadosType = {
+  duplicadosById: Map<number, string>;
+  grupos: Map<string, HistorialPedido[]>;
+};
+
+// ─── Modal Duplicados ──────────────────────────────────────────
+function ModalDuplicados({
+  pedidos,
+  onClose,
+  onEliminar,
+  onFusionar
+}: {
+  pedidos: HistorialPedido[];
+  onClose: () => void;
+  onEliminar: (id: number) => Promise<void>;
+  onFusionar: (idDestino: number, idsAEliminar: number[], cantidadFinal: number) => Promise<void>;
+}) {
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [cantidadPersonalizada, setCantidadPersonalizada] = useState<number | "">("");
+  
+  if (pedidos.length === 0) return null;
+
+  // El pedido destino será el más antiguo
+  const sorted = [...pedidos].sort((a, b) => new Date(a.fecha_pedido).getTime() - new Date(b.fecha_pedido).getTime());
+  const destino = sorted[0];
+  const aEliminar = sorted.slice(1).map(p => p.id);
+  const sumaCantidades = pedidos.reduce((acc, p) => acc + p.cantidad, 0);
+
+  const handleJuntar = async () => {
+    setIsProcessing(true);
+    await onFusionar(destino.id, aEliminar, sumaCantidades);
+    setIsProcessing(false);
+    onClose();
+  };
+
+  const handleConciliar = async () => {
+    if (typeof cantidadPersonalizada !== "number" || cantidadPersonalizada <= 0) {
+      alert("Ingrese una cantidad válida para conciliar.");
+      return;
+    }
+    setIsProcessing(true);
+    await onFusionar(destino.id, aEliminar, cantidadPersonalizada);
+    setIsProcessing(false);
+    onClose();
+  };
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4">
+      <div className="w-full max-w-2xl bg-slate-900 border border-amber-500/50 rounded-xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+        <div className="px-5 py-4 border-b border-amber-500/20 flex justify-between items-center bg-amber-500/10">
+          <h3 className="text-sm font-semibold text-amber-500 flex items-center gap-2">
+            <AlertTriangle className="w-5 h-5" />
+            Posible pedido duplicado
+          </h3>
+          <button onClick={onClose} className="text-slate-500 hover:text-slate-300 transition-colors">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+        
+        <div className="p-5 flex-1 overflow-y-auto space-y-4">
+          <p className="text-sm text-slate-300">
+            Se han detectado {pedidos.length} pedidos con el mismo ítem (<strong>{destino.repuestos?.codigo || "N/A"}</strong>), número de caso (<strong>{destino.numero_caso}</strong>) y sucursal de destino (<strong>{destino.tecnico_destino}</strong>).
+          </p>
+
+          <div className="rounded-lg border border-slate-700 overflow-hidden">
+            <table className="w-full text-left text-xs">
+              <thead className="bg-slate-800 text-slate-400">
+                <tr>
+                  <th className="px-3 py-2">ID</th>
+                  <th className="px-3 py-2">Fecha</th>
+                  <th className="px-3 py-2">Estado</th>
+                  <th className="px-3 py-2 text-center">Cantidad</th>
+                  <th className="px-3 py-2 text-right">Acción</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-800">
+                {sorted.map(p => (
+                  <tr key={p.id} className="bg-slate-900/50">
+                    <td className="px-3 py-2 font-mono text-slate-300">{p.id}</td>
+                    <td className="px-3 py-2 text-slate-400">{new Date(p.fecha_pedido).toLocaleString("es-PE")}</td>
+                    <td className="px-3 py-2"><Badge label={p.estado} variant={estadoToVariant(p.estado)} /></td>
+                    <td className="px-3 py-2 text-center font-bold text-slate-200">{p.cantidad}</td>
+                    <td className="px-3 py-2 text-right">
+                      <button
+                        title="Eliminar este pedido individual"
+                        onClick={async () => {
+                          if(confirm("¿Seguro de eliminar permanentemente este pedido?")) {
+                            setIsProcessing(true);
+                            await onEliminar(p.id);
+                            setIsProcessing(false);
+                            // If this was the last redundant one, maybe close it, but let the user decide
+                            if (pedidos.length <= 2) onClose();
+                          }
+                        }}
+                        disabled={isProcessing}
+                        className="text-red-400 hover:text-red-300 p-1 rounded hover:bg-red-500/20 disabled:opacity-50"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          
+          <div className="bg-slate-800/50 p-4 rounded-lg border border-slate-700/50 space-y-4">
+            <h4 className="text-sm font-semibold text-slate-200">Resolución de conflictos</h4>
+            <div className="flex flex-wrap items-end gap-4">
+              <button
+                onClick={handleJuntar}
+                disabled={isProcessing}
+                className="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors disabled:opacity-50"
+              >
+                Juntar (Unificar) - Total: {sumaCantidades}
+              </button>
+              
+              <div className="flex items-center gap-2">
+                <div className="flex flex-col gap-1">
+                  <label className="text-[10px] text-slate-400 font-semibold uppercase">Cant. Personalizada</label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={cantidadPersonalizada}
+                    onChange={e => setCantidadPersonalizada(e.target.value ? Number(e.target.value) : "")}
+                    className="bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 w-24 text-sm text-slate-200 focus:ring-1 focus:ring-indigo-500 outline-none"
+                    placeholder="Ej: 4"
+                  />
+                </div>
+                <button
+                  onClick={handleConciliar}
+                  disabled={isProcessing || cantidadPersonalizada === ""}
+                  className="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors disabled:opacity-50 h-[34px] self-end"
+                >
+                  Conciliar
+                </button>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  );
 }
 
 // ─── Modal Editar Pedido ─────────────────────────────────────
@@ -646,6 +793,8 @@ function TablaPedidos({
   onToggleSelect,
   isAbastecimiento = false,
   selectedCasoId = "",
+  mapaDuplicados,
+  onDuplicateClick,
   onActualizarEstado,
   onEditarPedido,
   onFechasUpdated,
@@ -662,6 +811,8 @@ function TablaPedidos({
   onToggleSelect?: (id: number) => void;
   isAbastecimiento?: boolean;
   selectedCasoId?: string;
+  mapaDuplicados?: MapaDuplicadosType;
+  onDuplicateClick?: (id: number) => void;
   onActualizarEstado?: (id: number, estado: EstadoPedido) => Promise<void>;
   onEditarPedido?: (pedido: HistorialPedido) => void;
   onFechasUpdated?: (id: number, fechas: Partial<HistorialPedido>) => void;
@@ -727,7 +878,7 @@ function TablaPedidos({
                   <tr
                     key={p.id}
                     className={`border-b border-slate-800 hover:bg-slate-800/50 transition-colors
-                      ${i % 2 === 0 ? "bg-slate-900" : "bg-slate-900/50"}`}
+                      ${mapaDuplicados?.duplicadosById.has(p.id) ? "bg-amber-900/20" : (i % 2 === 0 ? "bg-slate-900" : "bg-slate-900/50")}`}
                   >
                     {selectable && onToggleSelect && (
                       <td className="px-4 py-3 text-center">
@@ -781,7 +932,18 @@ function TablaPedidos({
                     </td>
                     <td className="px-4 py-3 font-mono text-indigo-400 text-[11px]">{p.repuestos?.codigo ?? "N/A"}</td>
                     <td className="px-4 py-3 font-mono text-slate-300 text-[11px] max-w-[90px] truncate" title={p.repuestos?.codigo_sap || ""}>{p.repuestos?.codigo_sap || "N/A"}</td>
-                    <td className="px-4 py-3 text-[11px] text-slate-200 max-w-xs truncate" title={p.repuestos?.nombre ?? "N/A"}>{p.repuestos?.nombre ?? "N/A"}</td>
+                    <td className="px-4 py-3 text-[11px] text-slate-200 max-w-xs truncate flex items-center gap-2" title={p.repuestos?.nombre ?? "N/A"}>
+                      {mapaDuplicados?.duplicadosById.has(p.id) && onDuplicateClick && (
+                         <button 
+                            onClick={() => onDuplicateClick(p.id)}
+                            className="text-amber-500 hover:text-amber-400 p-0.5 rounded hover:bg-amber-500/20 transition-colors shrink-0"
+                            title="Posible pedido duplicado. Clic para resolver."
+                         >
+                            <AlertTriangle className="w-3.5 h-3.5" />
+                         </button>
+                      )}
+                      <span className="truncate">{p.repuestos?.nombre ?? "N/A"}</span>
+                    </td>
                     <td className="px-4 py-3 font-mono text-slate-300 text-[11px]">{p.numero_caso === "0000" ? "VENTA" : p.numero_caso}</td>
                     {isReposicion && (
                       <td className="px-4 py-3 text-center">
@@ -1447,6 +1609,8 @@ function VistaAdmin({
   transferencias,
   ciudadUsuario,
   sucursales,
+  mapaDuplicados,
+  onDuplicateClick,
   onActualizarEstado,
   onEditarPedido,
   onCrearCasoReposicion,
@@ -1467,6 +1631,8 @@ function VistaAdmin({
   transferencias: Transferencia[];
   ciudadUsuario: string;
   sucursales: string[];
+  mapaDuplicados: MapaDuplicadosType;
+  onDuplicateClick: (id: number) => void;
   onActualizarEstado: (id: number, estado: EstadoPedido, extraData?: any) => Promise<void>;
   onEditarPedido: (pedido: HistorialPedido) => void;
   onCrearCasoReposicion: (datos: any) => Promise<void>;
@@ -1520,12 +1686,44 @@ function VistaAdmin({
 
   const [filtroSucursal, setFiltroSucursal] = useState<string>("Todas");
 
-  const historialFiltrado = filtroSucursal === "Todas" 
-    ? historial 
-    : historial.filter(p => 
-        p.sucursal_origen.toLowerCase().trim() === filtroSucursal.toLowerCase().trim() || 
-        p.tecnico_destino.toLowerCase().trim() === filtroSucursal.toLowerCase().trim()
-      );
+  // Estados para pestaña Aprobaciones
+  const [filtroSucursalAprob, setFiltroSucursalAprob] = useState<string>("Todas");
+  const [filtroGarantia, setFiltroGarantia] = useState<string>("Todas");
+  const [ordenAprob, setOrdenAprob] = useState<string>("Fecha");
+
+  const pedidosAprobaciones = React.useMemo(() => {
+    let filtered = historial.filter(p => p.estado === "Pendiente");
+
+    if (filtroSucursalAprob !== "Todas") {
+      filtered = filtered.filter(p => p.tecnico_destino.toLowerCase().trim() === filtroSucursalAprob.toLowerCase().trim());
+    }
+
+    if (filtroGarantia !== "Todas") {
+      filtered = filtered.filter(p => {
+        const isVenta = p.numero_caso === "0000" || p.numero_caso?.toLowerCase() === "venta";
+        if (filtroGarantia === "Sin garantía") return isVenta;
+        if (filtroGarantia === "Con garantía") return !isVenta;
+        return true;
+      });
+    }
+
+    return filtered.sort((a, b) => {
+      if (ordenAprob === "Código") {
+        const codA = a.repuestos?.codigo || "";
+        const codB = b.repuestos?.codigo || "";
+        return codA.localeCompare(codB);
+      } else {
+        const dateA = new Date(a.fecha_pedido).getTime();
+        const dateB = new Date(b.fecha_pedido).getTime();
+        if (dateA !== dateB) return dateA - dateB;
+        return a.id - b.id;
+      }
+    });
+  }, [historial, filtroSucursalAprob, filtroGarantia, ordenAprob]);
+
+  const historialFiltrado = (activeTab === "Abastecimiento" && filtroSucursal !== "Todas")
+    ? historial.filter(p => p.tecnico_destino.toLowerCase().trim() === filtroSucursal.toLowerCase().trim())
+    : historial;
 
   // A petición del usuario, el filtro de sucursal NO debe aplicar a las transferencias
   const transferenciasFiltradas = transferencias;
@@ -1535,19 +1733,21 @@ function VistaAdmin({
   return (
     <div className="space-y-4">
       {/* Filtro por Sucursal */}
-      <div className="flex items-center gap-2 mb-2">
-        <label className="text-xs font-semibold text-slate-400">Filtrar por Sucursal:</label>
-        <select
-          value={filtroSucursal}
-          onChange={(e) => setFiltroSucursal(e.target.value)}
-          className="bg-slate-800 border border-slate-700 text-xs font-semibold rounded-lg px-3 py-1.5 text-indigo-300 focus:ring-1 focus:ring-indigo-500"
-        >
-          <option value="Todas">Todas las sucursales</option>
-          {sucursales.map(s => (
-            <option key={s} value={s}>{s}</option>
-          ))}
-        </select>
-      </div>
+      {activeTab === "Abastecimiento" && (
+        <div className="flex items-center gap-2 mb-2">
+          <label className="text-xs font-semibold text-slate-400">Filtrar por Destino:</label>
+          <select
+            value={filtroSucursal}
+            onChange={(e) => setFiltroSucursal(e.target.value)}
+            className="bg-slate-800 border border-slate-700 text-xs font-semibold rounded-lg px-3 py-1.5 text-indigo-300 focus:ring-1 focus:ring-indigo-500"
+          >
+            <option value="Todas">Todos los destinos</option>
+            {sucursales.map(s => (
+              <option key={s} value={s}>{s}</option>
+            ))}
+          </select>
+        </div>
+      )}
 
       {/* Tabs Menu */}
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -1582,13 +1782,51 @@ function VistaAdmin({
 
       {/* Renderizado de tablas */}
       {activeTab === "aprobaciones" ? (
-        <TablaPedidos
-          pedidos={historialFiltrado.filter(p => p.estado === "Pendiente")}
-          isAdmin
-          onActualizarEstado={onActualizarEstado}
-          onEditarPedido={onEditarPedido}
-          onFechasUpdated={onFechasUpdated}
-        />
+        <div className="space-y-4">
+          <div className="flex flex-wrap items-center gap-4 p-3 bg-slate-800/40 border border-slate-700/50 rounded-xl">
+            <div className="flex items-center gap-2">
+              <label className="text-xs font-semibold text-slate-400">Sucursal:</label>
+              <select
+                value={filtroSucursalAprob}
+                onChange={(e) => setFiltroSucursalAprob(e.target.value)}
+                className="bg-slate-800 border border-slate-700 text-xs font-semibold rounded-lg px-3 py-1.5 text-slate-300 focus:ring-1 focus:ring-indigo-500"
+              >
+                <option value="Todas">Todas</option>
+                {sucursales.map(s => <option key={s} value={s}>{s}</option>)}
+              </select>
+            </div>
+            <div className="flex items-center gap-2">
+              <label className="text-xs font-semibold text-slate-400">Garantía:</label>
+              <select
+                value={filtroGarantia}
+                onChange={(e) => setFiltroGarantia(e.target.value)}
+                className="bg-slate-800 border border-slate-700 text-xs font-semibold rounded-lg px-3 py-1.5 text-slate-300 focus:ring-1 focus:ring-indigo-500"
+              >
+                <option value="Todas">Todas</option>
+                <option value="Con garantía">Con garantía</option>
+                <option value="Sin garantía">Sin garantía</option>
+              </select>
+            </div>
+            <div className="flex items-center gap-2 ml-auto">
+              <label className="text-xs font-semibold text-slate-400">Ordenar por:</label>
+              <select
+                value={ordenAprob}
+                onChange={(e) => setOrdenAprob(e.target.value)}
+                className="bg-slate-800 border border-slate-700 text-xs font-semibold rounded-lg px-3 py-1.5 text-indigo-300 focus:ring-1 focus:ring-indigo-500"
+              >
+                <option value="Fecha">Fecha</option>
+                <option value="Código">Código</option>
+              </select>
+            </div>
+          </div>
+          <TablaPedidos
+            pedidos={pedidosAprobaciones}
+            isAdmin
+            onActualizarEstado={onActualizarEstado}
+            onEditarPedido={onEditarPedido}
+            onFechasUpdated={onFechasUpdated}
+          />
+        </div>
       ) : (
         <div className="space-y-8">
           {/* TABLA 1: PEDIDOS ACTUALES (Repuestos por despachar) */}
@@ -1785,10 +2023,14 @@ function VistaAdmin({
 function VistaTecnico({
   historial,
   ciudadUsuario,
+  mapaDuplicados,
+  onDuplicateClick,
   onActualizarEstadoTecnico,
 }: {
   historial: HistorialPedido[];
   ciudadUsuario: string;
+  mapaDuplicados: MapaDuplicadosType;
+  onDuplicateClick: (id: number) => void;
   onActualizarEstadoTecnico: (id: number, estado: "Enviado" | "Finalizado") => Promise<void>;
 }) {
   const [activeTab, setActiveTab] = useState<"misPedidos" | "aDespachar">("misPedidos");
@@ -1875,6 +2117,8 @@ function VistaTecnico({
             <TablaMisPedidos
               pedidos={misPedidosActivos}
               onConfirmarRecepcion={(id) => onActualizarEstadoTecnico(id, "Finalizado")}
+              mapaDuplicados={mapaDuplicados}
+              onDuplicateClick={onDuplicateClick}
             />
           </div>
 
@@ -1883,7 +2127,11 @@ function VistaTecnico({
             <h3 className="text-xs uppercase text-slate-400 font-bold mb-3 tracking-wider flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-emerald-500"></span> Historial de pedidos
             </h3>
-            <TablaMisPedidosHistorial pedidos={misPedidosHistorial} />
+            <TablaMisPedidosHistorial
+               pedidos={misPedidosHistorial}
+               mapaDuplicados={mapaDuplicados}
+               onDuplicateClick={onDuplicateClick}
+            />
           </div>
         </div>
       )}
@@ -1899,6 +2147,8 @@ function VistaTecnico({
             <TablaADespachar
               pedidos={aDespacharActivos}
               onDespachar={(id) => onActualizarEstadoTecnico(id, "Enviado")}
+              mapaDuplicados={mapaDuplicados}
+              onDuplicateClick={onDuplicateClick}
             />
           </div>
 
@@ -1907,7 +2157,11 @@ function VistaTecnico({
             <h3 className="text-xs uppercase text-slate-400 font-bold mb-3 tracking-wider flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-emerald-500"></span> Historial de pedidos
             </h3>
-            <TablaDespachadosHistorial pedidos={aDespacharHistorial} />
+            <TablaDespachadosHistorial
+               pedidos={aDespacharHistorial}
+               mapaDuplicados={mapaDuplicados}
+               onDuplicateClick={onDuplicateClick}
+            />
           </div>
         </div>
       )}
@@ -1921,9 +2175,13 @@ function VistaTecnico({
 function TablaMisPedidos({
   pedidos,
   onConfirmarRecepcion,
+  mapaDuplicados,
+  onDuplicateClick,
 }: {
   pedidos: HistorialPedido[];
   onConfirmarRecepcion: (id: number) => Promise<void>;
+  mapaDuplicados?: MapaDuplicadosType;
+  onDuplicateClick?: (id: number) => void;
 }) {
   const [loadingId, setLoadingId] = useState<number | null>(null);
 
@@ -1957,12 +2215,19 @@ function TablaMisPedidos({
           </thead>
           <tbody>
             {pedidos.map((p, i) => (
-              <tr key={p.id} className={`border-b border-slate-800 hover:bg-slate-800/50 transition-colors ${i % 2 === 0 ? "bg-slate-900" : "bg-slate-900/50"}`}>
+              <tr key={p.id} className={`border-b border-slate-800 hover:bg-slate-800/50 transition-colors ${mapaDuplicados?.duplicadosById.has(p.id) ? "bg-amber-900/20" : (i % 2 === 0 ? "bg-slate-900" : "bg-slate-900/50")}`}>
                 <td className="px-4 py-3">
                   <FechasPopover pedido={p} isAdmin={false} onFechasUpdated={undefined} />
                 </td>
                 <td className="px-4 py-3 font-mono text-indigo-400 text-[11px]">{p.repuestos?.codigo ?? "N/A"}</td>
-                <td className="px-4 py-3 text-[11px] text-slate-200 max-w-xs truncate" title={p.repuestos?.nombre ?? "N/A"}>{p.repuestos?.nombre ?? "N/A"}</td>
+                <td className="px-4 py-3 text-[11px] text-slate-200 max-w-xs truncate flex items-center gap-2" title={p.repuestos?.nombre ?? "N/A"}>
+                  {mapaDuplicados?.duplicadosById.has(p.id) && onDuplicateClick && (
+                     <button onClick={() => onDuplicateClick(p.id)} className="text-amber-500 hover:text-amber-400 p-0.5 rounded hover:bg-amber-500/20 transition-colors shrink-0">
+                        <AlertTriangle className="w-3.5 h-3.5" />
+                     </button>
+                  )}
+                  <span className="truncate">{p.repuestos?.nombre ?? "N/A"}</span>
+                </td>
                 <td className="px-4 py-3 font-mono text-slate-300 text-[11px]">{p.numero_caso === "0000" ? "VENTA" : p.numero_caso}</td>
                 <td className="px-4 py-3 text-center text-slate-300 text-[11px]">{p.cantidad}</td>
                 <td className="px-4 py-3 text-slate-400 text-[11px] capitalize">{p.sucursal_origen}</td>
@@ -1998,7 +2263,15 @@ function TablaMisPedidos({
 }
 
 // ─── Tabla Mis Pedidos — Historial (Finalizado / Rechazado) ──────────
-function TablaMisPedidosHistorial({ pedidos }: { pedidos: HistorialPedido[] }) {
+function TablaMisPedidosHistorial({
+  pedidos,
+  mapaDuplicados,
+  onDuplicateClick,
+}: {
+  pedidos: HistorialPedido[];
+  mapaDuplicados?: MapaDuplicadosType;
+  onDuplicateClick?: (id: number) => void;
+}) {
   if (pedidos.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-10 text-slate-600 bg-slate-900 border border-slate-700/50 rounded-xl">
@@ -2020,12 +2293,19 @@ function TablaMisPedidosHistorial({ pedidos }: { pedidos: HistorialPedido[] }) {
           </thead>
           <tbody>
             {pedidos.map((p, i) => (
-              <tr key={p.id} className={`border-b border-slate-800 hover:bg-slate-800/50 transition-colors ${i % 2 === 0 ? "bg-slate-900" : "bg-slate-900/50"}`}>
+              <tr key={p.id} className={`border-b border-slate-800 hover:bg-slate-800/50 transition-colors ${mapaDuplicados?.duplicadosById.has(p.id) ? "bg-amber-900/20" : (i % 2 === 0 ? "bg-slate-900" : "bg-slate-900/50")}`}>
                 <td className="px-4 py-3">
                   <FechasPopover pedido={p} isAdmin={false} onFechasUpdated={undefined} />
                 </td>
                 <td className="px-4 py-3 font-mono text-indigo-400 text-[11px]">{p.repuestos?.codigo ?? "N/A"}</td>
-                <td className="px-4 py-3 text-[11px] text-slate-200 max-w-xs truncate" title={p.repuestos?.nombre ?? "N/A"}>{p.repuestos?.nombre ?? "N/A"}</td>
+                <td className="px-4 py-3 text-[11px] text-slate-200 max-w-xs truncate flex items-center gap-2" title={p.repuestos?.nombre ?? "N/A"}>
+                  {mapaDuplicados?.duplicadosById.has(p.id) && onDuplicateClick && (
+                     <button onClick={() => onDuplicateClick(p.id)} className="text-amber-500 hover:text-amber-400 p-0.5 rounded hover:bg-amber-500/20 transition-colors shrink-0">
+                        <AlertTriangle className="w-3.5 h-3.5" />
+                     </button>
+                  )}
+                  <span className="truncate">{p.repuestos?.nombre ?? "N/A"}</span>
+                </td>
                 <td className="px-4 py-3 font-mono text-slate-300 text-[11px]">{p.numero_caso === "0000" ? "VENTA" : p.numero_caso}</td>
                 <td className="px-4 py-3 text-center text-slate-300 text-[11px]">{p.cantidad}</td>
                 <td className="px-4 py-3 text-slate-400 text-[11px] capitalize">{p.sucursal_origen}</td>
@@ -2046,9 +2326,13 @@ function TablaMisPedidosHistorial({ pedidos }: { pedidos: HistorialPedido[] }) {
 function TablaADespachar({
   pedidos,
   onDespachar,
+  mapaDuplicados,
+  onDuplicateClick,
 }: {
   pedidos: HistorialPedido[];
   onDespachar: (id: number) => Promise<void>;
+  mapaDuplicados?: MapaDuplicadosType;
+  onDuplicateClick?: (id: number) => void;
 }) {
   const [loadingId, setLoadingId] = useState<number | null>(null);
 
@@ -2080,12 +2364,19 @@ function TablaADespachar({
           </thead>
           <tbody>
             {pedidos.map((p, i) => (
-              <tr key={p.id} className={`border-b border-slate-800 hover:bg-slate-800/50 transition-colors ${i % 2 === 0 ? "bg-slate-900" : "bg-slate-900/50"}`}>
+              <tr key={p.id} className={`border-b border-slate-800 hover:bg-slate-800/50 transition-colors ${mapaDuplicados?.duplicadosById.has(p.id) ? "bg-amber-900/20" : (i % 2 === 0 ? "bg-slate-900" : "bg-slate-900/50")}`}>
                 <td className="px-4 py-3">
                   <FechasPopover pedido={p} isAdmin={false} onFechasUpdated={undefined} />
                 </td>
                 <td className="px-4 py-3 font-mono text-indigo-400 text-[11px]">{p.repuestos?.codigo ?? "N/A"}</td>
-                <td className="px-4 py-3 text-[11px] text-slate-200 max-w-xs truncate" title={p.repuestos?.nombre ?? "N/A"}>{p.repuestos?.nombre ?? "N/A"}</td>
+                <td className="px-4 py-3 text-[11px] text-slate-200 max-w-xs truncate flex items-center gap-2" title={p.repuestos?.nombre ?? "N/A"}>
+                  {mapaDuplicados?.duplicadosById.has(p.id) && onDuplicateClick && (
+                     <button onClick={() => onDuplicateClick(p.id)} className="text-amber-500 hover:text-amber-400 p-0.5 rounded hover:bg-amber-500/20 transition-colors shrink-0">
+                        <AlertTriangle className="w-3.5 h-3.5" />
+                     </button>
+                  )}
+                  <span className="truncate">{p.repuestos?.nombre ?? "N/A"}</span>
+                </td>
                 <td className="px-4 py-3 font-mono text-slate-300 text-[11px]">{p.numero_caso === "0000" ? "VENTA" : p.numero_caso}</td>
                 <td className="px-4 py-3 text-center text-slate-300 text-[11px]">{p.cantidad}</td>
                 <td className="px-4 py-3 text-slate-400 text-[11px] capitalize">{p.tecnico_destino}</td>
@@ -2121,7 +2412,15 @@ function TablaADespachar({
 }
 
 // ─── Tabla A Despachar — Historial ───────────────────────────────────
-function TablaDespachadosHistorial({ pedidos }: { pedidos: HistorialPedido[] }) {
+function TablaDespachadosHistorial({
+  pedidos,
+  mapaDuplicados,
+  onDuplicateClick,
+}: {
+  pedidos: HistorialPedido[];
+  mapaDuplicados?: MapaDuplicadosType;
+  onDuplicateClick?: (id: number) => void;
+}) {
   if (pedidos.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-10 text-slate-600 bg-slate-900 border border-slate-700/50 rounded-xl">
@@ -2143,12 +2442,19 @@ function TablaDespachadosHistorial({ pedidos }: { pedidos: HistorialPedido[] }) 
           </thead>
           <tbody>
             {pedidos.map((p, i) => (
-              <tr key={p.id} className={`border-b border-slate-800 hover:bg-slate-800/50 transition-colors ${i % 2 === 0 ? "bg-slate-900" : "bg-slate-900/50"}`}>
+              <tr key={p.id} className={`border-b border-slate-800 hover:bg-slate-800/50 transition-colors ${mapaDuplicados?.duplicadosById.has(p.id) ? "bg-amber-900/20" : (i % 2 === 0 ? "bg-slate-900" : "bg-slate-900/50")}`}>
                 <td className="px-4 py-3">
                   <FechasPopover pedido={p} isAdmin={false} onFechasUpdated={undefined} />
                 </td>
                 <td className="px-4 py-3 font-mono text-indigo-400 text-[11px]">{p.repuestos?.codigo ?? "N/A"}</td>
-                <td className="px-4 py-3 text-[11px] text-slate-200 max-w-xs truncate" title={p.repuestos?.nombre ?? "N/A"}>{p.repuestos?.nombre ?? "N/A"}</td>
+                <td className="px-4 py-3 text-[11px] text-slate-200 max-w-xs truncate flex items-center gap-2" title={p.repuestos?.nombre ?? "N/A"}>
+                  {mapaDuplicados?.duplicadosById.has(p.id) && onDuplicateClick && (
+                     <button onClick={() => onDuplicateClick(p.id)} className="text-amber-500 hover:text-amber-400 p-0.5 rounded hover:bg-amber-500/20 transition-colors shrink-0">
+                        <AlertTriangle className="w-3.5 h-3.5" />
+                     </button>
+                  )}
+                  <span className="truncate">{p.repuestos?.nombre ?? "N/A"}</span>
+                </td>
                 <td className="px-4 py-3 font-mono text-slate-300 text-[11px]">{p.numero_caso === "0000" ? "VENTA" : p.numero_caso}</td>
                 <td className="px-4 py-3 text-center text-slate-300 text-[11px]">{p.cantidad}</td>
                 <td className="px-4 py-3 text-slate-400 text-[11px] capitalize">{p.tecnico_destino}</td>
@@ -2185,6 +2491,72 @@ export function HistorialTab({
     setLocalCasos(casosReposicion);
     setLocalTransferencias(transferencias);
   }, [historial, casosReposicion, transferencias]);
+
+  const sortedLocalHistorial = React.useMemo(() => {
+    return [...localHistorial].sort((a, b) => {
+      // 1. Garantía (no es Venta ni '0000') vs Venta ('0000' o 'venta')
+      const isVentaA = a.numero_caso === "0000" || a.numero_caso?.toLowerCase() === "venta";
+      const isVentaB = b.numero_caso === "0000" || b.numero_caso?.toLowerCase() === "venta";
+      
+      if (isVentaA !== isVentaB) {
+        return isVentaA ? 1 : -1; // Venta va después de garantía
+      }
+      
+      // 2. Fecha (solo día), más antigua primero a más reciente (Ascendente)
+      const diaA = (a.fecha_pedido || "").substring(0, 10);
+      const diaB = (b.fecha_pedido || "").substring(0, 10);
+      
+      if (diaA < diaB) return -1;
+      if (diaA > diaB) return 1;
+      
+      // Fallback por ID si están en el mismo día
+      return a.id - b.id;
+    });
+  }, [localHistorial]);
+
+  // Mapa de duplicados global
+  const mapaDuplicados = React.useMemo<MapaDuplicadosType>(() => {
+    const mapa = new Map<string, HistorialPedido[]>();
+    localHistorial.forEach(p => {
+      const rep_id = p.repuestos?.codigo || p.repuesto_id || "null";
+      const key = `${rep_id}-${p.numero_caso}-${p.tecnico_destino}`;
+      if (!mapa.has(key)) mapa.set(key, []);
+      mapa.get(key)!.push(p);
+    });
+    
+    const res = new Map<number, string>(); // pedido_id -> duplicate_key
+    for (const [key, pedidos] of mapa.entries()) {
+      if (pedidos.length > 1) {
+        pedidos.forEach(p => res.set(p.id, key));
+      }
+    }
+    return { duplicadosById: res, grupos: mapa };
+  }, [localHistorial]);
+
+  const [showModalDuplicados, setShowModalDuplicados] = useState(false);
+  const [pedidosDuplicados, setPedidosDuplicados] = useState<HistorialPedido[]>([]);
+
+  const handleDuplicateClick = (pedidoId: number) => {
+    const key = mapaDuplicados.duplicadosById.get(pedidoId);
+    if (key) {
+      setPedidosDuplicados(mapaDuplicados.grupos.get(key) || []);
+      setShowModalDuplicados(true);
+    }
+  };
+
+  async function handleFusionarPedidos(idDestino: number, idsAEliminar: number[], cantidadFinal: number) {
+    setLocalHistorial(prev => {
+      let result = prev.filter(p => !idsAEliminar.includes(p.id));
+      result = result.map(p => p.id === idDestino ? { ...p, cantidad: cantidadFinal } : p);
+      return result;
+    });
+
+    const { error } = await fusionarPedidos(idDestino, idsAEliminar, cantidadFinal);
+    if (error) {
+      alert(`Error al fusionar: ${error}`);
+      setLocalHistorial(historial); // revertir
+    }
+  }
 
   const tiposEquipo = React.useMemo(() => {
     const models = new Set<string>();
@@ -2333,11 +2705,13 @@ export function HistorialTab({
       {/* Vistas por rol */}
       {isAdmin ? (
         <VistaAdmin
-          historial={localHistorial}
+          historial={sortedLocalHistorial}
           casosReposicion={localCasos}
           transferencias={localTransferencias}
           ciudadUsuario={ciudadUsuario}
           sucursales={sucursales}
+          mapaDuplicados={mapaDuplicados}
+          onDuplicateClick={handleDuplicateClick}
           onActualizarEstado={handleActualizarEstado}
           onEditarPedido={(p) => setPedidoToEdit(p)}
           onCrearCasoReposicion={handleCrearCaso}
@@ -2355,8 +2729,10 @@ export function HistorialTab({
         />
       ) : (
         <VistaTecnico
-          historial={localHistorial}
+          historial={sortedLocalHistorial}
           ciudadUsuario={ciudadUsuario}
+          mapaDuplicados={mapaDuplicados}
+          onDuplicateClick={handleDuplicateClick}
           onActualizarEstadoTecnico={handleActualizarEstadoTecnico}
         />
       )}
@@ -2368,6 +2744,15 @@ export function HistorialTab({
             onClose={() => setPedidoToEdit(null)}
             onSave={handleSaveEdicion}
             onDelete={handleDelete}
+         />
+      )}
+
+      {showModalDuplicados && (
+         <ModalDuplicados
+            pedidos={pedidosDuplicados}
+            onClose={() => setShowModalDuplicados(false)}
+            onEliminar={handleDelete}
+            onFusionar={handleFusionarPedidos}
          />
       )}
     </div>

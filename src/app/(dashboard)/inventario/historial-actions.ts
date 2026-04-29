@@ -568,4 +568,44 @@ export async function eliminarTransferencia(
   return { error: null };
 }
 
+// ─── fusionarPedidos ──────────────────────────────────────────
+/**
+ * Permite al ADMIN unificar pedidos duplicados.
+ * Actualiza la cantidad del pedido destino y elimina los redundantes.
+ */
+export async function fusionarPedidos(
+  idDestino: number,
+  idsAEliminar: number[],
+  cantidadFinal: number,
+  is_test: boolean = false
+): Promise<{ error: string | null }> {
+  const supabase = await createClient();
+  const user = await getSession();
+  
+  if (!user || user.role !== "admin") return { error: "Solo el administrador puede unificar pedidos." };
+
+  const rawClient = supabase as unknown as any;
+  const tabla = is_test ? "historial_pedidos_prueba" : "historial_pedidos";
+
+  // 1. Actualizar la cantidad del pedido destino
+  const { error: errUpdate } = await rawClient
+    .from(tabla)
+    .update({ cantidad: cantidadFinal })
+    .eq("id", idDestino);
+
+  if (errUpdate) return { error: `Error al actualizar cantidad: ${errUpdate.message}` };
+
+  // 2. Eliminar los pedidos redundantes
+  if (idsAEliminar.length > 0) {
+    const { error: errDelete } = await rawClient
+      .from(tabla)
+      .delete()
+      .in("id", idsAEliminar);
+
+    if (errDelete) return { error: `Error al eliminar duplicados: ${errDelete.message}` };
+  }
+
+  revalidatePath("/inventario");
+  return { error: null };
+}
 
