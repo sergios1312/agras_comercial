@@ -167,6 +167,7 @@ export function InventarioClientWrapper({
           isAdmin={!!isAdmin}
           ciudadUsuario={ciudadUsuario}
           sucursales={sucursalesNames}
+          catalogo={catalogo}
         />
       </Tabs>
 

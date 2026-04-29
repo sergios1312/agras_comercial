@@ -36,6 +36,7 @@ interface HistorialTabProps {
   isAdmin: boolean;
   ciudadUsuario: string;
   sucursales?: string[];
+  catalogo?: import("@/types/database.types").RepuestoConStock[];
 }
 
 // ─── Modal Editar Pedido ─────────────────────────────────────
@@ -55,7 +56,6 @@ function ModalEditarPedido({
   const [formData, setFormData] = useState({
     fecha_pedido: new Date(pedido.fecha_pedido).toISOString().slice(0, 16),
     numero_caso: pedido.numero_caso,
-    caso_reposicion: pedido.caso_reposicion || "",
     cantidad: pedido.cantidad,
     sucursal_origen: pedido.sucursal_origen,
     tecnico_destino: pedido.tecnico_destino,
@@ -83,11 +83,6 @@ function ModalEditarPedido({
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
-  };
-
-  const handleCasoRepChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const val = e.target.value.replace(/[^0-9]/g, '').slice(0, 4);
-    setFormData({ ...formData, caso_reposicion: val });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -148,11 +143,6 @@ function ModalEditarPedido({
             <input type="text" readOnly name="repuesto_nombre" value={pedido.repuestos?.nombre ?? "N/A"} className="w-full bg-slate-800/50 border border-slate-700/30 rounded-lg p-2 text-xs text-slate-400 cursor-not-allowed" />
           </div>
           
-          <div className="space-y-1">
-            <label className="text-xs text-slate-400">Caso Reposición <span className="text-slate-600">(Solo para Reposiciones, máximo 4 dígitos)</span></label>
-            <input type="text" maxLength={4} name="caso_reposicion" value={formData.caso_reposicion} onChange={handleCasoRepChange} className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-xs text-slate-200 focus:ring-1 focus:ring-amber-500" placeholder="Ej: 1234" />
-          </div>
-
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1">
               <label className="text-xs text-slate-400">Origen (Solicita a)</label>
@@ -209,20 +199,22 @@ function ModalEditarPedido({
 function ModalCasoReposicion({
   casoToEdit,
   sucursales,
+  tiposEquipo,
   onClose,
   onSave,
   onDelete
 }: {
   casoToEdit?: CasoReposicion | null;
   sucursales: string[];
+  tiposEquipo: string[];
   onClose: () => void;
   onSave: (id: number | null, datos: any) => Promise<void>;
   onDelete: (id: number) => Promise<void>;
 }) {
   const [formData, setFormData] = useState({
-    codigo_caso: casoToEdit?.codigo_caso || "",
     serie_equipo: casoToEdit?.serie_equipo || "",
     ubicacion: casoToEdit?.ubicacion || "",
+    tipo_equipo: casoToEdit?.tipo_equipo || "",
   });
   const [loading, setLoading] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -257,17 +249,27 @@ function ModalCasoReposicion({
           </button>
         </div>
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          {casoToEdit && (
+            <div className="space-y-1">
+              <label className="text-xs text-slate-400">Código de Caso</label>
+              <input 
+                type="text" 
+                readOnly
+                value={casoToEdit.codigo_caso} 
+                className="w-full bg-slate-800/50 border border-slate-700/30 rounded-lg p-2 text-xs text-slate-400 focus:ring-1 focus:ring-blue-500 uppercase cursor-not-allowed" 
+              />
+            </div>
+          )}
           <div className="space-y-1">
-            <label className="text-xs text-slate-400">Código de Caso (Identificador único)</label>
-            <input 
-              type="text" 
-              required 
-              maxLength={20}
-              value={formData.codigo_caso} 
-              onChange={e => setFormData({...formData, codigo_caso: e.target.value.trim()})} 
-              className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-xs text-slate-200 focus:ring-1 focus:ring-blue-500 uppercase" 
-              placeholder="Ej: 1234"
-            />
+            <label className="text-xs text-slate-400">Tipo de Equipo</label>
+            <select 
+              value={formData.tipo_equipo} 
+              onChange={e => setFormData({...formData, tipo_equipo: e.target.value})} 
+              className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-xs text-slate-200 focus:ring-1 focus:ring-blue-500"
+            >
+              <option value="">Seleccione tipo... (Opcional)</option>
+              {tiposEquipo.map(t => <option key={t} value={t}>{t}</option>)}
+            </select>
           </div>
           <div className="space-y-1">
             <label className="text-xs text-slate-400">Serie del equipo</label>
@@ -311,15 +313,184 @@ function ModalCasoReposicion({
   );
 }
 
+// ─── Modal Agregar Repuesto ──────────────────────────────────
+function ModalAgregarRepuesto({
+  casoId,
+  catalogo,
+  sucursales,
+  onClose,
+  onSave
+}: {
+  casoId: number;
+  catalogo: import("@/types/database.types").RepuestoConStock[];
+  sucursales: string[];
+  onClose: () => void;
+  onSave: (casoId: number, datos: any) => Promise<void>;
+}) {
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedRepuesto, setSelectedRepuesto] = useState<import("@/types/database.types").RepuestoConStock | null>(null);
+  
+  const [formData, setFormData] = useState({
+    numero_caso: "",
+    cantidad: 1,
+    tecnico_destino: ""
+  });
+  
+  const [loading, setLoading] = useState(false);
+
+  // Search logic
+  const [searchResults, setSearchResults] = useState<import("@/types/database.types").RepuestoConScore[]>([]);
+
+  useEffect(() => {
+    if (searchTerm.trim().length > 1) {
+      import("@/lib/search").then(({ buscarRepuestos }) => {
+        setSearchResults(buscarRepuestos(catalogo, searchTerm).slice(0, 5));
+      });
+    } else {
+      setSearchResults([]);
+    }
+  }, [searchTerm, catalogo]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedRepuesto) {
+      alert("Por favor busque y seleccione un repuesto primero.");
+      return;
+    }
+    setLoading(true);
+    await onSave(casoId, {
+      repuesto_id: selectedRepuesto.id,
+      numero_caso: formData.numero_caso,
+      cantidad: Number(formData.cantidad),
+      tecnico_destino: formData.tecnico_destino
+    });
+    setLoading(false);
+    onClose();
+  };
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4">
+      <div className="w-full max-w-md bg-slate-900 border border-slate-700/60 rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95">
+        <div className="px-6 py-4 border-b border-slate-800 flex justify-between items-center bg-slate-800/50">
+          <h3 className="text-sm font-semibold text-slate-200 flex items-center gap-2">
+            <Plus className="w-4 h-4 text-indigo-400" />
+            Añadir Repuesto al Caso
+          </h3>
+          <button onClick={onClose} className="text-slate-500 hover:text-slate-300 transition-colors">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+        <form onSubmit={handleSubmit} className="p-6 space-y-4 overflow-visible">
+          {!selectedRepuesto ? (
+            <div className="space-y-2 relative">
+              <label className="text-xs text-slate-400">Buscar Repuesto</label>
+              <div className="relative">
+                <input 
+                  type="text" 
+                  value={searchTerm}
+                  onChange={e => setSearchTerm(e.target.value)}
+                  className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 pl-8 text-xs text-slate-200 focus:ring-1 focus:ring-indigo-500" 
+                  placeholder="Código, SAP o nombre..."
+                />
+                <Package className="w-4 h-4 absolute left-2.5 top-2.5 text-slate-500" />
+              </div>
+              {searchResults.length > 0 && (
+                <div className="absolute top-full left-0 right-0 mt-1 bg-slate-800 border border-slate-700 rounded-lg shadow-xl overflow-hidden z-50">
+                  {searchResults.map(r => (
+                    <div 
+                      key={r.id} 
+                      onClick={() => { setSelectedRepuesto(r); setSearchTerm(""); }}
+                      className="p-2 border-b border-slate-700/50 last:border-0 hover:bg-slate-700/50 cursor-pointer transition-colors"
+                    >
+                      <div className="flex justify-between items-start mb-1">
+                        <span className="text-[11px] font-mono font-bold text-indigo-400">{r.codigo}</span>
+                        {r.codigo_sap && <span className="text-[10px] font-mono text-slate-400 bg-slate-900 px-1 rounded">SAP: {r.codigo_sap}</span>}
+                      </div>
+                      <p className="text-[10px] text-slate-300 line-clamp-2 leading-tight">{r.nombre_traducido || r.nombre}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="bg-slate-800/50 border border-indigo-500/30 rounded-lg p-3 relative group">
+              <button 
+                type="button" 
+                onClick={() => setSelectedRepuesto(null)}
+                className="absolute top-2 right-2 text-slate-500 hover:text-red-400 transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+              <span className="text-[10px] text-indigo-400 font-bold uppercase tracking-wider mb-1 block">Repuesto Seleccionado</span>
+              <p className="text-xs font-mono font-bold text-slate-200">{selectedRepuesto.codigo}</p>
+              <p className="text-[11px] text-slate-400 mt-0.5 line-clamp-2">{selectedRepuesto.nombre_traducido || selectedRepuesto.nombre}</p>
+            </div>
+          )}
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1">
+              <label className="text-xs text-slate-400">N° de Caso (Equipo)</label>
+              <input 
+                type="text" 
+                required 
+                value={formData.numero_caso} 
+                onChange={e => setFormData({...formData, numero_caso: e.target.value})} 
+                className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-xs text-slate-200 focus:ring-1 focus:ring-indigo-500 uppercase" 
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs text-slate-400">Cantidad</label>
+              <input 
+                type="number" 
+                required 
+                min={1}
+                value={formData.cantidad} 
+                onChange={e => setFormData({...formData, cantidad: Number(e.target.value)})} 
+                className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-xs text-slate-200 focus:ring-1 focus:ring-indigo-500" 
+              />
+            </div>
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-xs text-slate-400">Destino (Técnico / Sede)</label>
+            <select 
+              required 
+              value={formData.tecnico_destino} 
+              onChange={e => setFormData({...formData, tecnico_destino: e.target.value})} 
+              className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-xs text-slate-200 focus:ring-1 focus:ring-indigo-500"
+            >
+              <option value="">Seleccione destino...</option>
+              {sucursales.map(s => <option key={s} value={s}>{s}</option>)}
+            </select>
+          </div>
+
+          <div className="pt-2 flex justify-end gap-2 border-t border-slate-800 mt-4 pt-4">
+            <button type="button" onClick={onClose} className="px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-xs font-semibold text-slate-300 transition-colors">Cancelar</button>
+            <button type="submit" disabled={loading || !selectedRepuesto} className="px-5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-semibold flex items-center gap-2 transition-colors disabled:opacity-50">
+              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Añadir Repuesto"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 // ─── Tabla Expandible de Casos de Reposición ────────────────
 function TablaCasosReposicion({
-  casos, repuestosTotales, sucursales, onCreate, onEdit
+  casos,
+  repuestosTotales,
+  sucursales,
+  onCreate,
+  onEdit,
+  onAddRepuesto
 }: {
   casos: CasoReposicion[],
   repuestosTotales: HistorialPedido[],
   sucursales: string[],
   onCreate: () => void,
-  onEdit: (caso: CasoReposicion) => void
+  onEdit: (caso: CasoReposicion) => void,
+  onAddRepuesto: (casoId: number) => void
 }) {
   const [expandedRows, setExpandedRows] = useState<Record<number, boolean>>({});
 
@@ -369,8 +540,8 @@ function TablaCasosReposicion({
            <tbody>
              {casos.map((caso, i) => {
                const isExpanded = expandedRows[caso.id];
-               // Filtramos todos los repuestos (independientemente del estado) que estén linkeados a este codigo_caso
-               const repuestosAsignados = repuestosTotales.filter(r => r.caso_reposicion && r.caso_reposicion.trim() === caso.codigo_caso.trim());
+               // Filtramos usando la nueva relación FK por ID
+               const repuestosAsignados = repuestosTotales.filter(r => r.caso_reposicion_id === caso.id);
                
                return (
                  <React.Fragment key={caso.id}>
@@ -394,9 +565,14 @@ function TablaCasosReposicion({
                      <tr>
                        <td colSpan={6} className="bg-slate-950/80 p-0 border-b border-slate-800">
                          <div className="p-4 pl-12">
-                           <h4 className="text-[10px] uppercase font-semibold text-slate-500 mb-2 border-b border-slate-800 pb-1 w-fit">
-                             Repuestos vinculados al caso {caso.codigo_caso}
-                           </h4>
+                           <div className="flex items-center justify-between border-b border-slate-800 pb-2 mb-3">
+                             <h4 className="text-[10px] uppercase font-semibold text-slate-500 w-fit">
+                               Repuestos vinculados al caso {caso.codigo_caso}
+                             </h4>
+                             <button onClick={() => onAddRepuesto(caso.id)} className="flex items-center gap-1 bg-indigo-600/20 hover:bg-indigo-600/40 text-indigo-400 border border-indigo-500/30 text-[10px] font-semibold px-2 py-1 rounded transition-colors">
+                                <Plus className="w-3 h-3"/> Añadir repuesto
+                             </button>
+                           </div>
                            {repuestosAsignados.length > 0 ? (
                              <table className="w-full text-left">
                                <thead>
@@ -453,14 +629,12 @@ function TablaPedidos({
   ocultarTipo = false,
   isReposicion = false,
   isPedidosActuales = false,
-  validCasos = [],
   selectable = false,
   selectedIds = [],
   onToggleSelect,
   isAbastecimiento = false,
   onActualizarEstado,
   onEditarPedido,
-  onUpdateCasoReposicion,
   onFechasUpdated,
 }: {
   pedidos: HistorialPedido[];
@@ -470,14 +644,12 @@ function TablaPedidos({
   ocultarTipo?: boolean;
   isReposicion?: boolean;
   isPedidosActuales?: boolean;
-  validCasos?: string[];
   selectable?: boolean;
   selectedIds?: number[];
   onToggleSelect?: (id: number) => void;
   isAbastecimiento?: boolean;
   onActualizarEstado?: (id: number, estado: EstadoPedido) => Promise<void>;
   onEditarPedido?: (pedido: HistorialPedido) => void;
-  onUpdateCasoReposicion?: (id: number, val: string) => void;
   onFechasUpdated?: (id: number, fechas: Partial<HistorialPedido>) => void;
 }) {
   const [pag, setPag] = useState(0);
@@ -532,11 +704,9 @@ function TablaPedidos({
             </thead>
             <tbody>
               {slice.map((p, i) => {
-                const hasValidCaso = p.caso_reposicion && p.caso_reposicion.trim().length > 0;
-                // Opcional: Verificacion rigurosa si el caso_reposicion existe de verdad. 
-                // Segun instrucciones: "no permitira despachar si no se le ha asignado previamente su codigo"
-                // Implementaremos restricion estricta comprobando si p.caso_reposicion esta en validCasos.
-                const isStrictlyValid = validCasos.includes((p.caso_reposicion || "").trim());
+                const hasValidCaso = p.caso_reposicion_id !== null && p.caso_reposicion_id !== undefined;
+                // Como ahora usamos ID relacional, si tiene ID entonces el caso existe
+                const isStrictlyValid = hasValidCaso;
 
                 return (
                   <tr
@@ -599,22 +769,15 @@ function TablaPedidos({
                     <td className="px-4 py-3 text-[11px] text-slate-200 max-w-xs truncate" title={p.repuestos?.nombre ?? "N/A"}>{p.repuestos?.nombre ?? "N/A"}</td>
                     <td className="px-4 py-3 font-mono text-slate-300 text-[11px]">{p.numero_caso === "0000" ? "VENTA" : p.numero_caso}</td>
                     {isReposicion && (
-                      <td className="px-4 py-3">
-                        <input 
-                          type="text" 
-                          maxLength={4} // En la base si se cambia desde panel quiza son mas de 4, pero aqui se formatea al teclear
-                          defaultValue={p.caso_reposicion || ""}
-                          onBlur={(e) => {
-                            const val = e.target.value.replace(/[^0-9a-zA-Z]/g, '').slice(0, 20); // allow alphanumeric and up to 20 length to match real world
-                            e.target.value = val;
-                            if (onUpdateCasoReposicion && val !== (p.caso_reposicion || "")) {
-                              onUpdateCasoReposicion(p.id, val);
-                            }
-                          }}
-                          className={`w-20 bg-slate-800 border rounded p-1 text-[11px] text-amber-200 font-mono focus:ring-1 focus:ring-amber-500 text-center ${p.caso_reposicion && !isStrictlyValid ? 'border-red-500 ring-1 ring-red-500' : 'border-amber-900/50'}`}
-                          placeholder="Código"
-                          title="Tipea el código del caso y clica fuera para guardar."
-                        />
+                      <td className="px-4 py-3 text-center">
+                         {p.caso_reposicion_id ? (
+                           <div className="flex flex-col items-center">
+                             <span className="text-[10px] uppercase font-bold text-slate-500 mb-0.5 leading-none">Vinculado</span>
+                             <span className="w-16 bg-blue-900/40 border border-blue-500/30 rounded p-1 text-[11px] text-blue-300 font-mono inline-block">ID: {p.caso_reposicion_id}</span>
+                           </div>
+                         ) : (
+                           <span className="text-[10px] text-slate-600 italic">Sin vincular</span>
+                         )}
                       </td>
                     )}
                     <td className="px-4 py-3 text-center text-slate-300 text-[11px]">{p.cantidad}</td>
@@ -1271,7 +1434,6 @@ function VistaAdmin({
   sucursales,
   onActualizarEstado,
   onEditarPedido,
-  onUpdateCasoReposicion,
   onCrearCasoReposicion,
   onEditarCasoReposicion,
   onEliminarCasoReposicion,
@@ -1281,6 +1443,9 @@ function VistaAdmin({
   onEditarTransferencia,
   onAsignarItems,
   onRemoverItem,
+  onAgregarRepuestoACaso,
+  tiposEquipo,
+  catalogo,
 }: {
   historial: HistorialPedido[];
   casosReposicion: CasoReposicion[];
@@ -1289,7 +1454,6 @@ function VistaAdmin({
   sucursales: string[];
   onActualizarEstado: (id: number, estado: EstadoPedido) => Promise<void>;
   onEditarPedido: (pedido: HistorialPedido) => void;
-  onUpdateCasoReposicion: (id: number, val: string) => void;
   onCrearCasoReposicion: (datos: any) => Promise<void>;
   onEditarCasoReposicion: (id: number, datos: any) => Promise<void>;
   onEliminarCasoReposicion: (id: number) => Promise<void>;
@@ -1299,6 +1463,9 @@ function VistaAdmin({
   onEditarTransferencia: (id: number, datos: Partial<Transferencia>) => void;
   onAsignarItems: (pedidoIds: number[], transferenciaId: number) => Promise<{ error: string | null }>;
   onRemoverItem: (pedidoId: number, transferenciaId: number) => void;
+  onAgregarRepuestoACaso: (casoId: number, datos: any) => Promise<void>;
+  tiposEquipo: string[];
+  catalogo?: import("@/types/database.types").RepuestoConStock[];
 }) {
   const tabs: { id: TipoReporte | "aprobaciones"; label: string; icon: React.ReactNode }[] = [
     { id: "aprobaciones",  label: "Aprobaciones",     icon: <CheckCircle2 className="w-3.5 h-3.5" /> },
@@ -1312,6 +1479,10 @@ function VistaAdmin({
   const [showModalCaso, setShowModalCaso] = useState(false);
   const [casoToEdit, setCasoToEdit] = useState<CasoReposicion | null>(null);
 
+  // Handlers para Modal Agregar Repuesto
+  const [showModalAddRepuesto, setShowModalAddRepuesto] = useState(false);
+  const [casoIdForRepuesto, setCasoIdForRepuesto] = useState<number | null>(null);
+
   const handleSaveCaso = async (id: number | null, datos: any) => {
     if (id) {
        await onEditarCasoReposicion(id, datos);
@@ -1319,8 +1490,6 @@ function VistaAdmin({
        await onCrearCasoReposicion(datos);
     }
   };
-
-  const validCasos = casosReposicion.map(c => c.codigo_caso.trim());
 
   // Estado para Transferencias (Abastecimiento)
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
@@ -1462,14 +1631,12 @@ function VistaAdmin({
               ocultarTipo={true}
               isReposicion={activeTab === "Reposición"}
               isPedidosActuales={true}
-              validCasos={validCasos}
               selectable={activeTab === "Abastecimiento"}
               selectedIds={selectedIds}
               onToggleSelect={handleToggleSelect}
               isAbastecimiento={activeTab === "Abastecimiento"}
               onActualizarEstado={onActualizarEstado}
               onEditarPedido={onEditarPedido}
-              onUpdateCasoReposicion={onUpdateCasoReposicion}
               onFechasUpdated={onFechasUpdated}
             />
           </div>
@@ -1507,6 +1674,10 @@ function VistaAdmin({
                  sucursales={sucursales}
                  onCreate={() => { setCasoToEdit(null); setShowModalCaso(true); }}
                  onEdit={(caso) => { setCasoToEdit(caso); setShowModalCaso(true); }}
+                 onAddRepuesto={(casoId) => {
+                   setCasoIdForRepuesto(casoId);
+                   setShowModalAddRepuesto(true);
+                 }}
               />
             </div>
           )}
@@ -1525,7 +1696,6 @@ function VistaAdmin({
               isAbastecimiento={activeTab === "Abastecimiento"}
               onActualizarEstado={onActualizarEstado}
               onEditarPedido={onEditarPedido}
-              onUpdateCasoReposicion={onUpdateCasoReposicion}
               onFechasUpdated={onFechasUpdated}
             />
           </div>
@@ -1537,9 +1707,24 @@ function VistaAdmin({
          <ModalCasoReposicion
             casoToEdit={casoToEdit}
             sucursales={sucursales}
+            tiposEquipo={tiposEquipo}
             onClose={() => setShowModalCaso(false)}
             onSave={handleSaveCaso}
             onDelete={onEliminarCasoReposicion}
+         />
+      )}
+
+      {/* Modal Añadir Repuesto */}
+      {showModalAddRepuesto && casoIdForRepuesto !== null && catalogo && (
+         <ModalAgregarRepuesto
+            casoId={casoIdForRepuesto}
+            catalogo={catalogo}
+            sucursales={sucursales}
+            onClose={() => {
+              setShowModalAddRepuesto(false);
+              setCasoIdForRepuesto(null);
+            }}
+            onSave={onAgregarRepuestoACaso}
          />
       )}
     </div>
@@ -1936,6 +2121,7 @@ export function HistorialTab({
   isAdmin,
   ciudadUsuario,
   sucursales = [],
+  catalogo,
 }: HistorialTabProps) {
   const [pedidoToEdit, setPedidoToEdit] = useState<HistorialPedido | null>(null);
   
@@ -1950,6 +2136,21 @@ export function HistorialTab({
     setLocalTransferencias(transferencias);
   }, [historial, casosReposicion, transferencias]);
 
+  const tiposEquipo = React.useMemo(() => {
+    const models = new Set<string>();
+    if (catalogo) {
+      catalogo.forEach(r => {
+        if (r.modelos_compatibles) {
+          const parts = r.modelos_compatibles.split(/[,\s]+/);
+          parts.forEach(p => {
+            if (p.trim().length > 0) models.add(p.trim().toUpperCase());
+          });
+        }
+      });
+    }
+    return Array.from(models).sort();
+  }, [catalogo]);
+
   // Función de actualización de estado de repuesto (admin) 
   async function handleActualizarEstado(id: number, estado: EstadoPedido) {
     const pedido = localHistorial.find(p => p.id === id);
@@ -1962,13 +2163,6 @@ export function HistorialTab({
     const pedido = localHistorial.find(p => p.id === id);
     setLocalHistorial(prev => prev.map(p => p.id === id ? { ...p, ...datos } : p));
     await editarPedidoAdmin(id, datos, pedido?.is_test);
-  }
-
-  // Edit in-line del caso reposicion EN EL REPUESTO (Vincular)
-  async function handleUpdateCasoReposicion(id: number, caso_reposicion: string) {
-    const pedido = localHistorial.find(p => p.id === id);
-    setLocalHistorial(prev => prev.map(p => p.id === id ? { ...p, caso_reposicion } : p));
-    await editarPedidoAdmin(id, { caso_reposicion }, pedido?.is_test);
   }
 
   // Eliminar repuesto
@@ -2051,6 +2245,16 @@ export function HistorialTab({
     setLocalHistorial(prev => prev.map(p => p.id === pedidoId ? { ...p, transferencia_id: null } : p));
   }
 
+  async function handleAgregarRepuestoACaso(casoId: number, datos: any) {
+    const { agregarRepuestoACaso } = await import("@/app/(dashboard)/inventario/historial-actions");
+    const { pedido, error } = await agregarRepuestoACaso(casoId, datos);
+    if (error) {
+      alert(error);
+    } else if (pedido) {
+      setLocalHistorial(prev => [pedido, ...prev]);
+    }
+  }
+
   return (
     <div className="space-y-4">
       {/* Header */}
@@ -2086,7 +2290,6 @@ export function HistorialTab({
           sucursales={sucursales}
           onActualizarEstado={handleActualizarEstado}
           onEditarPedido={(p) => setPedidoToEdit(p)}
-          onUpdateCasoReposicion={handleUpdateCasoReposicion}
           onCrearCasoReposicion={handleCrearCaso}
           onEditarCasoReposicion={handleEditarCaso}
           onEliminarCasoReposicion={handleEliminarCaso}
@@ -2096,6 +2299,9 @@ export function HistorialTab({
           onEditarTransferencia={handleEditarTransferencia}
           onAsignarItems={handleAsignarItems}
           onRemoverItem={handleRemoverItem}
+          onAgregarRepuestoACaso={handleAgregarRepuestoACaso}
+          tiposEquipo={tiposEquipo}
+          catalogo={catalogo}
         />
       ) : (
         <VistaTecnico

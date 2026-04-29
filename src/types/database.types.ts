@@ -82,7 +82,7 @@ export interface HistorialPedido {
   sucursal_origen: string;
   repuesto_id: number | null;         // FK → repuestos(id)
   numero_caso: string;
-  caso_reposicion?: string | null;
+  caso_reposicion_id?: number | null;
   cantidad: number;
   tipo_reporte: string;
   estado: EstadoPedido;
@@ -113,6 +113,7 @@ export interface CasoReposicion {
   codigo_caso: string;
   serie_equipo: string;
   ubicacion: string;
+  tipo_equipo?: string | null;
 }
 
 // ─── Tabla: configuracion_sistema ────────────────────────────

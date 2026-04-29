@@ -274,25 +274,78 @@ export async function exportarHistorialCSV(
 // ─── CRUD: Casos de Reposición ────────────────────────────────
 
 export async function crearCasoReposicion(
-  datos: Omit<import("@/types/database.types").CasoReposicion, "id" | "fecha">
-): Promise<{ error: string | null }> {
+  datos: Omit<import("@/types/database.types").CasoReposicion, "id" | "fecha" | "codigo_caso">
+): Promise<{ error: string | null; caso?: any }> {
   const supabase = await createClient();
 
   const user = await getSession();
   if (!user || user.role !== "admin") return { error: "No autorizado." };
 
   const rawClient = supabase as unknown as any;
-  const { error } = await rawClient
+  
+  // 1. Insert with a temporary code to satisfy NOT NULL constraint if present
+  const { data: insertedData, error: insertError } = await rawClient
     .from("casos_reposicion")
-    .insert([datos]);
+    .insert([{ ...datos, codigo_caso: `TMP-${Date.now()}` }])
+    .select("id")
+    .single();
 
-  if (error) {
-    if (error.code === "23505") return { error: "El código de caso ya existe." };
-    return { error: `Error al crear: ${error.message}` };
+  if (insertError) {
+    return { error: `Error al crear: ${insertError.message}` };
+  }
+
+  // 2. Update with the actual ID
+  const newId = insertedData.id;
+  const newCodigo = newId.toString();
+
+  const { data: finalData, error: updateError } = await rawClient
+    .from("casos_reposicion")
+    .update({ codigo_caso: newCodigo })
+    .eq("id", newId)
+    .select()
+    .single();
+
+  if (updateError) {
+    return { error: `Error al generar código: ${updateError.message}` };
   }
 
   revalidatePath("/inventario");
-  return { error: null };
+  return { error: null, caso: finalData };
+}
+
+export async function agregarRepuestoACaso(
+  caso_reposicion_id: number,
+  datosItem: {
+    repuesto_id: number;
+    numero_caso: string;
+    cantidad: number;
+    tecnico_destino: string;
+  }
+): Promise<{ error: string | null; pedido?: any }> {
+  const supabase = await createClient();
+  const user = await getSession();
+  if (!user || user.role !== "admin") return { error: "No autorizado." };
+
+  const rawClient = supabase as unknown as any;
+  
+  const nuevoPedido = {
+    ...datosItem,
+    sucursal_origen: "SIN_STOCK",
+    tipo_reporte: "Reposición",
+    estado: "Pendiente",
+    caso_reposicion_id: caso_reposicion_id,
+  };
+
+  const { data, error } = await rawClient
+    .from("historial_pedidos")
+    .insert([nuevoPedido])
+    .select("*, repuestos(codigo, nombre, codigo_sap)")
+    .single();
+
+  if (error) return { error: `Error al agregar repuesto: ${error.message}` };
+
+  revalidatePath("/inventario");
+  return { error: null, pedido: data };
 }
 
 export async function editarCasoReposicion(
