@@ -35,10 +35,10 @@ export async function crearDocumentoReporte(payload: CrearDocumentoPayload) {
         .select("id_cliente")
         .ilike("nombre_razon_social", payload.nombre_cliente)
         .limit(1)
-        .single();
+        .maybeSingle();
 
       if (clienteExistente) {
-        clienteId = clienteExistente.id_cliente;
+        clienteId = (clienteExistente as any).id_cliente;
       } else {
         // Crear nuevo cliente
         const { data: nuevoClienteUntyped, error: errCliente } = await db

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { Filter, BarChart3, CheckCircle2, Clock, TrendingUp } from "lucide-react";
 import type { Caso, ClasificacionSLA } from "@/types/casos.types";
 import { PLAZOS_IDEALES } from "@/types/casos.types";
