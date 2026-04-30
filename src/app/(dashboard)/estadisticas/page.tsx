@@ -19,17 +19,6 @@ export default async function EstadisticasPage() {
   const user = await getSession();
   if (!user) redirect("/login");
 
-  const isAdmin = user.role === "admin";
-
-  if (!isAdmin) {
-    return (
-      <div className="flex flex-col items-center justify-center h-full py-20 text-slate-500">
-        <BarChart3 className="w-12 h-12 mb-3 opacity-30" />
-        <p className="text-sm">Acceso restringido al administrador.</p>
-      </div>
-    );
-  }
-
   const db = createAdminClient();
 
   // ── Pipeline de datos desde BD ──────────────────────────────
@@ -54,6 +43,7 @@ export default async function EstadisticasPage() {
   return (
     <div className="-mt-6">
       <EstadisticasDashboard
+        user={user}
         casos={casos}
         sucursalesDisponibles={sucursalesDisponibles}
         periodosDisponibles={periodosDisponibles}

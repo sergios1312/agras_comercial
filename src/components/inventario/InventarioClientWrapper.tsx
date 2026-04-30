@@ -122,7 +122,7 @@ export function InventarioClientWrapper({
     setTimeout(() => {
       setToastMessage(null);
     }, 3000);
-  }, []);
+  }, [setCarrito]);
 
   const clearCarrito = useCallback(() => {
     setCarritoState([]);

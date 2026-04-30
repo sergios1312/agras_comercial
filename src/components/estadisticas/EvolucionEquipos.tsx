@@ -22,13 +22,14 @@ export interface EvolucionEquipoRow {
 }
 
 interface Props {
+  isAdmin?: boolean;
   evolucionData: EvolucionEquipoRow[];
   sucursalData: EvolucionEquipoRow[];
 }
 
 type Tab = "evolucion" | "sucursal";
 
-export function EvolucionEquipos({ evolucionData, sucursalData }: Props) {
+export function EvolucionEquipos({ isAdmin = true, evolucionData, sucursalData }: Props) {
   const [activeTab, setActiveTab] = useState<Tab>("evolucion");
 
   const formatterTooltip: Fmt = (v: number, name: string, props: any) => {
@@ -84,28 +85,30 @@ export function EvolucionEquipos({ evolucionData, sucursalData }: Props) {
       </p>
 
       {/* Tabs */}
-      <div className="flex gap-1 mb-5 border-b border-slate-800">
-        <button
-          onClick={() => setActiveTab("evolucion")}
-          className={`px-4 py-2 text-xs font-semibold transition-all border-b-2 -mb-px
-            ${activeTab === "evolucion"
-              ? "border-indigo-500 text-indigo-300"
-              : "border-transparent text-slate-500 hover:text-slate-300"}`}
-        >
-          📈 Evolución Temporal
-        </button>
-        <button
-          onClick={() => setActiveTab("sucursal")}
-          className={`px-4 py-2 text-xs font-semibold transition-all border-b-2 -mb-px
-            ${activeTab === "sucursal"
-              ? "border-indigo-500 text-indigo-300"
-              : "border-transparent text-slate-500 hover:text-slate-300"}`}
-        >
-          🏢 Comparativa por Sucursal
-        </button>
-      </div>
+      {isAdmin && (
+        <div className="flex gap-1 mb-5 border-b border-slate-800">
+          <button
+            onClick={() => setActiveTab("evolucion")}
+            className={`px-4 py-2 text-xs font-semibold transition-all border-b-2 -mb-px
+              ${activeTab === "evolucion"
+                ? "border-indigo-500 text-indigo-300"
+                : "border-transparent text-slate-500 hover:text-slate-300"}`}
+          >
+            📈 Evolución Temporal
+          </button>
+          <button
+            onClick={() => setActiveTab("sucursal")}
+            className={`px-4 py-2 text-xs font-semibold transition-all border-b-2 -mb-px
+              ${activeTab === "sucursal"
+                ? "border-indigo-500 text-indigo-300"
+                : "border-transparent text-slate-500 hover:text-slate-300"}`}
+          >
+            🏢 Comparativa por Sucursal
+          </button>
+        </div>
+      )}
 
-      {activeTab === "evolucion" && (
+      {(activeTab === "evolucion" || !isAdmin) && (
         <ResponsiveContainer width="100%" height={400}>
           <ComposedChart data={evolucionData} barCategoryGap="25%" margin={{ top: 20, right: 16, left: 10, bottom: 4 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
@@ -201,7 +204,7 @@ export function EvolucionEquipos({ evolucionData, sucursalData }: Props) {
         </ResponsiveContainer>
       )}
 
-      {activeTab === "sucursal" && (
+      {isAdmin && activeTab === "sucursal" && (
         <ResponsiveContainer width="100%" height={400}>
           <ComposedChart data={sucursalData} barCategoryGap="25%" margin={{ top: 20, right: 16, left: 10, bottom: 40 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />

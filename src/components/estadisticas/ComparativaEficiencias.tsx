@@ -32,13 +32,14 @@ interface SucursalRow {
 }
 
 interface Props {
+  isAdmin?: boolean;
   evolucionData: EvolucionRow[];
   sucursalData: SucursalRow[];
 }
 
 type Tab = "evolucion" | "sucursal";
 
-export function ComparativaEficiencias({ evolucionData, sucursalData }: Props) {
+export function ComparativaEficiencias({ isAdmin = true, evolucionData, sucursalData }: Props) {
   const [activeTab, setActiveTab] = useState<Tab>("evolucion");
 
   const sortedSucursal = [...sucursalData].sort((a, b) => b.pctEtd - a.pctEtd);
@@ -67,29 +68,31 @@ export function ComparativaEficiencias({ evolucionData, sucursalData }: Props) {
       </p>
 
       {/* Tabs */}
-      <div className="flex gap-1 mb-5 border-b border-slate-800">
-        <button
-          onClick={() => setActiveTab("evolucion")}
-          className={`px-4 py-2 text-xs font-semibold transition-all border-b-2 -mb-px
-            ${activeTab === "evolucion"
-              ? "border-indigo-500 text-indigo-300"
-              : "border-transparent text-slate-500 hover:text-slate-300"}`}
-        >
-          📈 Evolución Temporal
-        </button>
-        <button
-          onClick={() => setActiveTab("sucursal")}
-          className={`px-4 py-2 text-xs font-semibold transition-all border-b-2 -mb-px
-            ${activeTab === "sucursal"
-              ? "border-indigo-500 text-indigo-300"
-              : "border-transparent text-slate-500 hover:text-slate-300"}`}
-        >
-          🏢 Comparativa por Sucursal
-        </button>
-      </div>
+      {isAdmin && (
+        <div className="flex gap-1 mb-5 border-b border-slate-800">
+          <button
+            onClick={() => setActiveTab("evolucion")}
+            className={`px-4 py-2 text-xs font-semibold transition-all border-b-2 -mb-px
+              ${activeTab === "evolucion"
+                ? "border-indigo-500 text-indigo-300"
+                : "border-transparent text-slate-500 hover:text-slate-300"}`}
+          >
+            📈 Evolución Temporal
+          </button>
+          <button
+            onClick={() => setActiveTab("sucursal")}
+            className={`px-4 py-2 text-xs font-semibold transition-all border-b-2 -mb-px
+              ${activeTab === "sucursal"
+                ? "border-indigo-500 text-indigo-300"
+                : "border-transparent text-slate-500 hover:text-slate-300"}`}
+          >
+            🏢 Comparativa por Sucursal
+          </button>
+        </div>
+      )}
 
       {/* Tab: Evolución Temporal — Eje X = Periodo, ignora F4 */}
-      {activeTab === "evolucion" && (
+      {(activeTab === "evolucion" || !isAdmin) && (
         <>
           <p className="text-[11px] text-slate-600 mb-3">
             Filtros activos: Sucursal (F1), Garantía (F3), Tipo Trabajo (F6) · F4 Periodo ignorado (el eje X es el periodo)
@@ -163,7 +166,7 @@ export function ComparativaEficiencias({ evolucionData, sucursalData }: Props) {
       )}
 
       {/* Tab: Comparativa por Sucursal — Eje X = Sucursal, ignora F1 */}
-      {activeTab === "sucursal" && (
+      {isAdmin && activeTab === "sucursal" && (
         <>
           <p className="text-[11px] text-slate-600 mb-3">
             Filtros activos: Periodo (F4), Garantía (F3), Tipo Trabajo (F6) · F1 Sucursal ignorado (el eje X es la sucursal)

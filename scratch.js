@@ -1,10 +1,44 @@
-const { createClient } = require('@supabase/supabase-js');
-require('dotenv').config({ path: '.env.local' });
-const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
-async function test() {
-  const { data, error } = await supabase.from('casos').select('numeracion_caso, sucursales(nombre_ciudad)').eq('numeracion_caso', '0718');
-  console.log('Result for string 0718:', JSON.stringify(data, null, 2), error);
-  const { data: data2 } = await supabase.from('casos').select('numeracion_caso, sucursales(nombre_ciudad)').eq('numeracion_caso', 718);
-  console.log('Result for int 718:', JSON.stringify(data2, null, 2));
+const testPedidos = [
+  { id: 1, repuesto_id: "REP1", numero_caso: "100", tecnico_destino: "Sede A", repuestos: { codigo: "C1" } },
+  { id: 2, repuesto_id: "REP1", numero_caso: "100", tecnico_destino: "Sede A", repuestos: { codigo: "C1" } }, // Duplicate of 1
+  { id: 3, repuesto_id: "REP2", numero_caso: "100", tecnico_destino: "Sede A", repuestos: { codigo: "C2" } },
+  { id: 4, repuesto_id: "REP1", numero_caso: "200", tecnico_destino: "Sede A", repuestos: { codigo: "C1" } },
+  { id: 5, repuesto_id: "REP1", numero_caso: "100", tecnico_destino: "Sede B", repuestos: { codigo: "C1" } },
+  { id: 6, repuesto_id: "REP2", numero_caso: "100", tecnico_destino: "Sede A", repuestos: { codigo: "C2" } }, // Duplicate of 3
+];
+
+function simulateMapaDuplicados(pedidos) {
+  const mapa = new Map();
+  pedidos.forEach(p => {
+    const rep_id = p.repuestos?.codigo || p.repuesto_id || "null";
+    const key = `${rep_id}-${p.numero_caso}-${p.tecnico_destino}`;
+    if (!mapa.has(key)) mapa.set(key, []);
+    mapa.get(key).push(p);
+  });
+  
+  const res = new Map(); // pedido_id -> duplicate_key
+  for (const [key, grupo] of mapa.entries()) {
+    if (grupo.length > 1) {
+      grupo.forEach(p => res.set(p.id, key));
+    }
+  }
+  return { duplicadosById: res, grupos: mapa };
 }
-test();
+
+const result = simulateMapaDuplicados(testPedidos);
+
+console.log("Duplicados encontrados (ID -> Key):");
+for (const [id, key] of result.duplicadosById.entries()) {
+  console.log(`ID: ${id}, Key: ${key}`);
+}
+
+console.log("\nGrupos de duplicados:");
+for (const [key, grupo] of result.grupos.entries()) {
+  if (grupo.length > 1) {
+    console.log(`Key: ${key}, IDs: ${grupo.map(p => p.id).join(", ")}`);
+  }
+}
+
+// Expected duplicates:
+// 1 and 2 (Key: C1-100-Sede A)
+// 3 and 6 (Key: C2-100-Sede A)

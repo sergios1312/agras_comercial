@@ -532,7 +532,7 @@ export async function despacharTransferencia(
   if (datosCorreo) {
     try {
       const { enviarCorreoTransferencia } = await import("@/lib/email");
-      await enviarCorreoTransferencia({
+      const result = await enviarCorreoTransferencia({
         sucursalDestino: datosCorreo.sucursal_destino,
         identifier: datosFinales?.codigo_transferencia || `TR-${transferenciaId}`,
         bultos: datosCorreo.bultos,
@@ -541,6 +541,9 @@ export async function despacharTransferencia(
         factura: datosFinales?.factura || "",
         pdfFileName: datosFinales?.codigo_transferencia || ""
       });
+      if (result?.messageId) {
+        await rawClient.from("transferencias").update({ ultimo_message_id: result.messageId }).eq("id", transferenciaId);
+      }
     } catch (e) {
       console.error("Error enviando correo de transferencia:", e);
     }
@@ -569,6 +572,7 @@ export async function eliminarTransferencia(
 }
 
 // ─── fusionarPedidos ──────────────────────────────────────────
+// [TEST-EDIT] Esta función fue validada el 29/04/2026.
 /**
  * Permite al ADMIN unificar pedidos duplicados.
  * Actualiza la cantidad del pedido destino y elimina los redundantes.
@@ -609,3 +613,47 @@ export async function fusionarPedidos(
   return { error: null };
 }
 
+// ─── completarTransferenciaIntercompany ───────────────────────
+export async function completarTransferenciaIntercompany(
+  transferenciaId: number,
+  datos: { orden_venta: string; factura: string; },
+  datosCorreo: { sucursal_destino: string; codigo_transferencia: string; ultimo_message_id: string | null }
+): Promise<{ error: string | null }> {
+  const supabase = await createClient();
+  const user = await getSession();
+  if (!user || user.role !== "admin") return { error: "No autorizado." };
+
+  const rawClient = supabase as unknown as any;
+
+  // Actualizar la transferencia con Factura y OV
+  const { error: errTrans } = await rawClient
+    .from("transferencias")
+    .update({ orden_venta: datos.orden_venta, factura: datos.factura })
+    .eq("id", transferenciaId);
+
+  if (errTrans) return { error: `Error al actualizar transferencia: ${errTrans.message}` };
+
+  try {
+    const { enviarCorreoTransferencia } = await import("@/lib/email");
+    const result = await enviarCorreoTransferencia({
+      sucursalDestino: datosCorreo.sucursal_destino,
+      identifier: datosCorreo.codigo_transferencia || `TR-${transferenciaId}`,
+      bultos: "",
+      empresa: "",
+      ordenVenta: datos.orden_venta,
+      factura: datos.factura,
+      pdfFileName: datosCorreo.codigo_transferencia || "",
+      replyToMessageId: datosCorreo.ultimo_message_id
+    });
+    
+    // Si obtenemos un nuevo messageId (respuesta), lo actualizamos para futuras respuestas si las hubiera
+    if (result?.messageId) {
+      await rawClient.from("transferencias").update({ ultimo_message_id: result.messageId }).eq("id", transferenciaId);
+    }
+  } catch (e) {
+    console.error("Error enviando correo de respuesta intercompany:", e);
+  }
+
+  revalidatePath("/inventario");
+  return { error: null };
+}

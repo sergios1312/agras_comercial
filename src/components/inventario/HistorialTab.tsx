@@ -3,7 +3,7 @@
 import React, { useState, useTransition, useEffect } from "react";
 import {
   RefreshCw, Download, Package, Truck, ArrowLeftRight,
-  CheckCircle2, Loader2, Edit, X, Check, Trash2, Send, ChevronDown, ChevronRight, Plus, FileUp, ExternalLink, Paperclip, AlertTriangle
+  CheckCircle2, Loader2, Edit, X, Check, Trash2, Send, ChevronDown, ChevronRight, Plus, FileUp, ExternalLink, Paperclip, AlertTriangle, Database
 } from "lucide-react";
 import { createBrowserClient } from "@/utils/supabase/client";
 import { Badge, estadoToVariant } from "@/components/ui/Badge";
@@ -1471,10 +1471,11 @@ function TransferenciaAcciones({ transferencia, hasError, pedidos }: { transfere
             if (!fechaEnvio) faltantes.push("Fecha de Envío");
             if (!transferencia.codigo_transferencia) faltantes.push("PDF de Transferencia");
             
-            if (!isNormal) {
-              if (!transferencia.orden_venta?.trim()) faltantes.push("Orden de Venta");
-              if (!transferencia.factura?.trim()) faltantes.push("Factura");
-            }
+            // Factura y Orden de Venta ya no son obligatorias en el despacho inicial
+            // if (!isNormal) {
+            //   if (!transferencia.orden_venta?.trim()) faltantes.push("Orden de Venta");
+            //   if (!transferencia.factura?.trim()) faltantes.push("Factura");
+            // }
 
             if (faltantes.length > 0) {
               alert(`Para despachar, por favor completa los siguientes datos en el botón "Editar":\n\n- ${faltantes.join("\n- ")}`);
@@ -1597,6 +1598,191 @@ function ExportBtn({
       </button>
       {feedback && (
         <p className="text-[11px] text-red-400">{feedback}</p>
+      )}
+    </div>
+  );
+}
+
+// ─── Modal Completar Intercompany ─────────────────────────────
+function ModalCompletarIntercompany({
+  transferencia,
+  onClose,
+  onSave
+}: {
+  transferencia: Transferencia;
+  onClose: () => void;
+  onSave: (datos: { orden: string; factura: string }) => Promise<void>;
+}) {
+  const [orden, setOrden] = useState(transferencia.orden_venta || "");
+  const [factura, setFactura] = useState(transferencia.factura || "");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
+      <div className="bg-slate-900 border border-slate-700 rounded-xl shadow-xl w-full max-w-sm overflow-hidden flex flex-col">
+        <div className="p-4 border-b border-slate-800 bg-slate-800/30 flex items-center justify-between">
+          <div>
+            <h3 className="text-sm font-bold text-slate-200">Completar Intercompany</h3>
+            <p className="text-xs text-slate-400 mt-0.5">TR-{transferencia.id} - Destino: {transferencia.sucursal_destino}</p>
+          </div>
+          <button onClick={onClose} className="text-slate-400 hover:text-white p-1 rounded-md hover:bg-slate-800 transition-colors">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+        <div className="p-4 flex-1 overflow-y-auto space-y-4">
+          <div>
+            <label className="block text-xs font-medium text-slate-400 mb-1.5">Orden de Venta <span className="text-red-400">*</span></label>
+            <input
+              type="text"
+              value={orden}
+              onChange={e => setOrden(e.target.value)}
+              className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none"
+              placeholder="Ej: OV-12345"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-slate-400 mb-1.5">Factura <span className="text-red-400">*</span></label>
+            <input
+              type="text"
+              value={factura}
+              onChange={e => setFactura(e.target.value)}
+              className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none"
+              placeholder="Ej: F001-000123"
+            />
+          </div>
+        </div>
+        <div className="p-4 border-t border-slate-800 bg-slate-800/30 flex justify-end gap-2">
+          <button onClick={onClose} disabled={isSubmitting} className="px-4 py-2 text-sm font-medium text-slate-300 hover:text-white transition-colors disabled:opacity-50">Cancelar</button>
+          <button
+            onClick={async () => {
+              if (!orden.trim() || !factura.trim()) {
+                alert("Por favor, ingresa tanto la Orden de Venta como la Factura.");
+                return;
+              }
+              setIsSubmitting(true);
+              await onSave({ orden, factura });
+              setIsSubmitting(false);
+            }}
+            disabled={isSubmitting}
+            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium rounded-lg transition-colors flex items-center gap-2 disabled:opacity-50"
+          >
+            {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+            Procesar
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Tabla Historial de Transferencias ────────────────────────
+import { completarTransferenciaIntercompany } from "@/app/(dashboard)/inventario/historial-actions";
+
+function TablaHistorialTransferencias({
+  transferencias
+}: {
+  transferencias: Transferencia[];
+}) {
+  const [pag, setPag] = useState(0);
+  const POR_PAG = 10;
+  
+  const [modalIntercompanyTransfer, setModalIntercompanyTransfer] = useState<Transferencia | null>(null);
+
+  // Solo transferencias enviadas
+  const enviadas = transferencias.filter(t => t.estado === "Enviado").sort((a, b) => new Date(b.fecha_hora).getTime() - new Date(a.fecha_hora).getTime());
+  
+  const total = enviadas.length;
+  const paginas = Math.ceil(total / POR_PAG);
+  const dataMostrada = enviadas.slice(pag * POR_PAG, (pag + 1) * POR_PAG);
+
+  if (total === 0) return null;
+
+  return (
+    <div className="bg-slate-800/30 border border-slate-700/50 rounded-xl overflow-hidden mt-8">
+      <div className="p-4 border-b border-slate-700/50 flex items-center justify-between">
+        <h3 className="text-sm font-bold text-slate-200 flex items-center gap-2">
+          <Database className="w-4 h-4 text-slate-400" />
+          Historial de Transferencias
+        </h3>
+        <span className="text-xs font-semibold text-slate-400 bg-slate-800 px-2.5 py-1 rounded-full">{total} registros</span>
+      </div>
+      
+      <div className="overflow-x-auto">
+        <table className="w-full text-left text-sm text-slate-300">
+          <thead className="text-xs text-slate-400 uppercase bg-slate-900/50 border-b border-slate-700">
+            <tr>
+              <th className="px-4 py-3 font-semibold">Código</th>
+              <th className="px-4 py-3 font-semibold">Fecha Envío</th>
+              <th className="px-4 py-3 font-semibold">Destino</th>
+              <th className="px-4 py-3 font-semibold">Tipo</th>
+              <th className="px-4 py-3 font-semibold">Acciones</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-800">
+            {dataMostrada.map(t => {
+              const tipo = getTransferType(t.sucursal_destino);
+              const isIntercompany = tipo === "Intercompany";
+              const faltaDocs = isIntercompany && (!t.factura || !t.orden_venta);
+              
+              return (
+                <tr key={t.id} className="hover:bg-slate-800/30 transition-colors">
+                  <td className="px-4 py-3 font-mono text-indigo-400">{t.codigo_transferencia || `TR-${t.id}`}</td>
+                  <td className="px-4 py-3">
+                    {new Intl.DateTimeFormat("es-PE", { dateStyle: "short", timeStyle: "short" }).format(new Date(t.fecha_hora))}
+                  </td>
+                  <td className="px-4 py-3 capitalize">{t.sucursal_destino}</td>
+                  <td className="px-4 py-3">
+                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${isIntercompany ? 'bg-amber-500/10 text-amber-500' : 'bg-blue-500/10 text-blue-400'}`}>
+                      {tipo}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3">
+                    {faltaDocs ? (
+                      <button
+                        onClick={() => setModalIntercompanyTransfer(t)}
+                        className="px-3 py-1.5 text-[11px] font-bold rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white transition-colors"
+                      >
+                        Realizar inter company
+                      </button>
+                    ) : (
+                      <span className="text-xs text-slate-500 italic">Completada</span>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+      
+      {paginas > 1 && (
+        <div className="flex items-center justify-between p-3 border-t border-slate-700/50 text-xs text-slate-500 bg-slate-900/30">
+          <span>Mostrando {pag * POR_PAG + 1}–{Math.min((pag + 1) * POR_PAG, total)} de {total}</span>
+          <div className="flex gap-1">
+            <button onClick={() => setPag((p) => Math.max(0, p - 1))} disabled={pag === 0} className="px-2 py-1 rounded-md bg-slate-800 border border-slate-700 disabled:opacity-30 hover:bg-slate-700">←</button>
+            <button onClick={() => setPag((p) => Math.min(paginas - 1, p + 1))} disabled={pag >= paginas - 1} className="px-2 py-1 rounded-md bg-slate-800 border border-slate-700 disabled:opacity-30 hover:bg-slate-700">→</button>
+          </div>
+        </div>
+      )}
+
+      {modalIntercompanyTransfer && (
+        <ModalCompletarIntercompany
+          transferencia={modalIntercompanyTransfer}
+          onClose={() => setModalIntercompanyTransfer(null)}
+          onSave={async (datos) => {
+             const res = await completarTransferenciaIntercompany(
+               modalIntercompanyTransfer.id, 
+               { orden_venta: datos.orden, factura: datos.factura },
+               { 
+                 sucursal_destino: modalIntercompanyTransfer.sucursal_destino || "", 
+                 codigo_transferencia: modalIntercompanyTransfer.codigo_transferencia || "",
+                 ultimo_message_id: modalIntercompanyTransfer.ultimo_message_id || null
+               }
+             );
+             if (res.error) alert(res.error);
+             else setModalIntercompanyTransfer(null);
+          }}
+        />
       )}
     </div>
   );
@@ -1987,6 +2173,11 @@ function VistaAdmin({
               onFechasUpdated={onFechasUpdated}
             />
           </div>
+
+          {/* TABLA 4: HISTORIAL DE TRANSFERENCIAS (Solo Abastecimiento) */}
+          {activeTab === "Abastecimiento" && (
+            <TablaHistorialTransferencias transferencias={transferencias} />
+          )}
         </div>
       )}
 

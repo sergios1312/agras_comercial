@@ -73,6 +73,7 @@ export interface Transferencia {
   orden_venta: string | null;
   factura: string | null;
   fecha_hora: string;
+  ultimo_message_id?: string | null;
 }
 
 // ─── Tabla: historial_pedidos ────────────────────────────────
@@ -160,6 +161,62 @@ export interface RepuestoConStock extends Repuesto {
   inv_ids: Record<string, number>; // map sucursal → inventario.id
 }
 
+// ─── Tabla: documentos_reporte ───────────────────────────────
+export type TipoDocumentoReporte = "cotizacion_venta" | "cotizacion_reparacion" | "reporte_salida";
+
+export interface DocumentoReporte {
+  id: number;
+  tipo_documento: TipoDocumentoReporte;
+  codigo_generado: string;
+  usuario_emisor: string;
+  fecha_creacion: string;
+  cliente_id?: string | null; // uuid
+  caso_id?: number | null; // bigint
+  descripcion_trabajo?: string | null;
+  subtotal: number;
+  igv: number;
+  total: number;
+}
+
+// ─── Tabla: detalle_documento_reporte ────────────────────────
+export interface DetalleDocumentoReporte {
+  id: number;
+  documento_id: number;
+  repuesto_id: number;
+  cantidad: number;
+  precio_unitario: number;
+  subtotal: number;
+  
+  // Relaciones (expand)
+  repuestos?: Repuesto;
+}
+
+// ─── Tabla: clientes ─────────────────────────────────────────
+export interface Cliente {
+  id_cliente: string; // uuid
+  nombre_razon_social: string;
+  datos_contacto?: string | null;
+  created_at?: string;
+}
+
+// ─── Tabla: casos ────────────────────────────────────────────
+export interface Caso {
+  id: number; // bigint
+  numeracion_caso: string;
+  estado_general?: string | null;
+  descripcion?: string | null;
+  sucursal_id?: number | null;
+  cliente?: string | null;
+  garantia?: string | null;
+  estado_caso?: string | null;
+  tipo_trabajo?: string | null;
+  fecha_ingreso?: string | null;
+  fecha_salida?: string | null;
+  created_at?: string;
+  equipo?: string | null;
+  estado_sistema?: string | null;
+}
+
 // ─── Database Schema (para tipado de Supabase Client) ────────
 export interface Database {
   public: {
@@ -198,6 +255,26 @@ export interface Database {
         Row: Transferencia;
         Insert: Omit<Transferencia, "id" | "fecha_hora">;
         Update: Partial<Omit<Transferencia, "id" | "fecha_hora">>;
+      };
+      documentos_reporte: {
+        Row: DocumentoReporte;
+        Insert: Omit<DocumentoReporte, "id" | "fecha_creacion">;
+        Update: Partial<Omit<DocumentoReporte, "id">>;
+      };
+      detalle_documento_reporte: {
+        Row: DetalleDocumentoReporte;
+        Insert: Omit<DetalleDocumentoReporte, "id">;
+        Update: Partial<Omit<DetalleDocumentoReporte, "id">>;
+      };
+      clientes: {
+        Row: Cliente;
+        Insert: Omit<Cliente, "id_cliente" | "created_at">;
+        Update: Partial<Omit<Cliente, "id_cliente">>;
+      };
+      casos: {
+        Row: Caso;
+        Insert: Omit<Caso, "id" | "created_at">;
+        Update: Partial<Omit<Caso, "id">>;
       };
     };
     Views: Record<string, never>;

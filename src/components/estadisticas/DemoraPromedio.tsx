@@ -21,14 +21,15 @@ interface DemoraTipoRow {
 }
 
 interface Props {
+  isAdmin?: boolean;
   demoraSucData: DemoraSucRow[];
   demoraTipoData: DemoraTipoRow[];
 }
 
 type Tab = "garantia" | "tipoTrabajo";
 
-export function DemoraPromedio({ demoraSucData, demoraTipoData }: Props) {
-  const [activeTab, setActiveTab] = useState<Tab>("garantia");
+export function DemoraPromedio({ isAdmin = true, demoraSucData, demoraTipoData }: Props) {
+  const [activeTab, setActiveTab] = useState<Tab>(isAdmin ? "garantia" : "tipoTrabajo");
 
   return (
     <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5">
@@ -41,29 +42,31 @@ export function DemoraPromedio({ demoraSucData, demoraTipoData }: Props) {
       </p>
 
       {/* Tabs */}
-      <div className="flex gap-1 mb-5 border-b border-slate-800">
-        <button
-          onClick={() => setActiveTab("garantia")}
-          className={`px-4 py-2 text-xs font-semibold transition-all border-b-2 -mb-px
-            ${activeTab === "garantia"
-              ? "border-indigo-500 text-indigo-300"
-              : "border-transparent text-slate-500 hover:text-slate-300"}`}
-        >
-          🔒 Garantía
-        </button>
-        <button
-          onClick={() => setActiveTab("tipoTrabajo")}
-          className={`px-4 py-2 text-xs font-semibold transition-all border-b-2 -mb-px
-            ${activeTab === "tipoTrabajo"
-              ? "border-indigo-500 text-indigo-300"
-              : "border-transparent text-slate-500 hover:text-slate-300"}`}
-        >
-          🔧 Tipo de Trabajo
-        </button>
-      </div>
+      {isAdmin && (
+        <div className="flex gap-1 mb-5 border-b border-slate-800">
+          <button
+            onClick={() => setActiveTab("garantia")}
+            className={`px-4 py-2 text-xs font-semibold transition-all border-b-2 -mb-px
+              ${activeTab === "garantia"
+                ? "border-indigo-500 text-indigo-300"
+                : "border-transparent text-slate-500 hover:text-slate-300"}`}
+          >
+            🔒 Garantía
+          </button>
+          <button
+            onClick={() => setActiveTab("tipoTrabajo")}
+            className={`px-4 py-2 text-xs font-semibold transition-all border-b-2 -mb-px
+              ${activeTab === "tipoTrabajo"
+                ? "border-indigo-500 text-indigo-300"
+                : "border-transparent text-slate-500 hover:text-slate-300"}`}
+          >
+            🔧 Tipo de Trabajo
+          </button>
+        </div>
+      )}
 
       {/* Tab: Garantía — Sucursales × CON/SIN Garantía — ignora F1, F3 */}
-      {activeTab === "garantia" && (
+      {isAdmin && activeTab === "garantia" && (
         <>
           <p className="text-[11px] text-slate-600 mb-3">
             Filtros activos: Periodo (F4), Estado Caso (F5), Tipo Trabajo (F6) · F1 y F3 ignorados (son los ejes comparativos)
@@ -100,7 +103,7 @@ export function DemoraPromedio({ demoraSucData, demoraTipoData }: Props) {
       )}
 
       {/* Tab: Tipo de Trabajo — Real vs Estimado — ignora F1, F3, F6 */}
-      {activeTab === "tipoTrabajo" && (
+      {(activeTab === "tipoTrabajo" || !isAdmin) && (
         <>
           <p className="text-[11px] text-slate-600 mb-3">
             Filtros activos: Periodo (F4), Estado Caso (F5) · F1, F3 y F6 ignorados (evalúa toda la empresa y todos los tipos)

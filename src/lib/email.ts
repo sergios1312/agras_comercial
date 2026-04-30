@@ -101,13 +101,17 @@ export async function enviarCorreoTransferencia(datos: {
   ordenVenta: string;
   factura: string;
   pdfFileName: string;
+  replyToMessageId?: string | null;
 }) {
   const { to, cc: ccOriginal } = resolverReceptorPedido("Lima", datos.sucursalDestino, false);
   
   // Agregar Edson y Fernando a CC (junto con Jesus y Sergio que ya vienen en ccOriginal)
   const cc = [...ccOriginal, "edson.quispe@quetalcompra.com", "fernando.chung@quetalcompra.com"];
 
-  const asunto = `Envío a ${datos.sucursalDestino || 'Varias'} - ${datos.identifier}`;
+  let asunto = `Envío a ${datos.sucursalDestino || 'Varias'} - ${datos.identifier}`;
+  if (datos.replyToMessageId) {
+    asunto = `Re: ${asunto}`;
+  }
   
   const pdfUrl = datos.pdfFileName 
       ? `https://ffaqsyprvehybfprfmyf.supabase.co/storage/v1/object/public/transferencias_pdfs/${datos.pdfFileName}${datos.pdfFileName.endsWith('.pdf') ? '' : '.pdf'}`
@@ -151,7 +155,7 @@ export async function enviarCorreoTransferencia(datos: {
   }
 
   try {
-    await transporter.sendMail({
+    const info = await transporter.sendMail({
       from: FROM,
       to,
       cc: cc.length > 0 ? cc.join(", ") : undefined,
@@ -162,10 +166,14 @@ export async function enviarCorreoTransferencia(datos: {
           filename: datos.pdfFileName.endsWith('.pdf') ? datos.pdfFileName : `${datos.pdfFileName}.pdf`,
           content: attachmentContent,
         }
-      ] : []
+      ] : [],
+      inReplyTo: datos.replyToMessageId || undefined,
+      references: datos.replyToMessageId ? [datos.replyToMessageId] : undefined,
     });
     console.log(`[EMAIL TRANSFERENCIA] Enviado a ${to} (CC: ${cc.join(", ")}) para transferencia ${datos.identifier}`);
+    return { messageId: info.messageId };
   } catch (err) {
     console.error("[EMAIL ERROR] Transferencia:", err);
+    return { messageId: null };
   }
 }

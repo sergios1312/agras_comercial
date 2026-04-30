@@ -13,6 +13,7 @@ import {
   Shield,
   ChevronLeft,
   ChevronRight,
+  ClipboardList,
 } from "lucide-react";
 import { useState } from "react";
 
@@ -28,6 +29,11 @@ const navItems: NavItem[] = [
     href: "/inventario",
     label: "Solicitudes",
     icon: <Package className="w-5 h-5 shrink-0" />,
+  },
+  {
+    href: "/reportes",
+    label: "Reportes",
+    icon: <ClipboardList className="w-5 h-5 shrink-0" />,
   },
   {
     href: "/estadisticas",
