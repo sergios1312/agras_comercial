@@ -1107,7 +1107,7 @@ function TablaTransferencias({
                 >
                   Eliminar
                 </button>
-                <TransferenciaAcciones transferencia={t} hasError={pedidosDeTransferencia.some(p => t.sucursal_destino && p.tecnico_destino !== t.sucursal_destino)} pedidos={pedidosDeTransferencia} />
+                <TransferenciaAcciones transferencia={t} hasError={pedidosDeTransferencia.some(p => t.sucursal_destino && p.tecnico_destino !== t.sucursal_destino)} pedidos={pedidosDeTransferencia} onEditarTransferencia={onEditarTransferencia} />
               </div>
             </div>
             
@@ -1413,7 +1413,7 @@ function ModalEditarTransferencia({
   );
 }
 
-function TransferenciaAcciones({ transferencia, hasError, pedidos }: { transferencia: Transferencia, hasError?: boolean, pedidos?: HistorialPedido[] }) {
+function TransferenciaAcciones({ transferencia, hasError, pedidos, onEditarTransferencia }: { transferencia: Transferencia, hasError?: boolean, pedidos?: HistorialPedido[], onEditarTransferencia?: (id: number, datos: Partial<Transferencia>) => void }) {
   const [showModalEditar, setShowModalEditar] = useState(false);
   const [showEmailPreview, setShowEmailPreview] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -1510,8 +1510,18 @@ function TransferenciaAcciones({ transferencia, hasError, pedidos }: { transfere
               orden_venta: datos.orden,
               factura: datos.factura
             });
-            if (res.error) alert(res.error);
-            else setShowModalEditar(false);
+            if (res.error) {
+              alert(res.error);
+            } else {
+              // Actualizar el estado local del padre para que el modal
+              // muestre los valores correctos la próxima vez que se abra
+              onEditarTransferencia?.(transferencia.id, {
+                codigo_transferencia: datos.codigo || null,
+                orden_venta: datos.orden || null,
+                factura: datos.factura || null,
+              });
+              setShowModalEditar(false);
+            }
           }}
         />
       )}

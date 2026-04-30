@@ -435,6 +435,8 @@ export async function editarTransferencia(
     .eq("id", transferenciaId);
 
   if (error) return { error: `Error al editar transferencia: ${error.message}` };
+
+  revalidatePath("/inventario");
   return { error: null };
 }
 
