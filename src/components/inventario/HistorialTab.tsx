@@ -1271,7 +1271,7 @@ function ModalEditarTransferencia({
   const [factura, setFactura] = useState(transferencia.factura || "");
   const [bultos, setBultos] = useState(bultosInit);
   const [empresa, setEmpresa] = useState(empresaInit);
-  const [fechaEnvio, setFechaEnvio] = useState(fechaEnvioInit || transferencia.fecha_hora.slice(0, 16));
+  const [fechaEnvio, setFechaEnvio] = useState(fechaEnvioInit || (transferencia.fecha_hora ? transferencia.fecha_hora.slice(0, 16) : ""));
   const [isSubmitting, setIsSubmitting] = useState(false);
   const tipo = getTransferType(transferencia.sucursal_destino);
   const isNormal = tipo === "Transferencia";
@@ -2826,7 +2826,7 @@ export function HistorialTab({
 
   async function handleCrearTransferencia() {
     const fakeId = Date.now();
-    const nueva = { id: fakeId, codigo_transferencia: "", orden_venta: "", factura: "", sucursal_destino: null, estado: "Pendiente" } as any;
+    const nueva = { id: fakeId, codigo_transferencia: "", orden_venta: "", factura: "", sucursal_destino: null, estado: "Pendiente", fecha_hora: new Date().toISOString() } as any;
     setLocalTransferencias(prev => [nueva, ...prev]);
     const { transferencia, error } = await crearTransferencia({ codigo_transferencia: "", orden_venta: "", factura: "" });
     if (error) {
