@@ -39,7 +39,6 @@ const navItems: NavItem[] = [
     href: "/estadisticas",
     label: "Estadísticas",
     icon: <BarChart3 className="w-5 h-5 shrink-0" />,
-    adminOnly: true,
   },
   {
     href: "/casos",
