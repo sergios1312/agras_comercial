@@ -36,10 +36,10 @@ export function generarPDFReporte({
   const pageHeight = doc.internal.pageSize.getHeight();
   
   // Colores
-  const primaryColor = [79, 70, 229]; // Indigo
-  const lightGray = [245, 245, 245];
-  const darkGray = [50, 50, 50];
-  const accentColor = [99, 102, 241]; // Indigo más claro
+  const primaryColor: [number, number, number] = [79, 70, 229]; // Indigo
+  const lightGray: [number, number, number] = [245, 245, 245];
+  const darkGray: [number, number, number] = [50, 50, 50];
+  const accentColor: [number, number, number] = [99, 102, 241]; // Indigo más claro
 
   // ========== ENCABEZADO CON FONDO ==========
   doc.setFillColor(...primaryColor);
