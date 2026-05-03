@@ -1,7 +1,7 @@
 // src/lib/permisos.ts
 // Sistema de permisos basado en roles
  
-export type UserRole = "admin" | "sucursal" | "reportero";
+export type UserRole = "admin" | "sucursal" | "subdealer";
  
 export interface PermisosUsuario {
   puedeVerSolicitudes: boolean;
@@ -26,7 +26,7 @@ export const PERMISOS_POR_ROLE: Record<UserRole, PermisosUsuario> = {
     puedeVerProcesos: false,
     puedeVerAdministrador: false,
   },
-  reportero: {
+  subdealer: {
     puedeVerSolicitudes: false,
     puedeVerReportes: true,
     puedeVerEstadisticas: false,
