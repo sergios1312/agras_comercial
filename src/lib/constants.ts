@@ -20,6 +20,16 @@ export const SUCURSALES_DATA = [
     maneja_stock: false,
   },
   {
+    usuario: "admin_oficina2",
+    ciudad: "Lima-Oficina2",
+    responsable: "Jannyna",
+    telefono: "51950166383",
+    correo: "jannyna.rojas@quetalcompra.com",
+    pin: "7232",
+    role: "subdealer",
+    maneja_stock: false,
+  },
+  {
     usuario: "admin_almacen",
     ciudad: "Lima-Almacen",
     responsable: "Wilber",

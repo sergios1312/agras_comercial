@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut } from "@/app/(auth)/login/actions";
 import { cn } from "@/lib/utils";
+import { obtenerPermisos, type UserRole } from "@/lib/permisos";
 import {
   Package,
   BarChart3,
@@ -21,49 +22,69 @@ interface NavItem {
   href: string;
   label: string;
   icon: React.ReactNode;
-  adminOnly?: boolean;
 }
-
-const navItems: NavItem[] = [
-  {
-    href: "/inventario",
-    label: "Solicitudes",
-    icon: <Package className="w-5 h-5 shrink-0" />,
-  },
-  {
-    href: "/reportes",
-    label: "Reportes",
-    icon: <ClipboardList className="w-5 h-5 shrink-0" />,
-  },
-  {
-    href: "/estadisticas",
-    label: "Estadísticas",
-    icon: <BarChart3 className="w-5 h-5 shrink-0" />,
-  },
-  {
-    href: "/casos",
-    label: "Procesos",
-    icon: <FileText className="w-5 h-5 shrink-0" />,
-    adminOnly: true,
-  },
-  {
-    href: "/administrador",
-    label: "Administrador",
-    icon: <Shield className="w-5 h-5 shrink-0" />,
-    adminOnly: true,
-  },
-];
 
 interface SidebarProps {
   userEmail: string | undefined;
-  isAdmin: boolean;
+  userRole: UserRole;
 }
 
-export function Sidebar({ userEmail, isAdmin }: SidebarProps) {
+export function Sidebar({ userEmail, userRole }: SidebarProps) {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
+  
+  // Obtener permisos según el rol
+  const permisos = obtenerPermisos(userRole);
+
+  // Items del menú con sus permisos
+  const navItems: NavItem[] = [
+    {
+      href: "/inventario",
+      label: "Solicitudes",
+      icon: <Package className="w-5 h-5 shrink-0" />,
+    },
+    {
+      href: "/reportes",
+      label: "Reportes",
+      icon: <ClipboardList className="w-5 h-5 shrink-0" />,
+    },
+    {
+      href: "/estadisticas",
+      label: "Estadísticas",
+      icon: <BarChart3 className="w-5 h-5 shrink-0" />,
+    },
+    {
+      href: "/casos",
+      label: "Procesos",
+      icon: <FileText className="w-5 h-5 shrink-0" />,
+    },
+    {
+      href: "/administrador",
+      label: "Administrador",
+      icon: <Shield className="w-5 h-5 shrink-0" />,
+    },
+  ];
+
+  // Filtrar items según permisos
+  const itemsVisibles = navItems.filter((item) => {
+    switch (item.href) {
+      case "/inventario":
+        return permisos.puedeVerSolicitudes;
+      case "/reportes":
+        return permisos.puedeVerReportes;
+      case "/estadisticas":
+        return permisos.puedeVerEstadisticas;
+      case "/casos":
+        return permisos.puedeVerProcesos;
+      case "/administrador":
+        return permisos.puedeVerAdministrador;
+      default:
+        return true;
+    }
+  });
 
   const sucursal = userEmail?.split("@")[0] ?? "Usuario";
+  const esAdmin = userRole === "admin";
 
   return (
     <aside
@@ -117,9 +138,19 @@ export function Sidebar({ userEmail, isAdmin }: SidebarProps) {
           <p className="text-sm font-semibold text-slate-200 mt-0.5 capitalize truncate">
             {sucursal}
           </p>
-          {isAdmin && (
+          {esAdmin && (
             <span className="inline-block mt-1 text-xs px-2 py-0.5 rounded-full bg-indigo-600/20 text-indigo-400 border border-indigo-500/30">
               Administrador
+            </span>
+          )}
+          {userRole === "subdealer" && (
+            <span className="inline-block mt-1 text-xs px-2 py-0.5 rounded-full bg-amber-600/20 text-amber-400 border border-amber-500/30">
+              subdealer
+            </span>
+          )}
+          {userRole === "sucursal" && (
+            <span className="inline-block mt-1 text-xs px-2 py-0.5 rounded-full bg-emerald-600/20 text-emerald-400 border border-emerald-500/30">
+              Sucursal
             </span>
           )}
         </div>
@@ -139,30 +170,28 @@ export function Sidebar({ userEmail, isAdmin }: SidebarProps) {
 
       {/* Navegación */}
       <nav className={cn("flex-1 px-2 py-4 space-y-1", collapsed && "px-2")}>
-        {navItems
-          .filter((item) => !item.adminOnly || isAdmin)
-          .map((item) => {
-            const isActive = pathname.startsWith(item.href);
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                title={collapsed ? item.label : undefined}
-                className={cn(
-                  "flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200",
-                  collapsed && "justify-center px-2",
-                  isActive
-                    ? "bg-indigo-600/20 text-indigo-300 border border-indigo-500/30"
-                    : "text-slate-400 hover:text-slate-100 hover:bg-slate-800 border border-transparent"
-                )}
-              >
-                {item.icon}
-                {!collapsed && (
-                  <span className="whitespace-nowrap overflow-hidden">{item.label}</span>
-                )}
-              </Link>
-            );
-          })}
+        {itemsVisibles.map((item) => {
+          const isActive = pathname.startsWith(item.href);
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              title={collapsed ? item.label : undefined}
+              className={cn(
+                "flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200",
+                collapsed && "justify-center px-2",
+                isActive
+                  ? "bg-indigo-600/20 text-indigo-300 border border-indigo-500/30"
+                  : "text-slate-400 hover:text-slate-100 hover:bg-slate-800 border border-transparent"
+              )}
+            >
+              {item.icon}
+              {!collapsed && (
+                <span className="whitespace-nowrap overflow-hidden">{item.label}</span>
+              )}
+            </Link>
+          );
+        })}
       </nav>
 
       {/* Cerrar sesión */}
