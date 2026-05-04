@@ -52,12 +52,12 @@ export function generarPDFReporte({
   doc.setFontSize(16);
   doc.setFont("helvetica", "bold");
   doc.setTextColor(80, 80, 80);
-  doc.text("QTC PERÚ", 14, 15);
+  doc.text("DJI AGRICULTURE", 14, 15);
   
   doc.setFontSize(8);
   doc.setFont("helvetica", "normal");
   doc.setTextColor(120, 120, 120);
-  doc.text("Que Tal Compra del Perú S.A.C.", 14, 20);
+  doc.text("GRUPO QTC S.A.C.", 14, 20);
   doc.text("RUC: 20601844916", 14, 25);
 
   // Información a la derecha
@@ -239,9 +239,9 @@ export function generarPDFReporte({
 
   const termsText = [
     "• Esta cotización es válida por 7 días a partir de la fecha de emisión.",
-    "• Que Tal Compra del Perú S.A.C. no cuenta con políticas de devolución.",
+    "• Grupo QTC S.A.C. no cuenta con políticas de devolución.",
     "• Toda cotización es válida según disponibilidad de stock.",
-    "• Garantía: 12 meses de cobertura en servicio técnico con repuestos originales.",
+    "• Garantía: https://agriculture.qtc.pe/politicas-de-servicio-postventa-de-dji-agriculture/.",
     "• Soporte técnico oficial capacitado por DJI AGRICULTURE."
   ];
 
@@ -260,7 +260,7 @@ export function generarPDFReporte({
   doc.setFontSize(7);
   doc.setFont("helvetica", "bold");
   doc.setTextColor(...primaryColor);
-  doc.text("MÉTODOS DE PAGO - QUE TAL COMPRA DEL PERU SAC", 14, paymentY);
+  doc.text("MÉTODOS DE PAGO - GRUPO QTC S.A.C.", 14, paymentY);
 
   const paymentData = [
     ["BANCO", "NRO DE CUENTA", "NRO CCI"],
@@ -303,7 +303,7 @@ export function generarPDFReporte({
   doc.setFontSize(7);
   doc.setTextColor(150, 150, 150);
   doc.setFont("helvetica", "normal");
-  doc.text("Soporte técnico oficial de DJI AGRICULTURE | Contamos con 6 sucursales a nivel nacional", 14, footerY);
+  doc.text("Soporte técnico oficial de DJI AGRICULTURE | ", 14, footerY);
   doc.text(`Generado el ${new Date().toLocaleString('es-PE')} | Documento confidencial - Para uso exclusivo del cliente`, pageWidth - 14, footerY, { align: "right" });
 
   // Línea final
