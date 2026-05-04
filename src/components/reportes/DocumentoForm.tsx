@@ -1,6 +1,7 @@
 import { useState, useTransition } from "react";
 import { Loader2, Trash2, Save, FileDown } from "lucide-react";
 import type { Repuesto, TipoDocumentoReporte } from "@/types/database.types";
+import type { UserRole } from "@/lib/permisos";
 import { BuscadorRepuestosReporte } from "./BuscadorRepuestosReporte";
 import { crearDocumentoReporte } from "@/app/(dashboard)/reportes/actions";
 import { generarPDFReporte } from "@/lib/pdf/generar-pdf";
@@ -13,6 +14,7 @@ interface Cliente {
 interface DocumentoFormProps {
   tipoDocumento: TipoDocumentoReporte;
   isAdmin: boolean;
+  userRole?: UserRole;
   userEmail: string;
   catalogo: Repuesto[];
   clientes: Cliente[];
@@ -22,7 +24,7 @@ interface RepuestoSeleccionado extends Repuesto {
   cantidad: number;
 }
 
-export function DocumentoForm({ tipoDocumento, isAdmin, userEmail, catalogo, clientes }: DocumentoFormProps) {
+export function DocumentoForm({ tipoDocumento, isAdmin, userRole, userEmail, catalogo, clientes }: DocumentoFormProps) {
   const [isPending, startTransition] = useTransition();
   const [repuestosSel, setRepuestosSel] = useState<RepuestoSeleccionado[]>([]);
   const [nombreCliente, setNombreCliente] = useState("");
@@ -31,6 +33,9 @@ export function DocumentoForm({ tipoDocumento, isAdmin, userEmail, catalogo, cli
   const [descripcion, setDescripcion] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
+
+  // Permitir edición si es admin O si es subdealer_editor
+  const puedeEditar = isAdmin || userRole === "subdealer";
 
   const handleAddRepuesto = (r: Repuesto) => {
     if (repuestosSel.find(x => x.id === r.id)) {
@@ -130,7 +135,7 @@ export function DocumentoForm({ tipoDocumento, isAdmin, userEmail, catalogo, cli
                   type="text"
                   value={nombreCliente}
                   onChange={e => setNombreCliente(e.target.value)}
-                  disabled={!isAdmin}
+                  disabled={!puedeEditar}
                   className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-xl text-sm text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500 disabled:opacity-50"
                   placeholder="Ej. Juan Pérez"
                   list="clientes-list"
@@ -145,7 +150,7 @@ export function DocumentoForm({ tipoDocumento, isAdmin, userEmail, catalogo, cli
                   type="text"
                   value={dniCliente}
                   onChange={e => setDniCliente(e.target.value)}
-                  disabled={!isAdmin}
+                  disabled={!puedeEditar}
                   className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-xl text-sm text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500 disabled:opacity-50"
                   placeholder="Ej. 12345678"
                 />
@@ -160,7 +165,7 @@ export function DocumentoForm({ tipoDocumento, isAdmin, userEmail, catalogo, cli
                   required
                   value={numeroCaso}
                   onChange={e => setNumeroCaso(e.target.value)}
-                  disabled={!isAdmin}
+                  disabled={!puedeEditar}
                   className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-xl text-sm text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500 disabled:opacity-50"
                   placeholder="Ej. CAS-001"
                 />
@@ -170,7 +175,7 @@ export function DocumentoForm({ tipoDocumento, isAdmin, userEmail, catalogo, cli
                 <textarea
                   value={descripcion}
                   onChange={e => setDescripcion(e.target.value)}
-                  disabled={!isAdmin}
+                  disabled={!puedeEditar}
                   rows={2}
                   className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-xl text-sm text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500 disabled:opacity-50"
                   placeholder="Detalles del trabajo realizado..."
@@ -187,7 +192,7 @@ export function DocumentoForm({ tipoDocumento, isAdmin, userEmail, catalogo, cli
           <label className="block text-xs font-bold text-slate-300 mb-3 uppercase tracking-wider">
             Agregar Repuestos
           </label>
-          <BuscadorRepuestosReporte catalogo={catalogo} onAdd={handleAddRepuesto} disabled={!isAdmin} />
+          <BuscadorRepuestosReporte catalogo={catalogo} onAdd={handleAddRepuesto} disabled={!puedeEditar} />
         </div>
 
         {/* Tabla de Seleccionados */}
@@ -216,7 +221,7 @@ export function DocumentoForm({ tipoDocumento, isAdmin, userEmail, catalogo, cli
                         min="1"
                         value={r.cantidad}
                         onChange={(e) => updateCantidad(r.id, parseInt(e.target.value) || 1)}
-                        disabled={!isAdmin}
+                        disabled={!puedeEditar}
                         className="w-12 text-center bg-slate-800 border border-slate-700 rounded px-1 py-1 text-slate-200"
                       />
                     </td>
@@ -230,7 +235,7 @@ export function DocumentoForm({ tipoDocumento, isAdmin, userEmail, catalogo, cli
                       <button
                         type="button"
                         onClick={() => removeRepuesto(r.id)}
-                        disabled={!isAdmin}
+                        disabled={!puedeEditar}
                         className="text-slate-500 hover:text-red-400 disabled:opacity-50"
                       >
                         <Trash2 className="w-4 h-4" />
@@ -265,7 +270,7 @@ export function DocumentoForm({ tipoDocumento, isAdmin, userEmail, catalogo, cli
         {errorMsg && <p className="text-sm text-red-400 bg-red-950/40 p-3 rounded-lg border border-red-900/50">{errorMsg}</p>}
         {successMsg && <p className="text-sm text-green-400 bg-green-950/40 p-3 rounded-lg border border-green-900/50 flex items-center gap-2"><FileDown className="w-4 h-4"/> {successMsg}</p>}
 
-        {isAdmin && (
+        {puedeEditar && (
           <div className="flex justify-end pt-2">
             <button
               type="submit"
