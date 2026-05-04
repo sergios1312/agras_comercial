@@ -19,13 +19,10 @@ export default async function DashboardLayout({
     redirect("/login");
   }
 
-  // Determinar si el usuario es admin
-  const isAdmin = user.role === "admin";
-
   return (
     <div className="flex h-screen bg-slate-950 text-slate-100 overflow-hidden">
       {/* Sidebar fijo */}
-      <Sidebar userEmail={user.email} isAdmin={isAdmin} />
+      <Sidebar userEmail={user.email} userRole={user.role} />
 
       {/* Contenido principal */}
       <div className="flex flex-col flex-1 overflow-hidden">
