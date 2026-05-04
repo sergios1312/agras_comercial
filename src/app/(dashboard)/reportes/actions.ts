@@ -9,6 +9,8 @@ export interface CrearDocumentoPayload {
   tipo_documento: TipoDocumentoReporte;
   nombre_cliente?: string;
   dni_cliente?: string;
+  telefono_cliente?: string;
+  correo_cliente?: string;
   numero_caso?: string;
   descripcion_trabajo?: string;
   repuestos: { id: number; cantidad: number; precio_unitario: number }[];
@@ -29,6 +31,12 @@ export async function crearDocumentoReporte(payload: CrearDocumentoPayload) {
 
     // Lógica para Cotización de Venta (Clientes)
     if (payload.tipo_documento === "cotizacion_venta" && payload.nombre_cliente) {
+      if (!payload.telefono_cliente || !payload.correo_cliente) {
+        return { error: "El teléfono y el correo del cliente son obligatorios para cotizaciones de venta." };
+      }
+
+      const datosContacto = `DNI: ${payload.dni_cliente || 'N/A'} | Telf: ${payload.telefono_cliente} | Email: ${payload.correo_cliente}`;
+
       // Buscar si el cliente existe por nombre (case insensitive)
       const { data: clienteExistente } = await db
         .from("clientes")
@@ -39,13 +47,15 @@ export async function crearDocumentoReporte(payload: CrearDocumentoPayload) {
 
       if (clienteExistente) {
         clienteId = (clienteExistente as any).id_cliente;
+        // Actualizar datos de contacto por si han cambiado
+        await db.from("clientes").update({ datos_contacto: datosContacto } as any).eq("id_cliente", clienteId);
       } else {
         // Crear nuevo cliente
         const { data: nuevoClienteUntyped, error: errCliente } = await db
           .from("clientes")
           .insert({
             nombre_razon_social: payload.nombre_cliente,
-            datos_contacto: payload.dni_cliente ? `DNI: ${payload.dni_cliente}` : null
+            datos_contacto: datosContacto
           } as any)
           .select("id_cliente")
           .single();

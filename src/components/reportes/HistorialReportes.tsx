@@ -18,14 +18,35 @@ export function HistorialReportes({ tipoDocumento, historial, catalogo }: Histor
       precio_venta: d.precio_unitario,
     }));
 
+    // Extraer DNI, Teléfono y Correo si están en datos_contacto
+    let dni = "";
+    let telefono = "";
+    let correo = "";
+
+    if (doc.clientes?.datos_contacto) {
+      const parts = doc.clientes.datos_contacto.split("|");
+      if (parts.length > 1) {
+        parts.forEach((p: string) => {
+          if (p.includes("DNI:")) dni = p.replace("DNI:", "").trim();
+          if (p.includes("Telf:")) telefono = p.replace("Telf:", "").trim();
+          if (p.includes("Email:")) correo = p.replace("Email:", "").trim();
+        });
+      } else {
+        // Formato antiguo (solo DNI)
+        dni = doc.clientes.datos_contacto.replace("DNI:", "").trim();
+      }
+    }
+
     generarPDFReporte({
       tipoDocumento: doc.tipo_documento,
       codigo: doc.codigo_generado,
       usuario: doc.usuario_emisor,
       fecha: new Date(doc.fecha_creacion).toLocaleDateString(),
-      cliente: doc.cliente_id ? "Ver Cliente en BDD" : "", // Mejora futura: obtener el nombre
-      dni: "", 
-      caso: doc.caso_id ? doc.caso_id.toString() : "", // Mejora futura: obtener la numeración
+      cliente: doc.clientes?.nombre_razon_social || "",
+      dni: dni,
+      telefono: telefono,
+      correo: correo,
+      caso: doc.casos?.numeracion_caso || (doc.caso_id ? doc.caso_id.toString() : ""),
       descripcion: doc.descripcion_trabajo || "",
       repuestos: repuestosSel,
       totales: { base: doc.subtotal, igv: doc.igv, total: doc.total }

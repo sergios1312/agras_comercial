@@ -9,6 +9,8 @@ interface GenerarPDFProps {
   fecha: string;
   cliente?: string;
   dni?: string;
+  telefono?: string;
+  correo?: string;
   caso?: string;
   descripcion?: string;
   repuestos: any[];
@@ -26,6 +28,8 @@ export function generarPDFReporte({
   fecha,
   cliente,
   dni,
+  telefono,
+  correo,
   caso,
   descripcion,
   repuestos,
@@ -109,6 +113,14 @@ export function generarPDFReporte({
   }
   if (dni) {
     doc.text(`DNI/RUC: ${dni}`, clienteX, clienteY);
+    clienteY += 5;
+  }
+  if (telefono) {
+    doc.text(`Telf: ${telefono}`, clienteX, clienteY);
+    clienteY += 5;
+  }
+  if (correo) {
+    doc.text(`Email: ${correo}`, clienteX, clienteY);
     clienteY += 5;
   }
   doc.text(`Ejecutivo: ${usuario}`, clienteX, clienteY);

@@ -9,6 +9,7 @@ import { generarPDFReporte } from "@/lib/pdf/generar-pdf";
 interface Cliente {
   id_cliente: string;
   nombre_razon_social: string;
+  datos_contacto?: string;
 }
 
 interface DocumentoFormProps {
@@ -29,6 +30,8 @@ export function DocumentoForm({ tipoDocumento, isAdmin, userRole, userEmail, cat
   const [repuestosSel, setRepuestosSel] = useState<RepuestoSeleccionado[]>([]);
   const [nombreCliente, setNombreCliente] = useState("");
   const [dniCliente, setDniCliente] = useState("");
+  const [telefonoCliente, setTelefonoCliente] = useState("");
+  const [correoCliente, setCorreoCliente] = useState("");
   const [numeroCaso, setNumeroCaso] = useState("");
   const [descripcion, setDescripcion] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
@@ -36,6 +39,30 @@ export function DocumentoForm({ tipoDocumento, isAdmin, userRole, userEmail, cat
 
   // Permitir edición si es admin O si es subdealer_editor
   const puedeEditar = isAdmin || userRole === "subdealer";
+
+  const handleNombreClienteChange = (val: string) => {
+    setNombreCliente(val);
+    // Auto-completar si el cliente existe
+    const clienteEncontrado = clientes.find(c => c.nombre_razon_social === val);
+    if (clienteEncontrado && clienteEncontrado.datos_contacto) {
+      let d = "";
+      let t = "";
+      let e = "";
+      const parts = clienteEncontrado.datos_contacto.split("|");
+      if (parts.length > 1) {
+        parts.forEach((p: string) => {
+          if (p.includes("DNI:")) d = p.replace("DNI:", "").trim();
+          if (p.includes("Telf:")) t = p.replace("Telf:", "").trim();
+          if (p.includes("Email:")) e = p.replace("Email:", "").trim();
+        });
+      } else {
+        d = clienteEncontrado.datos_contacto.replace("DNI:", "").trim();
+      }
+      setDniCliente(d);
+      setTelefonoCliente(t);
+      setCorreoCliente(e);
+    }
+  };
 
   const handleAddRepuesto = (r: Repuesto) => {
     if (repuestosSel.find(x => x.id === r.id)) {
@@ -73,6 +100,8 @@ export function DocumentoForm({ tipoDocumento, isAdmin, userRole, userEmail, cat
         tipo_documento: tipoDocumento,
         nombre_cliente: nombreCliente,
         dni_cliente: dniCliente,
+        telefono_cliente: telefonoCliente,
+        correo_cliente: correoCliente,
         numero_caso: numeroCaso,
         descripcion_trabajo: descripcion,
         repuestos: repuestosSel.map(r => ({
@@ -95,6 +124,8 @@ export function DocumentoForm({ tipoDocumento, isAdmin, userRole, userEmail, cat
           fecha: new Date().toLocaleDateString(),
           cliente: nombreCliente,
           dni: dniCliente,
+          telefono: telefonoCliente,
+          correo: correoCliente,
           caso: numeroCaso,
           descripcion: descripcion,
           repuestos: repuestosSel,
@@ -105,6 +136,8 @@ export function DocumentoForm({ tipoDocumento, isAdmin, userRole, userEmail, cat
         setRepuestosSel([]);
         setNombreCliente("");
         setDniCliente("");
+        setTelefonoCliente("");
+        setCorreoCliente("");
         setNumeroCaso("");
         setDescripcion("");
       }
@@ -134,7 +167,7 @@ export function DocumentoForm({ tipoDocumento, isAdmin, userRole, userEmail, cat
                 <input
                   type="text"
                   value={nombreCliente}
-                  onChange={e => setNombreCliente(e.target.value)}
+                  onChange={e => handleNombreClienteChange(e.target.value)}
                   disabled={!puedeEditar}
                   className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-xl text-sm text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500 disabled:opacity-50"
                   placeholder="Ej. Juan Pérez"
@@ -153,6 +186,30 @@ export function DocumentoForm({ tipoDocumento, isAdmin, userRole, userEmail, cat
                   disabled={!puedeEditar}
                   className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-xl text-sm text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500 disabled:opacity-50"
                   placeholder="Ej. 12345678"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-400 mb-1">Teléfono <span className="text-red-400">*</span></label>
+                <input
+                  type="tel"
+                  required
+                  value={telefonoCliente}
+                  onChange={e => setTelefonoCliente(e.target.value)}
+                  disabled={!puedeEditar}
+                  className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-xl text-sm text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500 disabled:opacity-50"
+                  placeholder="Ej. 987654321"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-400 mb-1">Correo Electrónico <span className="text-red-400">*</span></label>
+                <input
+                  type="email"
+                  required
+                  value={correoCliente}
+                  onChange={e => setCorreoCliente(e.target.value)}
+                  disabled={!puedeEditar}
+                  className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-xl text-sm text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500 disabled:opacity-50"
+                  placeholder="Ej. cliente@correo.com"
                 />
               </div>
             </>

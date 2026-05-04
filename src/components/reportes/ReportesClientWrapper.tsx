@@ -11,6 +11,7 @@ import type { UserRole } from "@/lib/permisos";
 interface Cliente {
   id_cliente: string;
   nombre_razon_social: string;
+  datos_contacto?: string;
 }
 
 interface ReportesClientWrapperProps {

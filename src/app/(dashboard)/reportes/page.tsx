@@ -15,6 +15,7 @@ export const metadata: Metadata = {
 interface Cliente {
   id_cliente: string;
   nombre_razon_social: string;
+  datos_contacto?: string;
 }
 
 export default async function ReportesPage() {
@@ -30,8 +31,8 @@ export default async function ReportesPage() {
   // Traer los repuestos para el buscador (solo campos necesarios)
   const [repuestos, clientesRes, documentos, detalles] = await Promise.all([
     fetchAllParallel<Repuesto>(db, "repuestos", "id, codigo, nombre, precio_venta, modelos_compatibles, codigo_sap", "id"),
-    db.from("clientes").select("id_cliente, nombre_razon_social"),
-    fetchAllParallel<DocumentoReporte>(db, "documentos_reporte", "*", "fecha_creacion", false),
+    db.from("clientes").select("id_cliente, nombre_razon_social, datos_contacto"),
+    fetchAllParallel<any>(db, "documentos_reporte", "*, clientes(nombre_razon_social, datos_contacto), casos(numeracion_caso)", "fecha_creacion", false),
     fetchAllParallel<DetalleDocumentoReporte>(db, "detalle_documento_reporte", "*, repuestos(id, codigo, nombre)", "id")
   ]);
 

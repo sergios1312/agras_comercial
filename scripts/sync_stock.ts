@@ -21,7 +21,6 @@ const supabase = createClient(supabaseUrl, supabaseServiceKey);
 // ─── MAPEO DE SUCURSALES (SAP -> DB Name) ─────────────────────────
 const ALMACENES_MAP: Record<string, string> = {
   'APRI.016': 'Lima',
-  'APRI.DJG': 'Lima', // Almacén central DJI garantía según peek (opcional, consolidado a Lima)
   'DJCST.01': 'Chiclayo',
   'DICST.01': 'Ica',
   'DJABT.01': 'Bellavista',
