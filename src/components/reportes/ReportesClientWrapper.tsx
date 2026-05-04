@@ -6,6 +6,7 @@ import { FileText, Wrench, PackageOpen } from "lucide-react";
 import { DocumentoForm } from "./DocumentoForm";
 import { HistorialReportes } from "./HistorialReportes";
 import type { Repuesto, TipoDocumentoReporte } from "@/types/database.types";
+import type { UserRole } from "@/lib/permisos";
 
 interface Cliente {
   id_cliente: string;
@@ -14,6 +15,7 @@ interface Cliente {
 
 interface ReportesClientWrapperProps {
   isAdmin: boolean;
+  userRole: UserRole;
   userEmail: string;
   catalogo: Repuesto[];
   clientes: Cliente[];
@@ -22,6 +24,7 @@ interface ReportesClientWrapperProps {
 
 export function ReportesClientWrapper({
   isAdmin,
+  userRole,
   userEmail,
   catalogo,
   clientes,
@@ -41,6 +44,7 @@ export function ReportesClientWrapper({
           <DocumentoForm
             tipoDocumento={tipo}
             isAdmin={isAdmin}
+            userRole={userRole}
             userEmail={userEmail}
             catalogo={catalogo}
             clientes={clientes}

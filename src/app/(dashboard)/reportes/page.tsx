@@ -23,6 +23,7 @@ export default async function ReportesPage() {
 
   const userEmail = user.usuario ?? "desconocido";
   const isAdmin = user.role === "admin";
+  const userRole = user.role;
 
   const db = createAdminClient();
 
@@ -59,6 +60,7 @@ export default async function ReportesPage() {
       
       <ReportesClientWrapper
         isAdmin={isAdmin}
+        userRole={userRole}
         userEmail={userEmail}
         catalogo={repuestos}
         clientes={clientes}
