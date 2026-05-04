@@ -1,8 +1,6 @@
 // src/lib/permisos.ts
 // Sistema de permisos basado en roles
-
 export type UserRole = "admin" | "sucursal" | "subdealer";
-
 export interface PermisosUsuario {
   puedeVerSolicitudes: boolean;
   puedeVerReportes: boolean;
