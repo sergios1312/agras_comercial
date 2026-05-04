@@ -18,8 +18,8 @@ export async function crearDocumentoReporte(payload: CrearDocumentoPayload) {
   console.log("Creando documento reporte:", payload.tipo_documento);
   try {
     const user = await getSession();
-    if (!user || user.role !== "admin") {
-      return { error: "No autorizado. Solo los administradores pueden crear documentos." };
+    if (!user || (user.role !== "admin" && user.role !== "subdealer")) {
+      return { error: "No autorizado. Solo los administradores y subdealers pueden crear documentos." };
     }
 
     const db = createAdminClient();
