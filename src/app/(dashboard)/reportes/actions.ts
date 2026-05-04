@@ -48,15 +48,14 @@ export async function crearDocumentoReporte(payload: CrearDocumentoPayload) {
       if (clienteExistente) {
         clienteId = (clienteExistente as any).id_cliente;
         // Actualizar datos de contacto por si han cambiado
-        await db.from("clientes").update({ datos_contacto: datosContacto } as any).eq("id_cliente", clienteId);
+        await (db.from("clientes") as any).update({ datos_contacto: datosContacto }).eq("id_cliente", clienteId);
       } else {
         // Crear nuevo cliente
-        const { data: nuevoClienteUntyped, error: errCliente } = await db
-          .from("clientes")
+        const { data: nuevoClienteUntyped, error: errCliente } = await (db.from("clientes") as any)
           .insert({
             nombre_razon_social: payload.nombre_cliente,
             datos_contacto: datosContacto
-          } as any)
+          })
           .select("id_cliente")
           .single();
           
@@ -107,8 +106,7 @@ export async function crearDocumentoReporte(payload: CrearDocumentoPayload) {
     const codigoGenerado = `${prefijo}-${Date.now().toString().slice(-6)}`;
 
     // Insertar Documento
-    const { data: docDataUnyped, error: errDoc } = await db
-      .from("documentos_reporte")
+    const { data: docDataUnyped, error: errDoc } = await (db.from("documentos_reporte") as any)
       .insert({
         tipo_documento: payload.tipo_documento,
         codigo_generado: codigoGenerado,
@@ -119,7 +117,7 @@ export async function crearDocumentoReporte(payload: CrearDocumentoPayload) {
         subtotal: precioBase,
         igv: igv,
         total: totalGeneral
-      } as any)
+      })
       .select("id")
       .single();
 
@@ -136,9 +134,8 @@ export async function crearDocumentoReporte(payload: CrearDocumentoPayload) {
       ...d
     }));
 
-    const { error: errDetalles } = await db
-      .from("detalle_documento_reporte")
-      .insert(detallesAInsertar as any);
+    const { error: errDetalles } = await (db.from("detalle_documento_reporte") as any)
+      .insert(detallesAInsertar);
 
     if (errDetalles) throw new Error("Error insertando detalles: " + errDetalles.message);
 
