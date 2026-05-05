@@ -1955,6 +1955,89 @@ function VistaAdmin({
     }
   };
 
+  // ─── Descargar plantilla Excel para importación ───────────────
+  const handleDescargarPlantilla = async () => {
+    const workbook = new ExcelJS.Workbook();
+    const ws = workbook.addWorksheet("Plantilla Abastecimiento");
+
+    // Cabeceras
+    const headers = ["Código", "DJCST.01", "DICST.01", "DJABT.01", "DJCM.001", "DJAPU.01", "DJJST.01", "DHUST.01", "DYUST-01", "DSTPI.01"];
+    const headerRow = ws.addRow(headers);
+
+    // Estilo de cabeceras
+    headerRow.eachCell((cell, colIdx) => {
+      cell.font = { bold: true, color: { argb: "FFFFFFFF" }, size: 11 };
+      cell.fill = {
+        type: "pattern",
+        pattern: "solid",
+        fgColor: { argb: colIdx === 1 ? "FF1E3A5F" : "FF2D4A7A" }
+      };
+      cell.alignment = { horizontal: "center", vertical: "middle" };
+      cell.border = {
+        top: { style: "thin", color: { argb: "FF4A6FA5" } },
+        bottom: { style: "thin", color: { argb: "FF4A6FA5" } },
+        left: { style: "thin", color: { argb: "FF4A6FA5" } },
+        right: { style: "thin", color: { argb: "FF4A6FA5" } }
+      };
+    });
+
+    // Anchos de columna
+    ws.getColumn(1).width = 28; // Código
+    for (let i = 2; i <= headers.length; i++) {
+      ws.getColumn(i).width = 14;
+    }
+    ws.getRow(1).height = 22;
+
+    // Fila de ejemplo con comentario
+    const exampleRow = ws.addRow(["YC.JG.ZS005016.03", 2, 0, 1, 0, 0, 3, 0, 0, 1]);
+    exampleRow.eachCell((cell, colIdx) => {
+      cell.fill = {
+        type: "pattern",
+        pattern: "solid",
+        fgColor: { argb: colIdx === 1 ? "FFF0F4FF" : "FFF8F9FF" }
+      };
+      cell.font = { size: 10, color: { argb: colIdx === 1 ? "FF1A3560" : "FF374151" } };
+      cell.alignment = { horizontal: colIdx === 1 ? "left" : "center" };
+    });
+
+    // Segunda fila de ejemplo vacía para guiar
+    const emptyRow = ws.addRow(["", "", "", "", "", "", "", "", "", ""]);
+    emptyRow.eachCell((cell) => {
+      cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFFAFAFA" } };
+    });
+
+    // Nota al pie
+    const noteRow = ws.addRow([
+      "⚠ INSTRUCCIONES: Columna A = Código exacto del repuesto. Columnas B-J = Cantidad a enviar por sucursal (0 = no enviar). Deje en 0 las que no aplican."
+    ]);
+    ws.mergeCells(`A${noteRow.number}:J${noteRow.number}`);
+    noteRow.getCell(1).font = { italic: true, size: 9, color: { argb: "FF6B7280" } };
+    noteRow.getCell(1).alignment = { wrapText: true };
+    ws.getRow(noteRow.number).height = 30;
+
+    // Segunda nota con mapeo de sucursales
+    const mapRow = ws.addRow([
+      "📍 SUCURSALES: DJCST.01=Chiclayo | DICST.01=Ica | DJABT.01=Bellavista | DJCM.001=Nueva Cajamarca | DJAPU.01=Pucallpa | DJJST.01=Jaen | DHUST.01=Huanuco | DYUST-01=Yurimaguas | DSTPI.01=Piura"
+    ]);
+    ws.mergeCells(`A${mapRow.number}:J${mapRow.number}`);
+    mapRow.getCell(1).font = { italic: true, size: 9, color: { argb: "FF374151" } };
+    mapRow.getCell(1).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFEEF2FF" } };
+    mapRow.getCell(1).alignment = { wrapText: true };
+    ws.getRow(mapRow.number).height = 30;
+
+    // Generar y descargar
+    const buffer = await workbook.xlsx.writeBuffer();
+    const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "plantilla_abastecimiento.xlsx";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
   const handleToggleSelect = (id: number) => {
     setSelectedIds((prev) =>
       prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
@@ -2146,6 +2229,14 @@ function VistaAdmin({
                   </button>
                 </div>
                 <div className="ml-auto flex items-center gap-2">
+                  <button
+                    onClick={handleDescargarPlantilla}
+                    className="flex items-center gap-2 bg-slate-700/60 text-slate-300 hover:bg-slate-700 border border-slate-600/50 px-3 py-2 rounded-lg text-sm font-semibold transition-colors"
+                    title="Descargar la plantilla Excel con el formato correcto para importación"
+                  >
+                    <Download className="w-4 h-4 text-emerald-400" />
+                    Descargar Plantilla
+                  </button>
                   <button
                     onClick={() => document.getElementById("import-excel")?.click()}
                     disabled={isAbasteciendo}
