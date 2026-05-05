@@ -26,8 +26,10 @@ import {
   removerDeTransferencia,
   despacharTransferencia,
   eliminarTransferencia,
-  editarTransferencia
+  editarTransferencia,
+  importarAbastecimientoMasivo
 } from "@/app/(dashboard)/inventario/historial-actions";
+import ExcelJS from "exceljs";
 import type { HistorialPedido, EstadoPedido, TipoReporte, CasoReposicion, Transferencia } from "@/types/database.types";
 
 interface HistorialTabProps {
@@ -43,6 +45,18 @@ interface HistorialTabProps {
 type MapaDuplicadosType = {
   duplicadosById: Map<number, string>;
   grupos: Map<string, HistorialPedido[]>;
+};
+
+const SUCURSAL_CODES: Record<string, string> = {
+  "DJCST.01": "Chiclayo",
+  "DICST.01": "Ica",
+  "DJABT.01": "Bellavista",
+  "DJCM.001": "Nueva Cajamarca",
+  "DJAPU.01": "Pucallpa",
+  "DJJST.01": "Jaen",
+  "DHUST.01": "Huanuco",
+  "DYUST-01": "Yurimaguas",
+  "DSTPI.01": "Piura"
 };
 
 // ─── Modal Duplicados ──────────────────────────────────────────
@@ -1874,6 +1888,73 @@ function VistaAdmin({
   const [selectedCasoId, setSelectedCasoId] = useState<string>("");
   const [isAbasteciendo, setIsAbasteciendo] = useState(false);
 
+  const handleExcelUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsAbasteciendo(true);
+    try {
+      const workbook = new ExcelJS.Workbook();
+      const buffer = await file.arrayBuffer();
+      await workbook.xlsx.load(buffer);
+      const worksheet = workbook.worksheets[0];
+
+      const itemsToImport: { codigo: string; sucursal: string; cantidad: number }[] = [];
+      const branchHeaders: { col: number; name: string }[] = [];
+
+      // Leer cabeceras (Fila 1)
+      const firstRow = worksheet.getRow(1);
+      firstRow.eachCell((cell, colNumber) => {
+        const val = cell.text?.trim();
+        if (colNumber > 1 && val && SUCURSAL_CODES[val]) {
+          branchHeaders.push({ col: colNumber, name: SUCURSAL_CODES[val] });
+        }
+      });
+
+      if (branchHeaders.length === 0) {
+        alert("No se encontraron cabeceras de sucursal válidas (DJCST.01, DICST.01, etc.)");
+        setIsAbasteciendo(false);
+        return;
+      }
+
+      // Leer datos (Fila 2 en adelante)
+      worksheet.eachRow((row, rowNumber) => {
+        if (rowNumber === 1) return;
+        const codigo = row.getCell(1).text?.trim();
+        if (!codigo) return;
+
+        branchHeaders.forEach(header => {
+          const qty = Number(row.getCell(header.col).value);
+          if (qty > 0) {
+            itemsToImport.push({
+              codigo,
+              sucursal: header.name,
+              cantidad: qty
+            });
+          }
+        });
+      });
+
+      if (itemsToImport.length === 0) {
+        alert("No se encontraron datos válidos para importar.");
+        setIsAbasteciendo(false);
+        return;
+      }
+
+      if (confirm(`Se han encontrado ${itemsToImport.length} registros. ¿Desea proceder con la importación?`)) {
+        const res = await importarAbastecimientoMasivo(itemsToImport);
+        if (res.error) alert(res.error);
+        else alert(`✅ Importación exitosa: ${res.importados} registros creados.`);
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Error al procesar el archivo Excel.");
+    } finally {
+      setIsAbasteciendo(false);
+      if (e.target) e.target.value = ""; // Reset input
+    }
+  };
+
   const handleToggleSelect = (id: number) => {
     setSelectedIds((prev) =>
       prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
@@ -2064,8 +2145,23 @@ function VistaAdmin({
                     {isAbasteciendo ? "Asignando..." : "Asignar seleccionados"}
                   </button>
                 </div>
-                <div className="ml-auto">
-                                    <button
+                <div className="ml-auto flex items-center gap-2">
+                  <button
+                    onClick={() => document.getElementById("import-excel")?.click()}
+                    disabled={isAbasteciendo}
+                    className="flex items-center gap-2 bg-indigo-600/20 text-indigo-400 hover:bg-indigo-600/30 border border-indigo-500/30 px-3 py-2 rounded-lg text-sm font-semibold transition-colors"
+                  >
+                    {isAbasteciendo ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileUp className="w-4 h-4" />}
+                    Agregar abastecimiento por importación
+                  </button>
+                  <input
+                    id="import-excel"
+                    type="file"
+                    accept=".xlsx, .xls"
+                    className="hidden"
+                    onChange={handleExcelUpload}
+                  />
+                  <button
                     onClick={() => onCrearTransferencia()}
                     className="flex items-center gap-2 bg-emerald-600/20 text-emerald-400 hover:bg-emerald-600/30 border border-emerald-500/30 px-3 py-2 rounded-lg text-sm font-semibold transition-colors"
                   >

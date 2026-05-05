@@ -29,6 +29,7 @@ function getCorreo(usuario: string): string {
 // Destinatarios fijos según spec
 const SERGIO = getCorreo("admin");        // sergio.araujo@quetalcompra.com
 const JESUS  = getCorreo("admin_oficina"); // jesus.tapia@quetalcompra.com
+const EDWIN  = "edwin.portilla@quetalcompra.com";
 const WILBER = getCorreo("admin_almacen"); // wilber.mallma@quetalcompra.com
 
 /**
@@ -73,13 +74,13 @@ export function resolverReceptorPedido(
 
   if (tipo === "Reposición") {
     // Si es reposición, el "To" es Sergio, y el solicitante va en CC junto a Jesus
-    return { to: SERGIO, cc: [JESUS, correoSolicitante].filter(Boolean) as string[] };
+    return { to: SERGIO, cc: [JESUS, EDWIN, correoSolicitante].filter(Boolean) as string[] };
   }
 
   if (tipo === "Abastecimiento") {
     // TO: Wilber (Almacen) + Responsable de la sucursal que recibe
     const destinatarios = [WILBER, correoSolicitante].filter(Boolean) as string[];
-    return { to: destinatarios.join(", "), cc: [JESUS, SERGIO] };
+    return { to: destinatarios.join(", "), cc: [JESUS, SERGIO, EDWIN] };
   }
 
   // Envío Interno → TO: Responsable de la sucursal origen + Responsable de la sucursal que recibe
@@ -89,7 +90,7 @@ export function resolverReceptorPedido(
   const correoOrigen = sucOrigen?.correo ?? SERGIO; // fallback a Sergio si no se encuentra
   
   const destinatarios = [correoOrigen, correoSolicitante].filter(Boolean) as string[];
-  return { to: destinatarios.join(", "), cc: [JESUS, SERGIO] };
+  return { to: destinatarios.join(", "), cc: [JESUS, SERGIO, EDWIN] };
 }
 
 /**

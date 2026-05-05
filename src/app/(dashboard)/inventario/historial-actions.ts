@@ -659,3 +659,61 @@ export async function completarTransferenciaIntercompany(
   revalidatePath("/inventario");
   return { error: null };
 }
+
+// ─── importarAbastecimientoMasivo ─────────────────────────────
+/**
+ * Permite al ADMIN importar una lista masiva de abastecimientos.
+ * datos: Array de { codigo_repuesto: string, ciudad_destino: string, cantidad: number }
+ */
+export async function importarAbastecimientoMasivo(
+  items: { codigo: string; sucursal: string; cantidad: number }[]
+): Promise<{ error: string | null; importados?: number }> {
+  const supabase = await createClient();
+  const user = await getSession();
+  if (!user || user.role !== "admin") return { error: "No autorizado." };
+
+  const rawClient = supabase as unknown as any;
+
+  // 1. Obtener todos los repuestos involucrados para mapear Código -> ID
+  const codigosUnicos = Array.from(new Set(items.map(i => i.codigo)));
+  
+  const { data: repuestos, error: errRepuestos } = await rawClient
+    .from("repuestos")
+    .select("id, codigo")
+    .in("codigo", codigosUnicos);
+
+  if (errRepuestos) return { error: `Error consultando repuestos: ${errRepuestos.message}` };
+
+  const mapaRepuestos = new Map(repuestos.map((r: any) => [r.codigo, r.id]));
+  const noEncontrados = codigosUnicos.filter(c => !mapaRepuestos.has(c));
+
+  if (noEncontrados.length > 0 && items.length > 0) {
+    // Si hay muchos, mostramos solo los primeros 5
+    const msg = noEncontrados.slice(0, 5).join(", ");
+    return { error: `Los siguientes códigos no existen en el catálogo: ${msg}${noEncontrados.length > 5 ? "..." : ""}` };
+  }
+
+  // 2. Preparar los registros para insertar
+  const ahora = new Date().toISOString();
+  const registros = items.map(item => ({
+    repuesto_id: mapaRepuestos.get(item.codigo),
+    tecnico_destino: item.sucursal,
+    sucursal_origen: "Lima", // Sede estándar para abastecimiento
+    cantidad: item.cantidad,
+    tipo_reporte: "Abastecimiento",
+    estado: "Aprobado",
+    fecha_pedido: ahora,
+    fecha_aprobacion: ahora,
+    numero_caso: "0000" // Por defecto para abastecimiento masivo
+  }));
+
+  // 3. Insertar en bloques (opcional, pero Supabase maneja bien hasta ~1000)
+  const { error: errInsert } = await rawClient
+    .from("historial_pedidos")
+    .insert(registros);
+
+  if (errInsert) return { error: `Error al insertar pedidos: ${errInsert.message}` };
+
+  revalidatePath("/inventario");
+  return { error: null, importados: registros.length };
+}

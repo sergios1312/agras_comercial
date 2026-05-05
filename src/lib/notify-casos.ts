@@ -20,6 +20,7 @@ function getCorreo(sucursal: string): string {
 
 const ADMIN_EMAIL_SERGIO = SUCURSALES_DATA.find(s => s.usuario === "admin")?.correo ?? process.env.EMAIL_USER;
 const ADMIN_EMAIL_JESUS  = SUCURSALES_DATA.find(s => s.usuario === "admin_oficina")?.correo ?? process.env.EMAIL_USER;
+const ADMIN_EMAIL_EDWIN  = "edwin.portilla@quetalcompra.com";
 
 const transporter = nodemailer.createTransport({
   host: "smtp.gmail.com",
@@ -231,7 +232,7 @@ export async function procesarCorreosCasosAbiertos(casosTotales: Caso[], targetS
 
       const correoTecnico = getCorreo(sucursal);
       const to = MODO_PRUEBA ? ADMIN_EMAIL_SERGIO! : correoTecnico;
-      const cc = MODO_PRUEBA ? [] : [ADMIN_EMAIL_SERGIO!, ADMIN_EMAIL_JESUS!];
+      const cc = MODO_PRUEBA ? [ADMIN_EMAIL_EDWIN] : [ADMIN_EMAIL_SERGIO!, ADMIN_EMAIL_JESUS!, ADMIN_EMAIL_EDWIN];
 
       const asunto = `📋 Reporte de Casos Retrasados — DJI AGRAS ${sucursal} (${casos.length} ABIERTOS)`;
 
@@ -267,7 +268,7 @@ export async function procesarCorreosCasosAbiertos(casosTotales: Caso[], targetS
 
       await transporter.sendMail({
         from: FROM,
-        to: ADMIN_EMAIL_JESUS!,
+        to: [ADMIN_EMAIL_JESUS!, ADMIN_EMAIL_EDWIN],
         cc: ADMIN_EMAIL_SERGIO!,
         subject: `📊 Mega-Reporte: Status de Correos Enviados`,
         html: htmlMega,
