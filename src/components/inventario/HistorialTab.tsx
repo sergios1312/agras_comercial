@@ -663,38 +663,34 @@ function ModalSubirCasosReposicion({
     const wb = new ExcelJS.Workbook();
     const ws = wb.addWorksheet("Casos de Reposición");
 
-    // Encabezados de caso (columnas A-C)
-    ws.getCell("A1").value = "CASO";
-    ws.getCell("B1").value = "SERIE_EQUIPO";
-    ws.getCell("C1").value = "UBICACION";
-    ws.getCell("D1").value = "TIPO_EQUIPO";
-    // Encabezados de ítems (columnas E-H)
-    ws.getCell("E1").value = "CODIGO_REPUESTO";
-    ws.getCell("F1").value = "NUMERO_CASO";
-    ws.getCell("G1").value = "CANTIDAD";
-    ws.getCell("H1").value = "TECNICO_DESTINO";
+    // 7 columnas: A=Serie(agrupador), B=Ubicacion, C=TipoEquipo, D=CodRepuesto, E=NumeroCaso, F=Cantidad, G=TecnicoDestino
+    ws.getCell("A1").value = "SERIE_EQUIPO";
+    ws.getCell("B1").value = "UBICACION";
+    ws.getCell("C1").value = "TIPO_EQUIPO";
+    ws.getCell("D1").value = "CODIGO_REPUESTO";
+    ws.getCell("E1").value = "NUMERO_CASO";
+    ws.getCell("F1").value = "CANTIDAD";
+    ws.getCell("G1").value = "TECNICO_DESTINO";
 
-    // Estilo encabezados
-    ["A1","B1","C1","D1","E1","F1","G1","H1"].forEach(cell => {
+    ["A1","B1","C1","D1","E1","F1","G1"].forEach(cell => {
       ws.getCell(cell).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF1E293B" } };
       ws.getCell(cell).font = { bold: true, color: { argb: "FFFFFFFF" } };
       ws.getCell(cell).border = { bottom: { style: "thin", color: { argb: "FF6366F1" } } };
     });
 
-    // Filas de ejemplo: 1 caso con 2 ítems
-    ws.addRow(["CASO-1", "ABC123456", sucursales[0] || "Chiclayo", "DJI Agras T50", "YC.JG.ZS005016.03", "1234", 2, sucursales[0] || "Chiclayo"]);
-    ws.addRow(["CASO-1", "", "", "", "YC.JG.ZS005016.04", "1234", 1, sucursales[0] || "Chiclayo"]);
-    ws.addRow(["CASO-2", "XYZ789012", sucursales[1] || "Piura", "DJI Agras T10", "YC.JG.ZS005016.03", "5678", 3, sucursales[1] || "Piura"]);
+    // Ejemplo: equipo ABC123 → 2 ítems; equipo XYZ789 → 1 ítem
+    ws.addRow(["ABC123456", sucursales[0] || "Chiclayo", "DJI Agras T50", "YC.JG.ZS005016.03", "1234", 2, sucursales[0] || "Chiclayo"]);
+    ws.addRow(["ABC123456", "", "", "YC.JG.ZS005016.04", "1234", 1, sucursales[0] || "Chiclayo"]);
+    ws.addRow(["XYZ789012", sucursales[1] || "Piura", "DJI Agras T10", "YC.JG.ZS005016.03", "5", 3, sucursales[1] || "Piura"]);
 
     ws.columns = [
-      { key: "A", width: 14 },
+      { key: "A", width: 20 },
       { key: "B", width: 18 },
-      { key: "C", width: 18 },
-      { key: "D", width: 20 },
-      { key: "E", width: 24 },
-      { key: "F", width: 14 },
-      { key: "G", width: 10 },
-      { key: "H", width: 20 },
+      { key: "C", width: 20 },
+      { key: "D", width: 24 },
+      { key: "E", width: 14 },
+      { key: "F", width: 10 },
+      { key: "G", width: 20 },
     ];
 
     const buf = await wb.xlsx.writeBuffer();
@@ -707,7 +703,16 @@ function ModalSubirCasosReposicion({
     URL.revokeObjectURL(url);
   }
 
-  // Parsear el Excel seleccionado
+  // Padding de numero_caso a 4 dígitos
+  function padCaso(val: string): string {
+    const digits = val.replace(/\D/g, "");
+    if (!digits) return "0000";
+    return digits.padStart(4, "0").slice(-4);
+  }
+
+  // Parsear el Excel por posición de columna (ignora nombres de cabecera)
+  // Col A: SERIE_EQUIPO (agrupador) | Col B: UBICACION | Col C: TIPO_EQUIPO
+  // Col D: CODIGO_REPUESTO | Col E: NUMERO_CASO | Col F: CANTIDAD | Col G: TECNICO_DESTINO
   async function handleFile(f: File) {
     setFile(f);
     setError(null);
@@ -720,38 +725,42 @@ function ModalSubirCasosReposicion({
       await wb.xlsx.load(buffer);
       const ws = wb.worksheets[0];
 
+      // Mapa: serie_equipo → { ubicacion, tipo, items[] }
+      // Orden de inserción = orden de aparición en el Excel
       const casosMap = new Map<string, { serie: string; ubicacion: string; tipo: string; items: any[] }>();
 
       ws.eachRow((row, rowNum) => {
-        if (rowNum === 1) return; // skip header
-        const casoKey = String(row.getCell(1).value || "").trim();
-        const serie = String(row.getCell(2).value || "").trim().toUpperCase();
-        const ubicacion = String(row.getCell(3).value || "").trim();
-        const tipo = String(row.getCell(4).value || "").trim();
-        const codigo = String(row.getCell(5).value || "").trim();
-        const numeroCaso = String(row.getCell(6).value || "").trim();
-        const cantidad = Number(row.getCell(7).value) || 0;
-        const tecnicoDest = String(row.getCell(8).value || "").trim();
+        if (rowNum === 1) return; // fila 1 siempre ignorada (cabeceras)
 
-        if (!casoKey || !codigo || cantidad <= 0) return;
+        // Leer por posición de columna
+        const serie      = String(row.getCell(1).value ?? "").trim().toUpperCase();
+        const ubicacion  = String(row.getCell(2).value ?? "").trim();
+        const tipo       = String(row.getCell(3).value ?? "").trim();
+        const codigo     = String(row.getCell(4).value ?? "").trim();
+        const numeroCaso = padCaso(String(row.getCell(5).value ?? "").trim());
+        const cantidad   = Number(row.getCell(6).value) || 0;
+        const tecnico    = String(row.getCell(7).value ?? "").trim();
 
-        if (!casosMap.has(casoKey)) {
-          casosMap.set(casoKey, { serie, ubicacion, tipo, items: [] });
-        } else if (serie) {
-          const existing = casosMap.get(casoKey)!;
-          if (!existing.serie) existing.serie = serie;
-          if (!existing.ubicacion) existing.ubicacion = ubicacion;
-          if (!existing.tipo) existing.tipo = tipo;
+        // Necesita al menos serie + código + cantidad válida
+        if (!serie || !codigo || cantidad <= 0) return;
+
+        if (!casosMap.has(serie)) {
+          casosMap.set(serie, { serie, ubicacion, tipo, items: [] });
+        } else {
+          // Si en filas siguientes del mismo equipo vienen datos de cabecera, actualizarlos
+          const entry = casosMap.get(serie)!;
+          if (!entry.ubicacion && ubicacion) entry.ubicacion = ubicacion;
+          if (!entry.tipo && tipo) entry.tipo = tipo;
         }
-        casosMap.get(casoKey)!.items.push({ codigo, numero_caso: numeroCaso, cantidad, tecnico_destino: tecnicoDest });
+        casosMap.get(serie)!.items.push({ codigo, numero_caso: numeroCaso, cantidad, tecnico_destino: tecnico });
       });
 
       if (casosMap.size === 0) {
-        setError("No se encontraron casos válidos en el archivo.");
+        setError("No se encontraron filas válidas en el archivo. Verifica que la Col A tenga la serie del equipo y la Col D el código de repuesto.");
         return;
       }
 
-      const casos = Array.from(casosMap.entries()).map(([, v]) => ({
+      const casos = Array.from(casosMap.values()).map(v => ({
         serie_equipo: v.serie,
         ubicacion: v.ubicacion,
         tipo_equipo: v.tipo || undefined,
@@ -774,8 +783,11 @@ function ModalSubirCasosReposicion({
     if (res.error) {
       setError(res.error);
     } else {
-      setSuccess(`✅ Importación exitosa: ${res.casosCreados} caso(s) y ${res.itemsCreados} ítem(s) creados.`);
-      setTimeout(() => { onImportado(); onClose(); }, 2200);
+      const partes = [];
+      if ((res.casosCreados ?? 0) > 0) partes.push(`${res.casosCreados} caso(s) nuevo(s)`);
+      if ((res.casosReutilizados ?? 0) > 0) partes.push(`${res.casosReutilizados} caso(s) reutilizado(s) por serie existente`);
+      setSuccess(`✅ Importación exitosa: ${partes.join(", ")} · ${res.itemsCreados} ítem(s) registrados.`);
+      setTimeout(() => { onImportado(); onClose(); }, 2500);
     }
   }
 
@@ -806,15 +818,15 @@ function ModalSubirCasosReposicion({
               Descargar plantilla_carga_reposicion.xlsx
             </button>
             <div className="mt-3 grid grid-cols-2 gap-2 text-[10px] text-slate-500">
-              <div><span className="text-indigo-400 font-bold">A: CASO</span> — ID agrupador (ej: CASO-1)</div>
-              <div><span className="text-indigo-400 font-bold">B: SERIE_EQUIPO</span> — Serie del equipo</div>
-              <div><span className="text-indigo-400 font-bold">C: UBICACION</span> — Sede/sucursal</div>
-              <div><span className="text-indigo-400 font-bold">D: TIPO_EQUIPO</span> — Opcional</div>
-              <div><span className="text-blue-400 font-bold">E: CODIGO_REPUESTO</span> — Código exacto</div>
-              <div><span className="text-blue-400 font-bold">F: NUMERO_CASO</span> — N° de caso del pedido</div>
-              <div><span className="text-blue-400 font-bold">G: CANTIDAD</span> — Unidades</div>
-              <div><span className="text-blue-400 font-bold">H: TECNICO_DESTINO</span> — Sede destino</div>
+              <div><span className="text-indigo-400 font-bold">A: SERIE_EQUIPO</span> — Serie del equipo (agrupador, crea un CR por cada serie única)</div>
+              <div><span className="text-indigo-400 font-bold">B: UBICACION</span> — Sede/sucursal del equipo</div>
+              <div><span className="text-indigo-400 font-bold">C: TIPO_EQUIPO</span> — Modelo/tipo (opcional)</div>
+              <div><span className="text-blue-400 font-bold">D: CODIGO_REPUESTO</span> — Código exacto del repuesto</div>
+              <div><span className="text-blue-400 font-bold">E: NUMERO_CASO</span> — N° caso (se completa a 4 dígitos automáticamente)</div>
+              <div><span className="text-blue-400 font-bold">F: CANTIDAD</span> — Unidades a solicitar</div>
+              <div><span className="text-blue-400 font-bold">G: TECNICO_DESTINO</span> — Sede destino del pedido</div>
             </div>
+            <p className="mt-2 text-[10px] text-amber-400/80">⚠ La fila 1 siempre se ignora (cabeceras). El sistema procesa por posición de columna, no por nombre.</p>
           </div>
 
           {/* Paso 2: Subir archivo */}

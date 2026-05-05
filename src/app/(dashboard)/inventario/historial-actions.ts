@@ -753,7 +753,7 @@ export async function importarReposicionMasivo(
       tecnico_destino: string;
     }[];
   }[]
-): Promise<{ error: string | null; casosCreados?: number; itemsCreados?: number }> {
+): Promise<{ error: string | null; casosCreados?: number; casosReutilizados?: number; itemsCreados?: number }> {
   const supabase = await createClient();
   const user = await getSession();
   if (!user || user.role !== "admin") return { error: "No autorizado." };
@@ -783,51 +783,89 @@ export async function importarReposicionMasivo(
     return { error: `Códigos no encontrados en el catálogo: ${msg}${noEncontrados.length > 5 ? "..." : ""}` };
   }
 
-  // 2. Procesar cada caso secuencialmente: crear caso → insertar ítems
+  // 2. Buscar casos ya existentes para las series del Excel (deduplicación por serie)
+  const seriesDelExcel = casos.map(c => c.serie_equipo.toUpperCase());
+  const { data: casosExistentesData, error: errExistentes } = await rawClient
+    .from("casos_reposicion")
+    .select("id, codigo_caso, serie_equipo")
+    .in("serie_equipo", seriesDelExcel);
+
+  if (errExistentes) return { error: `Error consultando casos existentes: ${errExistentes.message}` };
+
+  // Mapa serie_equipo → { id, codigo_caso } para lookup O(1)
+  const mapaSeries = new Map<string, { id: number; codigo_caso: string }>(
+    (casosExistentesData ?? []).map((c: any) => [c.serie_equipo, { id: c.id, codigo_caso: c.codigo_caso }])
+  );
+
+  // 3. Obtener conteo actual para generar correlativo CR-NNN solo para series NUEVAS
+  const { count: totalCasos, error: errCount } = await rawClient
+    .from("casos_reposicion")
+    .select("id", { count: "exact", head: true });
+
+  if (errCount) return { error: `Error consultando secuencia de casos: ${errCount.message}` };
+
+  let nextSeq = (totalCasos ?? 0) + 1;
+
+  // Helper: numero_caso padding a 4 dígitos
+  function padCaso(val: string): string {
+    const digits = val.replace(/\D/g, "");
+    if (!digits) return "0000";
+    return digits.padStart(4, "0").slice(-4);
+  }
+
+  // 4. Procesar cada caso: reusar existente o crear nuevo
+  let casosCreados = 0;
   let totalItemsCreados = 0;
   const ahora = new Date().toISOString();
 
   for (const caso of casos) {
-    // 2a. Crear el caso en casos_reposicion con código temporal
-    const { data: casoInsertado, error: errCaso } = await rawClient
-      .from("casos_reposicion")
-      .insert([{
-        serie_equipo: caso.serie_equipo.toUpperCase(),
-        ubicacion: caso.ubicacion,
-        tipo_equipo: caso.tipo_equipo || null,
-        codigo_caso: `TMP-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-      }])
-      .select("id")
-      .single();
+    const serieNorm = caso.serie_equipo.toUpperCase();
+    let casoId: number;
+    let codigoCaso: string;
 
-    if (errCaso || !casoInsertado) {
-      return { error: `Error creando caso (Serie: ${caso.serie_equipo}): ${errCaso?.message}` };
+    if (mapaSeries.has(serieNorm)) {
+      // ── Serie ya existe: reusar el caso existente ──
+      const existente = mapaSeries.get(serieNorm)!;
+      casoId = existente.id;
+      codigoCaso = existente.codigo_caso;
+    } else {
+      // ── Serie nueva: crear caso con siguiente CR-NNN ──
+      codigoCaso = `CR-${String(nextSeq).padStart(3, "0")}`;
+      nextSeq++;
+
+      const { data: casoInsertado, error: errCaso } = await rawClient
+        .from("casos_reposicion")
+        .insert([{
+          serie_equipo: serieNorm,
+          ubicacion: caso.ubicacion,
+          tipo_equipo: caso.tipo_equipo || null,
+          codigo_caso: codigoCaso,
+        }])
+        .select("id")
+        .single();
+
+      if (errCaso || !casoInsertado) {
+        return { error: `Error creando caso ${codigoCaso} (Serie: ${serieNorm}): ${errCaso?.message}` };
+      }
+
+      casoId = casoInsertado.id;
+      // Registrar en el mapa para que si el mismo Excel repite la serie no duplique
+      mapaSeries.set(serieNorm, { id: casoId, codigo_caso: codigoCaso });
+      casosCreados++;
     }
 
-    const newId: number = casoInsertado.id;
-
-    // 2b. Actualizar con el código definitivo (igual al ID, como hace crearCasoReposicion)
-    const { error: errUpdate } = await rawClient
-      .from("casos_reposicion")
-      .update({ codigo_caso: newId.toString() })
-      .eq("id", newId);
-
-    if (errUpdate) {
-      return { error: `Error generando código para caso (Serie: ${caso.serie_equipo}): ${errUpdate.message}` };
-    }
-
-    // 2c. Insertar todos los ítems de este caso
+    // 4b. Insertar ítems apuntando al caso (nuevo o existente)
     if (caso.items.length > 0) {
       const registros = caso.items.map(item => ({
         repuesto_id: mapaRepuestos.get(item.codigo),
-        numero_caso: item.numero_caso || "0000",
+        numero_caso: padCaso(item.numero_caso),
         cantidad: item.cantidad,
         tecnico_destino: item.tecnico_destino,
         sucursal_origen: "SIN_STOCK",
         tipo_reporte: "Reposición",
         estado: "Pendiente",
         fecha_pedido: ahora,
-        caso_reposicion_id: newId,
+        caso_reposicion_id: casoId,
       }));
 
       const { error: errItems } = await rawClient
@@ -835,7 +873,7 @@ export async function importarReposicionMasivo(
         .insert(registros);
 
       if (errItems) {
-        return { error: `Error insertando ítems del caso (Serie: ${caso.serie_equipo}): ${errItems.message}` };
+        return { error: `Error insertando ítems del caso ${codigoCaso}: ${errItems.message}` };
       }
 
       totalItemsCreados += registros.length;
@@ -843,5 +881,6 @@ export async function importarReposicionMasivo(
   }
 
   revalidatePath("/inventario");
-  return { error: null, casosCreados: casos.length, itemsCreados: totalItemsCreados };
+  const casosReutilizados = casos.length - casosCreados;
+  return { error: null, casosCreados, casosReutilizados, itemsCreados: totalItemsCreados };
 }
