@@ -4,7 +4,7 @@ import nodemailer from "nodemailer";
 import { SUCURSALES_DATA } from "@/lib/constants";
 import type { Caso } from "@/types/casos.types";
 
-const MODO_PRUEBA = true;
+const MODO_PRUEBA = false;
 
 // Todas las sucursales posibles donde se puede enviar garantía
 export const SUCURSALES_MAESTRAS = [
@@ -16,6 +16,13 @@ export const SUCURSALES_MAESTRAS = [
 function getCorreo(sucursal: string): string {
   const s = SUCURSALES_DATA.find((x) => x.ciudad.toLowerCase() === sucursal.toLowerCase());
   return s?.correo ?? process.env.EMAIL_USER!;
+}
+
+export function getDestinatarios(sucursal: string) {
+  const correoTecnico = getCorreo(sucursal);
+  const to = MODO_PRUEBA ? ADMIN_EMAIL_SERGIO! : correoTecnico;
+  const cc = MODO_PRUEBA ? [ADMIN_EMAIL_EDWIN] : [ADMIN_EMAIL_SERGIO!, ADMIN_EMAIL_JESUS!, ADMIN_EMAIL_EDWIN];
+  return { to, cc };
 }
 
 const ADMIN_EMAIL_SERGIO = SUCURSALES_DATA.find(s => s.usuario === "admin")?.correo ?? process.env.EMAIL_USER;
@@ -122,21 +129,26 @@ async function generarExcelSucursalBuffer(casos: Caso[]): Promise<Buffer> {
 /**
  * Genera el diccionario para la vista previa de las tablas (Front-End)
  */
-export function obtenerVistaPrevia(casosTotales: Caso[], targetSucursales: string[]): Record<string, Caso[]> {
-  const result: Record<string, Caso[]> = {};
+export function obtenerVistaPrevia(casosTotales: Caso[], targetSucursales: string[]): Record<string, { casos: Caso[], recipients: { to: string, cc: string[] } }> {
+  const result: Record<string, { casos: Caso[], recipients: { to: string, cc: string[] } }> = {};
   
   const abiertos = casosTotales.filter((c) => 
     c.estadoGeneral === "ABIERTO" && targetSucursales.some(t => t.toLowerCase() === c.sucursal.toLowerCase())
   );
 
   for (const c of abiertos) {
-    if (!result[c.sucursal]) result[c.sucursal] = [];
-    result[c.sucursal].push(c);
+    if (!result[c.sucursal]) {
+      result[c.sucursal] = {
+        casos: [],
+        recipients: getDestinatarios(c.sucursal)
+      };
+    }
+    result[c.sucursal].casos.push(c);
   }
 
   // Ordenamos para UX (de mayor edad a menor, ignorando los nulos temporalmente)
   for (const suc in result) {
-    result[suc].sort((a, b) => {
+    result[suc].casos.sort((a, b) => {
       const d1 = calcularDiasCalendario(a.fechaIngreso);
       const d2 = calcularDiasCalendario(b.fechaIngreso);
       return d2 - d1;
@@ -230,9 +242,7 @@ export async function procesarCorreosCasosAbiertos(casosTotales: Caso[], targetS
 
       const excelBuffer = await generarExcelSucursalBuffer(casos);
 
-      const correoTecnico = getCorreo(sucursal);
-      const to = MODO_PRUEBA ? ADMIN_EMAIL_SERGIO! : correoTecnico;
-      const cc = MODO_PRUEBA ? [ADMIN_EMAIL_EDWIN] : [ADMIN_EMAIL_SERGIO!, ADMIN_EMAIL_JESUS!, ADMIN_EMAIL_EDWIN];
+      const { to, cc } = getDestinatarios(sucursal);
 
       const asunto = `📋 Reporte de Casos Retrasados — DJI AGRAS ${sucursal} (${casos.length} ABIERTOS)`;
 

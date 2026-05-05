@@ -758,7 +758,7 @@ function TablaCasosReposicion({
                                      <td className="px-2 py-2 font-mono text-[10px] text-slate-300 max-w-[80px] truncate" title={r.repuestos?.codigo_sap || ""}>{r.repuestos?.codigo_sap || "N/A"}</td>
                                      <td className="px-2 py-2 text-[10px] text-slate-300 truncate max-w-[200px]" title={r.repuestos?.nombre ?? "N/A"}>{r.repuestos?.nombre ?? "N/A"}</td>
                                      <td className="px-2 py-2 text-[10px] text-slate-300 text-center">{r.cantidad}</td>
-                                     <td className="px-2 py-2 text-[10px] text-slate-400 font-mono">{r.numero_caso === "0000" ? "VENTA" : r.numero_caso}</td>
+                                     <td className="px-2 py-2 text-[10px] font-mono font-bold">{r.numero_caso === "0000" ? <span className="text-amber-400">VENTA</span> : r.numero_caso === "0001" ? <span className="text-cyan-400">IMPORT</span> : <span className="text-slate-400">{r.numero_caso}</span>}</td>
                                       <td className="px-2 py-2"><Badge label={r.estado} variant={estadoToVariant(r.estado)} /></td>
                                       <td className="px-2 py-2 text-center">
                                         <button 
@@ -958,7 +958,7 @@ function TablaPedidos({
                       )}
                       <span className="truncate">{p.repuestos?.nombre ?? "N/A"}</span>
                     </td>
-                    <td className="px-4 py-3 font-mono text-slate-300 text-[11px]">{p.numero_caso === "0000" ? "VENTA" : p.numero_caso}</td>
+                    <td className="px-4 py-3 font-mono text-[11px] font-bold">{p.numero_caso === "0000" ? <span className="text-amber-400">VENTA</span> : p.numero_caso === "0001" ? <span className="text-cyan-400">IMPORT</span> : <span className="text-slate-300">{p.numero_caso}</span>}</td>
                     {isReposicion && (
                       <td className="px-4 py-3 text-center">
                          {p.caso_reposicion_id ? (

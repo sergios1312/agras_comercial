@@ -12,7 +12,7 @@ export function PanelNotificaciones() {
   const [isPending, startTransition] = useTransition();
   const [seleccionadas, setSeleccionadas] = useState<string[]>(SUCURSALES_MAESTRAS);
   
-  const [previewData, setPreviewData] = useState<Record<string, Caso[]> | null>(null);
+  const [previewData, setPreviewData] = useState<Record<string, { casos: Caso[], recipients: { to: string, cc: string[] } }> | null>(null);
   
   const [result, setResult] = useState<{
     success: boolean;
@@ -154,12 +154,25 @@ export function PanelNotificaciones() {
             </div>
           )}
 
-          {Object.entries(previewData).map(([sucursal, casos]) => (
+          {Object.entries(previewData).map(([sucursal, { casos, recipients }]) => (
             <div key={sucursal} className="border border-indigo-900/40 rounded-xl overflow-hidden bg-white">
               {/* Fake Excel UI Wrapper */}
-              <div className="bg-[#f3f2f1] px-3 py-1.5 border-b border-[#e1dfdd] flex items-center gap-2">
-                <div className="text-[11px] font-semibold text-[#107c41]">Excel Preview</div>
-                <div className="text-[11px] text-slate-500">[{sucursal}]</div>
+              <div className="bg-[#f3f2f1] px-3 py-1.5 border-b border-[#e1dfdd] flex flex-col md:flex-row md:items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <div className="text-[11px] font-semibold text-[#107c41]">Excel Preview</div>
+                  <div className="text-[11px] text-slate-500">[{sucursal}]</div>
+                </div>
+                
+                <div className="flex flex-col text-[10px] text-slate-600 bg-slate-100 px-2 py-1 rounded border border-slate-200">
+                  <div className="flex gap-1">
+                    <span className="font-bold">Para:</span>
+                    <span className="text-indigo-600">{recipients.to}</span>
+                  </div>
+                  <div className="flex gap-1">
+                    <span className="font-bold">CC:</span>
+                    <span>{recipients.cc.join(", ")}</span>
+                  </div>
+                </div>
               </div>
               
               <div className="overflow-x-auto">

@@ -704,7 +704,7 @@ export async function importarAbastecimientoMasivo(
     estado: "Aprobado",
     fecha_pedido: ahora,
     fecha_aprobacion: ahora,
-    numero_caso: "0000" // Por defecto para abastecimiento masivo
+    numero_caso: "0001" // Código reservado para abastecimiento por importación
   }));
 
   // 3. Insertar en bloques (opcional, pero Supabase maneja bien hasta ~1000)

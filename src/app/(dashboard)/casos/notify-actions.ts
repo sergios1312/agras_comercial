@@ -8,7 +8,7 @@ import type { Caso } from "@/types/casos.types";
 
 export async function previsualizarCasosAccion(targetSucursales: string[]): Promise<{
   success: boolean;
-  data?: Record<string, Caso[]>;
+  data?: Record<string, { casos: Caso[], recipients: { to: string, cc: string[] } }>;
   error?: string;
 }> {
   const user = await getSession();
