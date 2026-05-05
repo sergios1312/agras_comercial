@@ -5,7 +5,7 @@ import { Tabs } from "@/components/ui/Tabs";
 import { CatalogoTab } from "@/components/inventario/CatalogoTab";
 import { SolicitudTab } from "@/components/inventario/SolicitudTab";
 import { HistorialTab } from "@/components/inventario/HistorialTab";
-import { Search, Package, History } from "lucide-react";
+import { Search, Package, History, Truck } from "lucide-react";
 import type { RepuestoConStock, HistorialPedido, ItemCarrito, CasoReposicion, ConfigPedidos, Transferencia } from "@/types/database.types";
 import { generarIdTemporal } from "@/lib/utils";
 
@@ -136,6 +136,7 @@ export function InventarioClientWrapper({
       label: carrito.length > 0 ? `Carrito (${carrito.length})` : "Carrito", 
       icon: <Package className="w-4 h-4" /> 
     },
+    { id: "envios", label: "Envíos", icon: <Truck className="w-4 h-4" /> },
     { id: "historial", label: "Historial", icon: <History className="w-4 h-4" /> },
   ];
 
@@ -168,6 +169,17 @@ export function InventarioClientWrapper({
           ciudadUsuario={ciudadUsuario}
           sucursales={sucursalesNames}
           catalogo={catalogo}
+          tabType="envios"
+        />
+        <HistorialTab
+          historial={historial}
+          casosReposicion={casosReposicion}
+          transferencias={transferencias}
+          isAdmin={!!isAdmin}
+          ciudadUsuario={ciudadUsuario}
+          sucursales={sucursalesNames}
+          catalogo={catalogo}
+          tabType="historial"
         />
       </Tabs>
 

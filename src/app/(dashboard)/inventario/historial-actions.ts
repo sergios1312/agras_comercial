@@ -729,3 +729,119 @@ export async function importarAbastecimientoMasivo(
   revalidatePath("/inventario");
   return { error: null, importados: registros.length };
 }
+
+// ─── importarReposicionMasivo ──────────────────────────────────
+/**
+ * Permite al ADMIN importar casos de reposición masivamente desde un Excel.
+ * Cada caso se crea en `casos_reposicion` y sus ítems en `historial_pedidos`.
+ *
+ * casos: Array de objetos con:
+ *   - serie_equipo: string
+ *   - ubicacion: string
+ *   - tipo_equipo?: string
+ *   - items: Array de { codigo: string; numero_caso: string; cantidad: number; tecnico_destino: string }
+ */
+export async function importarReposicionMasivo(
+  casos: {
+    serie_equipo: string;
+    ubicacion: string;
+    tipo_equipo?: string;
+    items: {
+      codigo: string;
+      numero_caso: string;
+      cantidad: number;
+      tecnico_destino: string;
+    }[];
+  }[]
+): Promise<{ error: string | null; casosCreados?: number; itemsCreados?: number }> {
+  const supabase = await createClient();
+  const user = await getSession();
+  if (!user || user.role !== "admin") return { error: "No autorizado." };
+
+  const rawClient = supabase as unknown as any;
+
+  // 1. Recopilar todos los códigos de repuesto únicos para mapearlos a IDs
+  const todosLosItems = casos.flatMap(c => c.items);
+  const codigosUnicos = Array.from(new Set(todosLosItems.map(i => i.codigo)));
+
+  if (codigosUnicos.length === 0) {
+    return { error: "No se encontraron ítems en los casos a importar." };
+  }
+
+  const { data: repuestos, error: errRepuestos } = await rawClient
+    .from("repuestos")
+    .select("id, codigo")
+    .in("codigo", codigosUnicos);
+
+  if (errRepuestos) return { error: `Error consultando repuestos: ${errRepuestos.message}` };
+
+  const mapaRepuestos = new Map<string, number>(repuestos.map((r: any) => [r.codigo, r.id]));
+  const noEncontrados = codigosUnicos.filter(c => !mapaRepuestos.has(c));
+
+  if (noEncontrados.length > 0) {
+    const msg = noEncontrados.slice(0, 5).join(", ");
+    return { error: `Códigos no encontrados en el catálogo: ${msg}${noEncontrados.length > 5 ? "..." : ""}` };
+  }
+
+  // 2. Procesar cada caso secuencialmente: crear caso → insertar ítems
+  let totalItemsCreados = 0;
+  const ahora = new Date().toISOString();
+
+  for (const caso of casos) {
+    // 2a. Crear el caso en casos_reposicion con código temporal
+    const { data: casoInsertado, error: errCaso } = await rawClient
+      .from("casos_reposicion")
+      .insert([{
+        serie_equipo: caso.serie_equipo.toUpperCase(),
+        ubicacion: caso.ubicacion,
+        tipo_equipo: caso.tipo_equipo || null,
+        codigo_caso: `TMP-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      }])
+      .select("id")
+      .single();
+
+    if (errCaso || !casoInsertado) {
+      return { error: `Error creando caso (Serie: ${caso.serie_equipo}): ${errCaso?.message}` };
+    }
+
+    const newId: number = casoInsertado.id;
+
+    // 2b. Actualizar con el código definitivo (igual al ID, como hace crearCasoReposicion)
+    const { error: errUpdate } = await rawClient
+      .from("casos_reposicion")
+      .update({ codigo_caso: newId.toString() })
+      .eq("id", newId);
+
+    if (errUpdate) {
+      return { error: `Error generando código para caso (Serie: ${caso.serie_equipo}): ${errUpdate.message}` };
+    }
+
+    // 2c. Insertar todos los ítems de este caso
+    if (caso.items.length > 0) {
+      const registros = caso.items.map(item => ({
+        repuesto_id: mapaRepuestos.get(item.codigo),
+        numero_caso: item.numero_caso || "0000",
+        cantidad: item.cantidad,
+        tecnico_destino: item.tecnico_destino,
+        sucursal_origen: "SIN_STOCK",
+        tipo_reporte: "Reposición",
+        estado: "Pendiente",
+        fecha_pedido: ahora,
+        caso_reposicion_id: newId,
+      }));
+
+      const { error: errItems } = await rawClient
+        .from("historial_pedidos")
+        .insert(registros);
+
+      if (errItems) {
+        return { error: `Error insertando ítems del caso (Serie: ${caso.serie_equipo}): ${errItems.message}` };
+      }
+
+      totalItemsCreados += registros.length;
+    }
+  }
+
+  revalidatePath("/inventario");
+  return { error: null, casosCreados: casos.length, itemsCreados: totalItemsCreados };
+}

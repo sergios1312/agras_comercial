@@ -27,7 +27,8 @@ import {
   despacharTransferencia,
   eliminarTransferencia,
   editarTransferencia,
-  importarAbastecimientoMasivo
+  importarAbastecimientoMasivo,
+  importarReposicionMasivo
 } from "@/app/(dashboard)/inventario/historial-actions";
 import ExcelJS from "exceljs";
 import type { HistorialPedido, EstadoPedido, TipoReporte, CasoReposicion, Transferencia } from "@/types/database.types";
@@ -40,6 +41,7 @@ interface HistorialTabProps {
   ciudadUsuario: string;
   sucursales?: string[];
   catalogo?: import("@/types/database.types").RepuestoConStock[];
+  tabType?: "envios" | "historial";
 }
 
 type MapaDuplicadosType = {
@@ -637,12 +639,272 @@ function ModalAgregarRepuesto({
   );
 }
 
+// ─── Modal Subir Casos Masivos (Reposición) ────────────────────
+function ModalSubirCasosReposicion({
+  sucursales,
+  tiposEquipo,
+  onClose,
+  onImportado
+}: {
+  sucursales: string[];
+  tiposEquipo: string[];
+  onClose: () => void;
+  onImportado: () => void;
+}) {
+  const [file, setFile] = useState<File | null>(null);
+  const [preview, setPreview] = useState<{ serie: string; ubicacion: string; tipo: string; items: number }[]>([]);
+  const [rawCasos, setRawCasos] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+
+  // Generar y descargar la plantilla Excel
+  async function descargarPlantilla() {
+    const wb = new ExcelJS.Workbook();
+    const ws = wb.addWorksheet("Casos de Reposición");
+
+    // Encabezados de caso (columnas A-C)
+    ws.getCell("A1").value = "CASO";
+    ws.getCell("B1").value = "SERIE_EQUIPO";
+    ws.getCell("C1").value = "UBICACION";
+    ws.getCell("D1").value = "TIPO_EQUIPO";
+    // Encabezados de ítems (columnas E-H)
+    ws.getCell("E1").value = "CODIGO_REPUESTO";
+    ws.getCell("F1").value = "NUMERO_CASO";
+    ws.getCell("G1").value = "CANTIDAD";
+    ws.getCell("H1").value = "TECNICO_DESTINO";
+
+    // Estilo encabezados
+    ["A1","B1","C1","D1","E1","F1","G1","H1"].forEach(cell => {
+      ws.getCell(cell).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF1E293B" } };
+      ws.getCell(cell).font = { bold: true, color: { argb: "FFFFFFFF" } };
+      ws.getCell(cell).border = { bottom: { style: "thin", color: { argb: "FF6366F1" } } };
+    });
+
+    // Filas de ejemplo: 1 caso con 2 ítems
+    ws.addRow(["CASO-1", "ABC123456", sucursales[0] || "Chiclayo", "DJI Agras T50", "YC.JG.ZS005016.03", "1234", 2, sucursales[0] || "Chiclayo"]);
+    ws.addRow(["CASO-1", "", "", "", "YC.JG.ZS005016.04", "1234", 1, sucursales[0] || "Chiclayo"]);
+    ws.addRow(["CASO-2", "XYZ789012", sucursales[1] || "Piura", "DJI Agras T10", "YC.JG.ZS005016.03", "5678", 3, sucursales[1] || "Piura"]);
+
+    ws.columns = [
+      { key: "A", width: 14 },
+      { key: "B", width: 18 },
+      { key: "C", width: 18 },
+      { key: "D", width: 20 },
+      { key: "E", width: 24 },
+      { key: "F", width: 14 },
+      { key: "G", width: 10 },
+      { key: "H", width: 20 },
+    ];
+
+    const buf = await wb.xlsx.writeBuffer();
+    const blob = new Blob([buf], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "plantilla_carga_reposicion.xlsx";
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  // Parsear el Excel seleccionado
+  async function handleFile(f: File) {
+    setFile(f);
+    setError(null);
+    setSuccess(null);
+    setPreview([]);
+    setRawCasos([]);
+    try {
+      const buffer = await f.arrayBuffer();
+      const wb = new ExcelJS.Workbook();
+      await wb.xlsx.load(buffer);
+      const ws = wb.worksheets[0];
+
+      const casosMap = new Map<string, { serie: string; ubicacion: string; tipo: string; items: any[] }>();
+
+      ws.eachRow((row, rowNum) => {
+        if (rowNum === 1) return; // skip header
+        const casoKey = String(row.getCell(1).value || "").trim();
+        const serie = String(row.getCell(2).value || "").trim().toUpperCase();
+        const ubicacion = String(row.getCell(3).value || "").trim();
+        const tipo = String(row.getCell(4).value || "").trim();
+        const codigo = String(row.getCell(5).value || "").trim();
+        const numeroCaso = String(row.getCell(6).value || "").trim();
+        const cantidad = Number(row.getCell(7).value) || 0;
+        const tecnicoDest = String(row.getCell(8).value || "").trim();
+
+        if (!casoKey || !codigo || cantidad <= 0) return;
+
+        if (!casosMap.has(casoKey)) {
+          casosMap.set(casoKey, { serie, ubicacion, tipo, items: [] });
+        } else if (serie) {
+          const existing = casosMap.get(casoKey)!;
+          if (!existing.serie) existing.serie = serie;
+          if (!existing.ubicacion) existing.ubicacion = ubicacion;
+          if (!existing.tipo) existing.tipo = tipo;
+        }
+        casosMap.get(casoKey)!.items.push({ codigo, numero_caso: numeroCaso, cantidad, tecnico_destino: tecnicoDest });
+      });
+
+      if (casosMap.size === 0) {
+        setError("No se encontraron casos válidos en el archivo.");
+        return;
+      }
+
+      const casos = Array.from(casosMap.entries()).map(([, v]) => ({
+        serie_equipo: v.serie,
+        ubicacion: v.ubicacion,
+        tipo_equipo: v.tipo || undefined,
+        items: v.items,
+      }));
+
+      setRawCasos(casos);
+      setPreview(casos.map(c => ({ serie: c.serie_equipo, ubicacion: c.ubicacion, tipo: c.tipo_equipo || "", items: c.items.length })));
+    } catch (e: any) {
+      setError(`Error al leer el archivo: ${e.message}`);
+    }
+  }
+
+  async function handleImportar() {
+    if (rawCasos.length === 0) return;
+    setLoading(true);
+    setError(null);
+    const res = await importarReposicionMasivo(rawCasos);
+    setLoading(false);
+    if (res.error) {
+      setError(res.error);
+    } else {
+      setSuccess(`✅ Importación exitosa: ${res.casosCreados} caso(s) y ${res.itemsCreados} ítem(s) creados.`);
+      setTimeout(() => { onImportado(); onClose(); }, 2200);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4">
+      <div className="w-full max-w-2xl bg-slate-900 border border-slate-700/60 rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 max-h-[90vh] flex flex-col">
+        {/* Header */}
+        <div className="px-6 py-4 border-b border-slate-800 flex justify-between items-center bg-slate-800/50">
+          <h3 className="text-sm font-semibold text-slate-200 flex items-center gap-2">
+            <FileUp className="w-4 h-4 text-blue-400" />
+            Carga masiva de Casos de Reposición
+          </h3>
+          <button onClick={onClose} className="text-slate-500 hover:text-slate-300 transition-colors">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <div className="p-6 space-y-5 overflow-y-auto flex-1">
+          {/* Paso 1: Plantilla */}
+          <div className="bg-slate-800/40 border border-slate-700/50 rounded-xl p-4">
+            <p className="text-xs font-bold text-slate-300 uppercase tracking-wider mb-1">Paso 1 — Descarga la plantilla</p>
+            <p className="text-[11px] text-slate-400 mb-3">Usa la plantilla Excel con el formato correcto: columnas A-D para datos del caso y E-H para cada ítem. Un caso puede tener múltiples filas de ítems.</p>
+            <button
+              onClick={descargarPlantilla}
+              className="flex items-center gap-2 px-4 py-2 bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs font-semibold rounded-lg transition-colors border border-slate-600"
+            >
+              <Download className="w-3.5 h-3.5" />
+              Descargar plantilla_carga_reposicion.xlsx
+            </button>
+            <div className="mt-3 grid grid-cols-2 gap-2 text-[10px] text-slate-500">
+              <div><span className="text-indigo-400 font-bold">A: CASO</span> — ID agrupador (ej: CASO-1)</div>
+              <div><span className="text-indigo-400 font-bold">B: SERIE_EQUIPO</span> — Serie del equipo</div>
+              <div><span className="text-indigo-400 font-bold">C: UBICACION</span> — Sede/sucursal</div>
+              <div><span className="text-indigo-400 font-bold">D: TIPO_EQUIPO</span> — Opcional</div>
+              <div><span className="text-blue-400 font-bold">E: CODIGO_REPUESTO</span> — Código exacto</div>
+              <div><span className="text-blue-400 font-bold">F: NUMERO_CASO</span> — N° de caso del pedido</div>
+              <div><span className="text-blue-400 font-bold">G: CANTIDAD</span> — Unidades</div>
+              <div><span className="text-blue-400 font-bold">H: TECNICO_DESTINO</span> — Sede destino</div>
+            </div>
+          </div>
+
+          {/* Paso 2: Subir archivo */}
+          <div className="bg-slate-800/40 border border-slate-700/50 rounded-xl p-4">
+            <p className="text-xs font-bold text-slate-300 uppercase tracking-wider mb-3">Paso 2 — Sube el archivo completado</p>
+            <label className="flex flex-col items-center justify-center gap-3 border-2 border-dashed border-slate-600 hover:border-blue-500/50 rounded-xl p-6 cursor-pointer transition-colors group">
+              <FileUp className="w-8 h-8 text-slate-500 group-hover:text-blue-400 transition-colors" />
+              <span className="text-sm text-slate-400 group-hover:text-slate-300 transition-colors">
+                {file ? file.name : "Haz clic o arrastra el archivo .xlsx aquí"}
+              </span>
+              <input
+                type="file"
+                accept=".xlsx,.xls"
+                className="hidden"
+                onChange={e => { if (e.target.files?.[0]) handleFile(e.target.files[0]); }}
+              />
+            </label>
+          </div>
+
+          {/* Preview */}
+          {preview.length > 0 && (
+            <div className="space-y-2">
+              <p className="text-xs font-bold text-slate-300 uppercase tracking-wider">Vista previa — {preview.length} caso(s) detectado(s)</p>
+              <div className="rounded-xl border border-slate-700 overflow-hidden">
+                <table className="w-full text-xs">
+                  <thead className="bg-slate-800">
+                    <tr>
+                      <th className="px-3 py-2 text-left text-slate-400 font-semibold">#</th>
+                      <th className="px-3 py-2 text-left text-slate-400 font-semibold">Serie Equipo</th>
+                      <th className="px-3 py-2 text-left text-slate-400 font-semibold">Ubicación</th>
+                      <th className="px-3 py-2 text-left text-slate-400 font-semibold">Tipo</th>
+                      <th className="px-3 py-2 text-center text-slate-400 font-semibold">Ítems</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-800">
+                    {preview.map((p, i) => (
+                      <tr key={i} className="bg-slate-900/50">
+                        <td className="px-3 py-2 text-slate-500">{i + 1}</td>
+                        <td className="px-3 py-2 font-mono text-blue-300 font-bold">{p.serie || <span className="text-red-400">⚠ Vacío</span>}</td>
+                        <td className="px-3 py-2 text-slate-300">{p.ubicacion || <span className="text-amber-400">Sin ubicación</span>}</td>
+                        <td className="px-3 py-2 text-slate-400">{p.tipo || "—"}</td>
+                        <td className="px-3 py-2 text-center"><span className="bg-blue-900/40 text-blue-300 border border-blue-500/30 rounded px-2 py-0.5 font-bold">{p.items}</span></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* Mensajes */}
+          {error && (
+            <div className="flex items-start gap-2 p-3 bg-red-900/30 border border-red-500/30 rounded-xl">
+              <AlertTriangle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
+              <p className="text-xs text-red-300">{error}</p>
+            </div>
+          )}
+          {success && (
+            <div className="flex items-start gap-2 p-3 bg-green-900/30 border border-green-500/30 rounded-xl">
+              <CheckCircle2 className="w-4 h-4 text-green-400 shrink-0 mt-0.5" />
+              <p className="text-xs text-green-300 font-semibold">{success}</p>
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="px-6 py-4 border-t border-slate-800 flex justify-end gap-3 bg-slate-900">
+          <button onClick={onClose} className="px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-xs font-semibold text-slate-300 transition-colors">Cancelar</button>
+          <button
+            onClick={handleImportar}
+            disabled={loading || rawCasos.length === 0}
+            className="flex items-center gap-2 px-5 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileUp className="w-4 h-4" />}
+            {loading ? "Importando..." : `Importar ${rawCasos.length > 0 ? rawCasos.length + " caso(s)" : ""}`}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Tabla Expandible de Casos de Reposición ────────────────
 function TablaCasosReposicion({
   casos,
   repuestosTotales,
   sucursales,
+  tiposEquipo,
   onCreate,
+  onSubirCasos,
   onEdit,
   onAddRepuesto,
   onEditPedido
@@ -650,7 +912,9 @@ function TablaCasosReposicion({
   casos: CasoReposicion[],
   repuestosTotales: HistorialPedido[],
   sucursales: string[],
+  tiposEquipo: string[],
   onCreate: () => void,
+  onSubirCasos: () => void,
   onEdit: (caso: CasoReposicion) => void,
   onAddRepuesto: (casoId: number) => void,
   onEditPedido: (pedido: HistorialPedido) => void
@@ -666,9 +930,14 @@ function TablaCasosReposicion({
            <h3 className="text-xs uppercase text-slate-400 font-bold mb-0 tracking-wider flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-blue-500"></span> Casos de reposición
            </h3>
-           <button onClick={onCreate} className="flex items-center gap-1 bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors">
-              <Plus className="w-3.5 h-3.5"/> Crear caso
-           </button>
+           <div className="flex items-center gap-2">
+             <button onClick={onSubirCasos} className="flex items-center gap-1 bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors border border-slate-600">
+               <FileUp className="w-3.5 h-3.5"/> Subir casos
+             </button>
+             <button onClick={onCreate} className="flex items-center gap-1 bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors">
+               <Plus className="w-3.5 h-3.5"/> Crear caso
+             </button>
+           </div>
         </div>
         <div className="flex flex-col items-center justify-center py-12 text-slate-600 bg-slate-900 border border-slate-700/50 rounded-xl">
           <Package className="w-10 h-10 mb-3 opacity-30" />
@@ -684,9 +953,14 @@ function TablaCasosReposicion({
          <h3 className="text-xs uppercase text-slate-400 font-bold mb-0 tracking-wider flex items-center gap-2">
            <span className="w-2 h-2 rounded-full bg-blue-500"></span> Casos de reposición
          </h3>
-         <button onClick={onCreate} className="flex items-center gap-1 bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors shadow-lg shadow-blue-500/20">
-            <Plus className="w-3.5 h-3.5"/> Crear caso
-         </button>
+         <div className="flex items-center gap-2">
+           <button onClick={onSubirCasos} className="flex items-center gap-1 bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors border border-slate-600">
+             <FileUp className="w-3.5 h-3.5"/> Subir casos
+           </button>
+           <button onClick={onCreate} className="flex items-center gap-1 bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors shadow-lg shadow-blue-500/20">
+             <Plus className="w-3.5 h-3.5"/> Crear caso
+           </button>
+         </div>
        </div>
        <div className="rounded-xl border border-slate-700/50 overflow-hidden">
          <table className="w-full text-sm">
@@ -1835,6 +2109,7 @@ function VistaAdmin({
   onAgregarRepuestoACaso,
   tiposEquipo,
   catalogo,
+  tabType,
 }: {
   historial: HistorialPedido[];
   casosReposicion: CasoReposicion[];
@@ -1857,14 +2132,19 @@ function VistaAdmin({
   onAgregarRepuestoACaso: (casoId: number, datos: any) => Promise<void>;
   tiposEquipo: string[];
   catalogo?: import("@/types/database.types").RepuestoConStock[];
+  tabType: "envios" | "historial";
 }) {
-  const tabs: { id: TipoReporte | "aprobaciones"; label: string; icon: React.ReactNode }[] = [
+  const tabs: { id: TipoReporte | "aprobaciones"; label: string; icon: React.ReactNode }[] = tabType === "historial" ? [
+    { id: "Abastecimiento", label: "Abastecimiento",   icon: <Package className="w-3.5 h-3.5" /> },
+    { id: "Reposición",    label: "Reposiciones",      icon: <ArrowLeftRight className="w-3.5 h-3.5" /> },
+    { id: "Envío Interno", label: "Envíos Internos",   icon: <Truck className="w-3.5 h-3.5" /> },
+  ] : [
     { id: "aprobaciones",  label: "Aprobaciones",     icon: <CheckCircle2 className="w-3.5 h-3.5" /> },
     { id: "Abastecimiento", label: "Abastecimiento",   icon: <Package className="w-3.5 h-3.5" /> },
     { id: "Reposición",    label: "Reposiciones",      icon: <ArrowLeftRight className="w-3.5 h-3.5" /> },
     { id: "Envío Interno", label: "Envíos Internos",   icon: <Truck className="w-3.5 h-3.5" /> },
   ];
-  const [activeTab, setActiveTab] = useState<TipoReporte | "aprobaciones">("aprobaciones");
+  const [activeTab, setActiveTab] = useState<TipoReporte | "aprobaciones">(tabType === "historial" ? "Abastecimiento" : "aprobaciones");
 
   // Handlers para el Modal de Caso Reposición
   const [showModalCaso, setShowModalCaso] = useState(false);
@@ -1873,6 +2153,9 @@ function VistaAdmin({
   // Handlers para Modal Agregar Repuesto
   const [showModalAddRepuesto, setShowModalAddRepuesto] = useState(false);
   const [casoIdForRepuesto, setCasoIdForRepuesto] = useState<number | null>(null);
+
+  // Handler para Modal Subir Casos Masivos
+  const [showModalSubirCasos, setShowModalSubirCasos] = useState(false);
 
   const handleSaveCaso = async (id: number | null, datos: any) => {
     if (id) {
@@ -2190,12 +2473,13 @@ function VistaAdmin({
       ) : (
         <div className="space-y-8">
           {/* TABLA 1: PEDIDOS ACTUALES (Repuestos por despachar) */}
-          <div>
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-xs uppercase text-slate-400 font-bold tracking-wider flex items-center gap-2">
-                 <span className="w-2 h-2 rounded-full bg-indigo-500"></span> Repuestos por despachar
-              </h3>
-            </div>
+          {tabType === "envios" && (
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-xs uppercase text-slate-400 font-bold tracking-wider flex items-center gap-2">
+                   <span className="w-2 h-2 rounded-full bg-indigo-500"></span> Repuestos por despachar
+                </h3>
+              </div>
 
             {activeTab === "Abastecimiento" && (
               <div className="flex flex-wrap items-center gap-3 mb-4 p-3 bg-slate-800/40 border border-slate-700/50 rounded-xl">
@@ -2310,9 +2594,10 @@ function VistaAdmin({
               onFechasUpdated={onFechasUpdated}
             />
           </div>
+          )}
 
           {/* TABLA TRANSFERENCIAS (Abastecimiento) */}
-          {activeTab === "Abastecimiento" && (
+          {tabType === "envios" && activeTab === "Abastecimiento" && (
             <div>
               <h3 className="text-xs uppercase text-slate-400 font-bold mb-3 tracking-wider flex items-center gap-2">
                  <span className="w-2 h-2 rounded-full bg-amber-500"></span> Transferencias en Curso
@@ -2336,13 +2621,15 @@ function VistaAdmin({
           )}
 
           {/* TABLA 2: CASOS DE REPOSICION (Solo si la pestaña es Reposición) */}
-          {activeTab === "Reposición" && (
+          {tabType === "envios" && activeTab === "Reposición" && (
             <div>
               <TablaCasosReposicion
                  casos={casosReposicion}
                  repuestosTotales={historialFiltrado}
                  sucursales={sucursales}
+                 tiposEquipo={tiposEquipo}
                  onCreate={() => { setCasoToEdit(null); setShowModalCaso(true); }}
+                 onSubirCasos={() => setShowModalSubirCasos(true)}
                  onEdit={(caso) => { setCasoToEdit(caso); setShowModalCaso(true); }}
                  onAddRepuesto={(casoId) => {
                    setCasoIdForRepuesto(casoId);
@@ -2353,13 +2640,13 @@ function VistaAdmin({
             </div>
           )}
 
-          {/* TABLA 3: HISTORIAL DE PEDIDOS (Solo "Enviado", "Recibido") */}
+          {/* TABLA 3: HISTORIAL DE PEDIDOS */}
           <div>
             <h3 className="text-xs uppercase text-slate-400 font-bold mb-3 tracking-wider flex items-center gap-2">
-               <span className="w-2 h-2 rounded-full bg-emerald-500"></span> Historial de pedidos
+               <span className="w-2 h-2 rounded-full bg-emerald-500"></span> {tabType === "historial" ? "Registros Finalizados" : "Envíos en Tránsito (Enviado / Recibido)"}
             </h3>
             <TablaPedidos 
-              pedidos={historialFiltrado.filter(p => p.tipo_reporte.toLowerCase() === activeTab.toLowerCase() && (p.estado === "Enviado" || p.estado === "Recibido"))}
+              pedidos={historialFiltrado.filter(p => p.tipo_reporte.toLowerCase() === activeTab.toLowerCase() && (tabType === "historial" ? (p.estado === "Finalizado" || p.estado === "Rechazado") : (p.estado === "Enviado" || p.estado === "Recibido")))}
               isAdmin
               ocultarTipo={true}
               isReposicion={activeTab === "Reposición"}
@@ -2372,7 +2659,7 @@ function VistaAdmin({
           </div>
 
           {/* TABLA 4: HISTORIAL DE TRANSFERENCIAS (Solo Abastecimiento) */}
-          {activeTab === "Abastecimiento" && (
+          {tabType === "envios" && activeTab === "Abastecimiento" && (
             <TablaHistorialTransferencias transferencias={transferencias} />
           )}
         </div>
@@ -2403,6 +2690,16 @@ function VistaAdmin({
             onSave={onAgregarRepuestoACaso}
          />
       )}
+
+      {/* Modal Subir Casos Masivos */}
+      {showModalSubirCasos && (
+         <ModalSubirCasosReposicion
+            sucursales={sucursales ?? []}
+            tiposEquipo={tiposEquipo}
+            onClose={() => setShowModalSubirCasos(false)}
+            onImportado={() => setShowModalSubirCasos(false)}
+         />
+      )}
     </div>
   );
 }
@@ -2414,12 +2711,14 @@ function VistaTecnico({
   mapaDuplicados,
   onDuplicateClick,
   onActualizarEstadoTecnico,
+  tabType,
 }: {
   historial: HistorialPedido[];
   ciudadUsuario: string;
   mapaDuplicados: MapaDuplicadosType;
   onDuplicateClick: (id: number) => void;
   onActualizarEstadoTecnico: (id: number, estado: "Enviado" | "Finalizado") => Promise<void>;
+  tabType: "envios" | "historial";
 }) {
   const [activeTab, setActiveTab] = useState<"misPedidos" | "aDespachar">("misPedidos");
 
@@ -2498,29 +2797,33 @@ function VistaTecnico({
       {activeTab === "misPedidos" && (
         <div className="space-y-8">
           {/* Tabla activa */}
-          <div>
-            <h3 className="text-xs uppercase text-slate-400 font-bold mb-3 tracking-wider flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-indigo-500"></span> Pedidos en curso
-            </h3>
-            <TablaMisPedidos
-              pedidos={misPedidosActivos}
-              onConfirmarRecepcion={(id) => onActualizarEstadoTecnico(id, "Finalizado")}
-              mapaDuplicados={mapaDuplicados}
-              onDuplicateClick={onDuplicateClick}
-            />
-          </div>
+          {tabType === "envios" && (
+            <div>
+              <h3 className="text-xs uppercase text-slate-400 font-bold mb-3 tracking-wider flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-indigo-500"></span> Pedidos en curso
+              </h3>
+              <TablaMisPedidos
+                pedidos={misPedidosActivos}
+                onConfirmarRecepcion={(id) => onActualizarEstadoTecnico(id, "Finalizado")}
+                mapaDuplicados={mapaDuplicados}
+                onDuplicateClick={onDuplicateClick}
+              />
+            </div>
+          )}
 
           {/* Historial */}
-          <div>
-            <h3 className="text-xs uppercase text-slate-400 font-bold mb-3 tracking-wider flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-emerald-500"></span> Historial de pedidos
-            </h3>
-            <TablaMisPedidosHistorial
-               pedidos={misPedidosHistorial}
-               mapaDuplicados={mapaDuplicados}
-               onDuplicateClick={onDuplicateClick}
-            />
-          </div>
+          {tabType === "historial" && (
+            <div>
+              <h3 className="text-xs uppercase text-slate-400 font-bold mb-3 tracking-wider flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-emerald-500"></span> Historial de pedidos
+              </h3>
+              <TablaMisPedidosHistorial
+                 pedidos={misPedidosHistorial}
+                 mapaDuplicados={mapaDuplicados}
+                 onDuplicateClick={onDuplicateClick}
+              />
+            </div>
+          )}
         </div>
       )}
 
@@ -2528,29 +2831,33 @@ function VistaTecnico({
       {activeTab === "aDespachar" && (
         <div className="space-y-8">
           {/* Pedidos a realizar */}
-          <div>
-            <h3 className="text-xs uppercase text-slate-400 font-bold mb-3 tracking-wider flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-amber-500"></span> Pedidos a realizar
-            </h3>
-            <TablaADespachar
-              pedidos={aDespacharActivos}
-              onDespachar={(id) => onActualizarEstadoTecnico(id, "Enviado")}
-              mapaDuplicados={mapaDuplicados}
-              onDuplicateClick={onDuplicateClick}
-            />
-          </div>
+          {tabType === "envios" && (
+            <div>
+              <h3 className="text-xs uppercase text-slate-400 font-bold mb-3 tracking-wider flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-amber-500"></span> Pedidos a realizar
+              </h3>
+              <TablaADespachar
+                pedidos={aDespacharActivos}
+                onDespachar={(id) => onActualizarEstadoTecnico(id, "Enviado")}
+                mapaDuplicados={mapaDuplicados}
+                onDuplicateClick={onDuplicateClick}
+              />
+            </div>
+          )}
 
           {/* Historial */}
-          <div>
-            <h3 className="text-xs uppercase text-slate-400 font-bold mb-3 tracking-wider flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-emerald-500"></span> Historial de pedidos
-            </h3>
-            <TablaDespachadosHistorial
-               pedidos={aDespacharHistorial}
-               mapaDuplicados={mapaDuplicados}
-               onDuplicateClick={onDuplicateClick}
-            />
-          </div>
+          {tabType === "historial" && (
+            <div>
+              <h3 className="text-xs uppercase text-slate-400 font-bold mb-3 tracking-wider flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-emerald-500"></span> Historial de pedidos
+              </h3>
+              <TablaDespachadosHistorial
+                 pedidos={aDespacharHistorial}
+                 mapaDuplicados={mapaDuplicados}
+                 onDuplicateClick={onDuplicateClick}
+              />
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -2866,19 +3173,27 @@ export function HistorialTab({
   ciudadUsuario,
   sucursales = [],
   catalogo,
+  tabType = "envios",
 }: HistorialTabProps) {
   const [pedidoToEdit, setPedidoToEdit] = useState<HistorialPedido | null>(null);
   
+  const filteredHistorial = React.useMemo(() => {
+    return historial.filter(p => tabType === "historial" 
+      ? (p.estado === "Finalizado" || p.estado === "Rechazado") 
+      : (p.estado !== "Finalizado" && p.estado !== "Rechazado")
+    );
+  }, [historial, tabType]);
+
   // Optimistic UI states
-  const [localHistorial, setLocalHistorial] = useState<HistorialPedido[]>(historial);
+  const [localHistorial, setLocalHistorial] = useState<HistorialPedido[]>(filteredHistorial);
   const [localCasos, setLocalCasos] = useState<CasoReposicion[]>(casosReposicion);
   const [localTransferencias, setLocalTransferencias] = useState<Transferencia[]>(transferencias);
 
   useEffect(() => {
-    setLocalHistorial(historial);
+    setLocalHistorial(filteredHistorial);
     setLocalCasos(casosReposicion);
     setLocalTransferencias(transferencias);
-  }, [historial, casosReposicion, transferencias]);
+  }, [filteredHistorial, casosReposicion, transferencias]);
 
   const sortedLocalHistorial = React.useMemo(() => {
     return [...localHistorial].sort((a, b) => {
@@ -3114,6 +3429,7 @@ export function HistorialTab({
           onAgregarRepuestoACaso={handleAgregarRepuestoACaso}
           tiposEquipo={tiposEquipo}
           catalogo={catalogo}
+          tabType={tabType}
         />
       ) : (
         <VistaTecnico
@@ -3122,6 +3438,7 @@ export function HistorialTab({
           mapaDuplicados={mapaDuplicados}
           onDuplicateClick={handleDuplicateClick}
           onActualizarEstadoTecnico={handleActualizarEstadoTecnico}
+          tabType={tabType}
         />
       )}
 
