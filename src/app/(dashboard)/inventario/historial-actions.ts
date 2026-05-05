@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/utils/supabase/server";
+import { createAdminClient } from "@/utils/supabase/admin";
 import { getSession } from "@/lib/auth";
 import { calcularTipoReporte } from "@/lib/transferencias";
 import type { EstadoPedido, HistorialPedido, TipoReporte } from "@/types/database.types";
@@ -706,6 +707,17 @@ export async function importarAbastecimientoMasivo(
     fecha_aprobacion: ahora,
     numero_caso: "0001" // Código reservado para abastecimiento por importación
   }));
+
+  // 2.5 Asegurar que el caso genérico '0001' exista en BD para evitar error de FK
+  const dbAdmin = createAdminClient() as any;
+  await dbAdmin.from("casos").upsert({
+    numeracion_caso: "0001",
+    estado_general: "CERRADO",
+    descripcion: "Caso contenedor para repuestos importados masivamente",
+    cliente: "ABASTECIMIENTO",
+    equipo: "IMPORT",
+    tipo_trabajo: "ABASTECIMIENTO",
+  }, { onConflict: "numeracion_caso" });
 
   // 3. Insertar en bloques (opcional, pero Supabase maneja bien hasta ~1000)
   const { error: errInsert } = await rawClient
