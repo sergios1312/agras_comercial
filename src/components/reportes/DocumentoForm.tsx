@@ -2,9 +2,10 @@ import { useState, useTransition } from "react";
 import { Loader2, Trash2, Save, FileDown } from "lucide-react";
 import type { Repuesto, TipoDocumentoReporte } from "@/types/database.types";
 import type { UserRole } from "@/lib/permisos";
-import { BuscadorRepuestosReporte } from "./BuscadorRepuestosReporte";
 import { crearDocumentoReporte } from "@/app/(dashboard)/reportes/actions";
 import { generarPDFReporte } from "@/lib/pdf/generar-pdf";
+import { FormularioCliente, type ClienteSeleccionado } from "@/components/ui/FormularioCliente";
+import { BuscadorRepuestosReporte } from "./BuscadorRepuestosReporte";
 
 interface Cliente {
   id_cliente: string;
@@ -25,13 +26,10 @@ interface RepuestoSeleccionado extends Repuesto {
   cantidad: number;
 }
 
-export function DocumentoForm({ tipoDocumento, isAdmin, userRole, userEmail, catalogo, clientes }: DocumentoFormProps) {
+export function DocumentoForm({ tipoDocumento, isAdmin, userRole, userEmail, catalogo }: DocumentoFormProps) {
   const [isPending, startTransition] = useTransition();
   const [repuestosSel, setRepuestosSel] = useState<RepuestoSeleccionado[]>([]);
-  const [nombreCliente, setNombreCliente] = useState("");
-  const [dniCliente, setDniCliente] = useState("");
-  const [telefonoCliente, setTelefonoCliente] = useState("");
-  const [correoCliente, setCorreoCliente] = useState("");
+  const [clienteSel, setClienteSel] = useState<ClienteSeleccionado | null>(null);
   const [numeroCaso, setNumeroCaso] = useState("");
   const [descripcion, setDescripcion] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
@@ -39,30 +37,6 @@ export function DocumentoForm({ tipoDocumento, isAdmin, userRole, userEmail, cat
 
   // Permitir edición si es admin O si es subdealer_editor
   const puedeEditar = isAdmin || userRole === "subdealer";
-
-  const handleNombreClienteChange = (val: string) => {
-    setNombreCliente(val);
-    // Auto-completar si el cliente existe
-    const clienteEncontrado = clientes.find(c => c.nombre_razon_social === val);
-    if (clienteEncontrado && clienteEncontrado.datos_contacto) {
-      let d = "";
-      let t = "";
-      let e = "";
-      const parts = clienteEncontrado.datos_contacto.split("|");
-      if (parts.length > 1) {
-        parts.forEach((p: string) => {
-          if (p.includes("DNI:")) d = p.replace("DNI:", "").trim();
-          if (p.includes("Telf:")) t = p.replace("Telf:", "").trim();
-          if (p.includes("Email:")) e = p.replace("Email:", "").trim();
-        });
-      } else {
-        d = clienteEncontrado.datos_contacto.replace("DNI:", "").trim();
-      }
-      setDniCliente(d);
-      setTelefonoCliente(t);
-      setCorreoCliente(e);
-    }
-  };
 
   const handleAddRepuesto = (r: Repuesto) => {
     if (repuestosSel.find(x => x.id === r.id)) {
@@ -98,10 +72,10 @@ export function DocumentoForm({ tipoDocumento, isAdmin, userRole, userEmail, cat
     startTransition(async () => {
       const res = await crearDocumentoReporte({
         tipo_documento: tipoDocumento,
-        nombre_cliente: nombreCliente,
-        dni_cliente: dniCliente,
-        telefono_cliente: telefonoCliente,
-        correo_cliente: correoCliente,
+        nombre_cliente: clienteSel?.nombre || "",
+        dni_cliente: clienteSel?.dni || "",
+        telefono_cliente: clienteSel?.telefono || "",
+        correo_cliente: clienteSel?.email || "",
         numero_caso: numeroCaso,
         descripcion_trabajo: descripcion,
         repuestos: repuestosSel.map(r => ({
@@ -122,10 +96,10 @@ export function DocumentoForm({ tipoDocumento, isAdmin, userRole, userEmail, cat
           codigo: res.codigo!,
           usuario: userEmail,
           fecha: new Date().toLocaleDateString(),
-          cliente: nombreCliente,
-          dni: dniCliente,
-          telefono: telefonoCliente,
-          correo: correoCliente,
+          cliente: clienteSel?.nombre || "",
+          dni: clienteSel?.dni || "",
+          telefono: clienteSel?.telefono || "",
+          correo: clienteSel?.email || "",
           caso: numeroCaso,
           descripcion: descripcion,
           repuestos: repuestosSel,
@@ -134,10 +108,7 @@ export function DocumentoForm({ tipoDocumento, isAdmin, userRole, userEmail, cat
 
         // Limpiar formulario
         setRepuestosSel([]);
-        setNombreCliente("");
-        setDniCliente("");
-        setTelefonoCliente("");
-        setCorreoCliente("");
+        setClienteSel(null);
         setNumeroCaso("");
         setDescripcion("");
       }
@@ -161,58 +132,9 @@ export function DocumentoForm({ tipoDocumento, isAdmin, userRole, userEmail, cat
         {/* Campos Dinámicos */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {isVenta ? (
-            <>
-              <div>
-                <label className="block text-xs font-medium text-slate-400 mb-1">Nombre del Cliente (Opcional)</label>
-                <input
-                  type="text"
-                  value={nombreCliente}
-                  onChange={e => handleNombreClienteChange(e.target.value)}
-                  disabled={!puedeEditar}
-                  className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-xl text-sm text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500 disabled:opacity-50"
-                  placeholder="Ej. Juan Pérez"
-                  list="clientes-list"
-                />
-                <datalist id="clientes-list">
-                  {clientes.map(c => <option key={c.id_cliente} value={c.nombre_razon_social} />)}
-                </datalist>
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-slate-400 mb-1">DNI / RUC (Opcional)</label>
-                <input
-                  type="text"
-                  value={dniCliente}
-                  onChange={e => setDniCliente(e.target.value)}
-                  disabled={!puedeEditar}
-                  className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-xl text-sm text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500 disabled:opacity-50"
-                  placeholder="Ej. 12345678"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-slate-400 mb-1">Teléfono <span className="text-red-400">*</span></label>
-                <input
-                  type="tel"
-                  required
-                  value={telefonoCliente}
-                  onChange={e => setTelefonoCliente(e.target.value)}
-                  disabled={!puedeEditar}
-                  className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-xl text-sm text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500 disabled:opacity-50"
-                  placeholder="Ej. 987654321"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-slate-400 mb-1">Correo Electrónico <span className="text-red-400">*</span></label>
-                <input
-                  type="email"
-                  required
-                  value={correoCliente}
-                  onChange={e => setCorreoCliente(e.target.value)}
-                  disabled={!puedeEditar}
-                  className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-xl text-sm text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500 disabled:opacity-50"
-                  placeholder="Ej. cliente@correo.com"
-                />
-              </div>
-            </>
+            <div className="sm:col-span-2">
+              <FormularioCliente disabled={!puedeEditar} onChange={setClienteSel} />
+            </div>
           ) : (
             <>
               <div>

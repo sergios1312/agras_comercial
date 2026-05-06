@@ -4,6 +4,7 @@ import { useState, useTransition, useEffect } from "react";
 import { X, Loader2, Save } from "lucide-react";
 import { crearCaso, actualizarCaso } from "@/app/(dashboard)/casos/casos-actions";
 import type { CasoUI } from "./CasosClientWrapper";
+import { FormularioCliente, type ClienteSeleccionado } from "@/components/ui/FormularioCliente";
 
 const TIPOS_TRABAJO = [
   "REPARACION ELECTRONICA",
@@ -226,14 +227,12 @@ export function ModalCrearEditarCaso({
             </div>
 
             {/* Cliente */}
-            <div>
-              <label className={labelCls}>Cliente</label>
-              <input
-                name="cliente"
-                value={form.cliente}
-                onChange={handleChange}
-                className={inputCls}
-                placeholder="Nombre del cliente"
+            <div className="col-span-2">
+              <FormularioCliente
+                initialValue={{ nombre: form.cliente }}
+                onChange={(c) => {
+                  setForm((prev) => ({ ...prev, cliente: c.nombre }));
+                }}
               />
             </div>
 

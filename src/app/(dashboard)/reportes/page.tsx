@@ -1,71 +1,135 @@
-import { getSession } from "@/lib/auth";
 import { redirect } from "next/navigation";
-import { createAdminClient } from "@/utils/supabase/admin";
+import { getSession } from "@/lib/auth";
 import type { Metadata } from "next";
-import { ReportesClientWrapper } from "@/components/reportes/ReportesClientWrapper";
-import { fetchAllParallel } from "@/lib/db";
-import type { Repuesto, DocumentoReporte, DetalleDocumentoReporte } from "@/types/database.types";
+import { createAdminClient } from "@/utils/supabase/admin";
+import { CasosClientWrapper } from "@/components/casos/CasosClientWrapper";
+import { contarDiasHabiles } from "@/lib/rtat";
+import { PLAZOS_IDEALES } from "@/types/casos.types";
+import type { ClasificacionSLA } from "@/types/casos.types";
+import type { CasoUI } from "@/components/casos/CasosClientWrapper";
+
+export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Reportes y Cotizaciones",
-  description: "Módulo para crear cotizaciones de venta, reparación y reportes de salida.",
+  title: "Casos | Sistema de Garantías",
+  description: "Gestión completa de casos de garantía con seguimiento de ingreso y salida.",
 };
 
-// Interfaz para la vista en crudo de la tabla clientes
-interface Cliente {
-  id_cliente: string;
-  nombre_razon_social: string;
-  datos_contacto?: string;
+function clasificarSLA(rtat: number | null, tipoTrabajo: string): ClasificacionSLA {
+  if (rtat === null) return null;
+  const plazo = PLAZOS_IDEALES[tipoTrabajo];
+  if (!plazo) return null;
+  if (rtat <= plazo) return "A TIEMPO";
+  if (rtat <= plazo * 2) return "APLAZADO";
+  return "ATRASADO";
 }
 
 export default async function ReportesPage() {
   const user = await getSession();
   if (!user) redirect("/login");
 
-  const userEmail = user.usuario ?? "desconocido";
   const isAdmin = user.role === "admin";
-  const userRole = user.role;
+  const db = createAdminClient() as any;
+  const hoy = new Date().toISOString().slice(0, 10);
 
-  const db = createAdminClient();
+  // ── Sucursales para el formulario ────────────────────────────
+  const { data: sucursalesData } = await db
+    .from("sucursales")
+    .select("id, nombre_ciudad")
+    .order("nombre_ciudad");
 
-  // Traer los repuestos para el buscador (solo campos necesarios)
-  const [repuestos, clientesRes, documentos, detalles] = await Promise.all([
-    fetchAllParallel<Repuesto>(db, "repuestos", "id, codigo, nombre, precio_venta, modelos_compatibles, codigo_sap", "id"),
-    db.from("clientes").select("id_cliente, nombre_razon_social, datos_contacto"),
-    fetchAllParallel<any>(db, "documentos_reporte", "*, clientes(nombre_razon_social, datos_contacto), casos(numeracion_caso)", "fecha_creacion", false),
-    fetchAllParallel<DetalleDocumentoReporte>(db, "detalle_documento_reporte", "*, repuestos(id, codigo, nombre)", "id")
-  ]);
+  const sucursales = (sucursalesData ?? []) as { id: number; nombre_ciudad: string }[];
 
-  const clientes = (clientesRes.data as unknown as Cliente[]) ?? [];
+  // ── Carga de casos con filtro por rol ────────────────────────
+  const casosRaw: any[] = [];
+  let from = 0;
+  const step = 1000;
 
-  // Combinar documentos con sus detalles
-  const historialConDetalles = documentos.map(doc => {
-    return {
-      ...doc,
-      detalles: detalles.filter(d => d.documento_id === doc.id)
-    };
-  });
+  while (true) {
+    let query = db
+      .from("casos")
+      .select("*, sucursales(id, nombre_ciudad)")
+      .eq("estado_sistema", "activo")
+      .order("numeracion_caso", { ascending: false })
+      .range(from, from + step - 1);
+
+    // Usuarios de sucursal solo ven sus propios casos
+    if (!isAdmin && user.id_db) {
+      query = query.eq("sucursal_id", user.id_db);
+    }
+
+    const { data, error } = await query;
+    if (error || !data || data.length === 0) break;
+    casosRaw.push(...data);
+    if (data.length < step) break;
+    from += step;
+  }
+
+  // ── Procesamiento ─────────────────────────────────────────────
+  const casos: CasoUI[] = casosRaw
+    .filter((row) => row.numeracion_caso !== "0000")
+    .map((row) => {
+      const rtat = row.fecha_ingreso
+        ? contarDiasHabiles(row.fecha_ingreso, row.fecha_salida ?? hoy)
+        : null;
+      const rtatFinal = rtat !== null && rtat >= 0 ? rtat : null;
+      const fechaSalida = row.fecha_salida || null;
+      const periodo = fechaSalida ? fechaSalida.slice(0, 7) : null;
+      const sla = clasificarSLA(rtatFinal, row.tipo_trabajo || "");
+      const sucursalNombre: string = row.sucursales?.nombre_ciudad ?? "Sin sucursal";
+
+      return {
+        id: row.id,
+        numeracionCaso: row.numeracion_caso,
+        estadoGeneral: row.estado_general || "ABIERTO",
+        descripcion: row.descripcion || "",
+        sucursal: sucursalNombre,
+        sucursalId: row.sucursal_id ?? null,
+        cliente: row.cliente || "",
+        equipo: row.equipo || "",
+        garantia: row.garantia || "",
+        estadoCaso: row.estado_caso || "SIN ESTADO",
+        tipoTrabajo: row.tipo_trabajo || "SIN TIPO",
+        fechaIngreso: row.fecha_ingreso || null,
+        fechaSalida,
+        periodoMensual: periodo,
+        rtat: rtatFinal,
+        clasificacionSLA: sla,
+      };
+    });
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-slate-800 pb-4">
+    <div className="space-y-5">
+      {/* Header de página */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-slate-800 pb-4">
         <div>
           <h1 className="text-2xl font-bold text-white flex items-center gap-2">
-            📄 Reportes y Cotizaciones
+            📋 Casos
           </h1>
           <p className="text-sm text-slate-400 mt-1">
-            Genera documentos de forma rápida con cálculo automático de IGV.
+            {isAdmin
+              ? `${casos.length} casos en total · Acceso completo a todas las sucursales.`
+              : `${casos.length} casos de la sucursal ${user.ciudad}.`}
           </p>
         </div>
+        {!isAdmin && (
+          <div className="px-3 py-1.5 bg-slate-800/50 border border-slate-700/50 rounded-lg text-xs text-slate-400 font-medium">
+            Sede:{" "}
+            <span className="text-slate-200 font-semibold uppercase">
+              {user.ciudad}
+            </span>
+          </div>
+        )}
       </div>
-      
-      <ReportesClientWrapper
+
+      {/* Módulo principal */}
+      <CasosClientWrapper
+        casos={casos}
+        sucursales={sucursales}
         isAdmin={isAdmin}
-        userRole={userRole}
-        userEmail={userEmail}
-        catalogo={repuestos}
-        clientes={clientes}
-        historial={historialConDetalles}
+        userSucursal={user.ciudad}
+        userSucursalId={user.id_db ?? null}
+        userEmail={user.usuario}
       />
     </div>
   );

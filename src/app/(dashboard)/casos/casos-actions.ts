@@ -51,7 +51,7 @@ export async function crearCaso(payload: CasoPayload) {
     return { error: "No se pudo crear el caso: " + error.message };
   }
 
-  revalidatePath("/casos");
+  revalidatePath("/reportes");
   return { success: true, id: data.id };
 }
 
@@ -97,7 +97,7 @@ export async function actualizarCaso(
     return { error: "No se pudo actualizar el caso: " + error.message };
   }
 
-  revalidatePath("/casos");
+  revalidatePath("/reportes");
   return { success: true };
 }
 
@@ -120,7 +120,7 @@ export async function eliminarCaso(id: number) {
     return { error: "No se pudo eliminar el caso: " + error.message };
   }
 
-  revalidatePath("/casos");
+  revalidatePath("/reportes");
   return { success: true };
 }
 
@@ -168,6 +168,6 @@ export async function registrarIngreso(id: number) {
     return { error: "No se pudo registrar el ingreso: " + error.message };
   }
 
-  revalidatePath("/casos");
+  revalidatePath("/reportes");
   return { success: true, fechaIngreso, horaIngreso };
 }

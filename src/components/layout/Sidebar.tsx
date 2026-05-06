@@ -46,8 +46,8 @@ export function Sidebar({ userEmail, userRole }: SidebarProps) {
     },
     {
       href: "/reportes",
-      label: "Reportes",
-      icon: <ClipboardList className="w-5 h-5 shrink-0" />,
+      label: "Casos",
+      icon: <ClipboardCheck className="w-5 h-5 shrink-0" />,
     },
     {
       href: "/estadisticas",
@@ -56,8 +56,8 @@ export function Sidebar({ userEmail, userRole }: SidebarProps) {
     },
     {
       href: "/casos",
-      label: "Casos",
-      icon: <ClipboardCheck className="w-5 h-5 shrink-0" />,
+      label: "Procesos",
+      icon: <FileText className="w-5 h-5 shrink-0" />,
     },
     {
       href: "/administrador",

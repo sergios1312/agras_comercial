@@ -21,7 +21,7 @@ export const PERMISOS_POR_ROLE: Record<UserRole, PermisosUsuario> = {
     puedeVerSolicitudes: true,
     puedeVerReportes: true,
     puedeVerEstadisticas: true,
-    puedeVerProcesos: true,
+    puedeVerProcesos: false,
     puedeVerAdministrador: false,
   },
   subdealer: {

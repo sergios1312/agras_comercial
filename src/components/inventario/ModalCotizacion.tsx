@@ -18,6 +18,7 @@ import {
   type ItemCotizacionPDF,
 } from "@/lib/pdf/generar-cotizacion-pdf";
 import { formatCurrency } from "@/lib/utils";
+import { FormularioCliente, type ClienteSeleccionado } from "@/components/ui/FormularioCliente";
 
 // ─── Props ────────────────────────────────────────────────────
 interface ModalCotizacionProps {
@@ -39,46 +40,7 @@ interface FilaCotizacion {
 }
 
 // ─── Helpers ─────────────────────────────────────────────────
-function InputField({
-  label,
-  icon: Icon,
-  type = "text",
-  value,
-  onChange,
-  placeholder,
-  required,
-  error,
-}: {
-  label: string;
-  icon: React.ElementType;
-  type?: string;
-  value: string;
-  onChange: (v: string) => void;
-  placeholder?: string;
-  required?: boolean;
-  error?: string;
-}) {
-  return (
-    <div className="space-y-1">
-      <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-        <Icon className="w-3.5 h-3.5" />
-        {label}
-        {required && <span className="text-red-400">*</span>}
-      </label>
-      <input
-        type={type}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder={placeholder}
-        className={`w-full px-3 py-2 bg-slate-800 border rounded-lg text-sm text-slate-100
-          focus:outline-none focus:ring-1 focus:ring-emerald-500 transition-colors
-          placeholder:text-slate-600
-          ${error ? "border-red-500/60" : "border-slate-700 hover:border-slate-600"}`}
-      />
-      {error && <p className="text-[11px] text-red-400">{error}</p>}
-    </div>
-  );
-}
+// Eliminado InputField local, ahora usamos FormularioCliente
 
 // ─── Componente principal ─────────────────────────────────────
 export function ModalCotizacion({
@@ -106,10 +68,7 @@ export function ModalCotizacion({
   const [descuentoTotal, setDescuentoTotal] = useState(0);
 
   // ── Datos del cliente ─────────────────────────────────────
-  const [nombre, setNombre] = useState("");
-  const [dni, setDni] = useState("");
-  const [telefono, setTelefono] = useState("");
-  const [email, setEmail] = useState("");
+  const [cliente, setCliente] = useState<ClienteSeleccionado | null>(null);
   const [errores, setErrores] = useState<Record<string, string>>({});
   const [generado, setGenerado] = useState(false);
 
@@ -156,22 +115,25 @@ export function ModalCotizacion({
   // ── Validación y generación ───────────────────────────────
   function validar(): boolean {
     const errs: Record<string, string> = {};
-    if (!nombre.trim()) errs.nombre = "Campo obligatorio";
-    if (!dni.trim()) errs.dni = "Campo obligatorio";
-    if (!telefono.trim()) errs.telefono = "Campo obligatorio";
-    if (!email.trim()) errs.email = "Campo obligatorio";
-    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
-      errs.email = "Correo inválido";
+    if (!cliente?.nombre?.trim()) errs.nombre = "Campo obligatorio";
+    if (!cliente?.dni?.trim()) errs.dni = "Campo obligatorio";
+    
+    // Mostramos el error en la interfaz global del modal si faltan datos requeridos para el PDF
     setErrores(errs);
     return Object.keys(errs).length === 0;
   }
 
   function handleGenerar() {
-    if (!validar()) return;
+    if (!validar() || !cliente) return;
     generarCotizacionPDF({
       items: itemsParaPDF,
       descuento_total: descuentoTotal,
-      cliente: { nombre, dni, telefono, email },
+      cliente: { 
+        nombre: cliente.nombre, 
+        dni: cliente.dni, 
+        telefono: cliente.telefono, 
+        email: cliente.email 
+      },
     });
     setGenerado(true);
   }
@@ -399,54 +361,22 @@ export function ModalCotizacion({
           </div>
 
           {/* ── Formulario del cliente ── */}
-          <div className="bg-slate-900/50 border border-slate-700/60 rounded-xl p-5 space-y-4">
-            <div className="flex items-center gap-2 mb-1">
-              <User className="w-4 h-4 text-emerald-400" />
-              <h3 className="text-sm font-bold text-slate-200 uppercase tracking-wider">
-                Datos del Cliente
-              </h3>
+          <FormularioCliente 
+            onChange={(c) => {
+              setCliente(c);
+              setErrores({}); // Limpiar error general al editar
+            }} 
+          />
+
+          {/* Errores globales del modal si intentan generar sin cliente */}
+          {Object.keys(errores).length > 0 && (
+            <div className="flex items-start gap-2 p-3 bg-red-950/40 border border-red-900/50 rounded-xl">
+              <AlertTriangle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
+              <p className="text-xs text-red-300">
+                Debes proporcionar al menos el Nombre y el DNI del cliente para generar la cotización.
+              </p>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <InputField
-                label="Nombre del cliente"
-                icon={User}
-                value={nombre}
-                onChange={setNombre}
-                placeholder="Ej. Juan Pérez"
-                required
-                error={errores.nombre}
-              />
-              <InputField
-                label="DNI"
-                icon={CreditCard}
-                value={dni}
-                onChange={setDni}
-                placeholder="Ej. 12345678"
-                required
-                error={errores.dni}
-              />
-              <InputField
-                label="Teléfono"
-                icon={Phone}
-                type="tel"
-                value={telefono}
-                onChange={setTelefono}
-                placeholder="Ej. 987654321"
-                required
-                error={errores.telefono}
-              />
-              <InputField
-                label="Correo electrónico"
-                icon={Mail}
-                type="email"
-                value={email}
-                onChange={setEmail}
-                placeholder="Ej. cliente@email.com"
-                required
-                error={errores.email}
-              />
-            </div>
-          </div>
+          )}
 
           {/* ── Feedback de generación ── */}
           {generado && (
