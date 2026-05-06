@@ -89,93 +89,93 @@ export function ModalDetalleCaso({
   const urlPdfIngreso = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/casos_pdfs/ingreso_${caso.id}.pdf`;
   const urlPdfSalida = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/casos_pdfs/salida_${caso.id}.pdf`;
 
+  const handleDescargarPdfIngreso = () => {
+    const pdfBlob = generarPDFRegistroIngreso({
+      numeroCaso: caso.numeracionCaso,
+      cliente: caso.cliente,
+      equipo: caso.equipo,
+      sucursal: caso.sucursal,
+      descripcion: caso.descripcion,
+      descripcionTecnica: caso.descripcionTecnica,
+      fechaIngreso: caso.fechaIngreso || new Date().toISOString().slice(0, 10),
+      emisor: userEmail,
+    });
+    const url = window.URL.createObjectURL(pdfBlob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `Ingreso_${caso.numeracionCaso}.pdf`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+  };
+
   const handleRegistrarIngreso = () => {
     setErrorMsg("");
     startIngreso(async () => {
-      // 1. Generar PDF como Blob
-      const pdfBlob = generarPDFRegistroIngreso({
-        numeroCaso: caso.numeracionCaso,
-        cliente: caso.cliente,
-        equipo: caso.equipo,
-        sucursal: caso.sucursal,
-        descripcion: caso.descripcion,
-        descripcionTecnica: caso.descripcionTecnica,
-        fechaIngreso: new Date().toISOString().slice(0, 10), // Fecha provisional para el PDF
-        emisor: userEmail,
-      });
+      // 1. Generar y descargar PDF localmente
+      handleDescargarPdfIngreso();
 
-      // 2. Subir a Supabase Storage
-      const { error: uploadError } = await supabase.storage
-        .from("casos_pdfs")
-        .upload(`ingreso_${caso.id}.pdf`, pdfBlob, {
-          contentType: "application/pdf",
-          upsert: true,
-        });
-
-      if (uploadError) {
-        setErrorMsg("Error subiendo el PDF: " + uploadError.message);
-        return;
-      }
-
-      // 3. Registrar en base de datos
+      // 2. Registrar en base de datos
       const res = await registrarIngreso(caso.id);
       if (res.error) {
         setErrorMsg(res.error);
         return;
       }
 
-      setSuccessMsg(`Ingreso registrado el ${formatFecha(res.fechaIngreso!)}. PDF guardado.`);
+      setSuccessMsg(`Ingreso registrado el ${formatFecha(res.fechaIngreso!)}. PDF descargado.`);
       onIngresado(caso.id, res.fechaIngreso!);
     });
+  };
+
+  const handleDescargarPdfSalida = async () => {
+    if (caso.estadoGeneral !== "CERRADO") {
+      setErrorMsg("El reporte de salida solo puede generarse cuando el caso está CERRADO.");
+      return;
+    }
+    const repuestos = await obtenerRepuestosPorCaso(caso.numeracionCaso);
+    const pdfBlob = generarPDFReporteSalida({
+      numeroCaso: caso.numeracionCaso,
+      cliente: caso.cliente,
+      equipo: caso.equipo,
+      sucursal: caso.sucursal,
+      tipoTrabajo: caso.tipoTrabajo,
+      descripcion: caso.descripcion,
+      descripcionTecnica: caso.descripcionTecnica,
+      descripcionSalida: caso.descripcionSalida,
+      garantia: caso.garantia,
+      fechaIngreso: caso.fechaIngreso,
+      fechaSalida: caso.fechaSalida || new Date().toISOString().slice(0, 10),
+      rtat: caso.rtat,
+      clasificacionSLA: caso.clasificacionSLA,
+      estadoGeneral: caso.estadoGeneral,
+      emisor: userEmail,
+      repuestos,
+    });
+    const url = window.URL.createObjectURL(pdfBlob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `Salida_${caso.numeracionCaso}.pdf`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
   };
 
   const handleReporteSalida = () => {
     setErrorMsg("");
     startSalida(async () => {
-      // 1. Obtener repuestos utilizados para este caso
-      const repuestos = await obtenerRepuestosPorCaso(caso.numeracionCaso);
+      // 1. Generar y descargar PDF localmente (solo si CERRADO)
+      await handleDescargarPdfSalida();
 
-      // 2. Generar PDF como Blob
-      const pdfBlob = generarPDFReporteSalida({
-        numeroCaso: caso.numeracionCaso,
-        cliente: caso.cliente,
-        equipo: caso.equipo,
-        sucursal: caso.sucursal,
-        tipoTrabajo: caso.tipoTrabajo,
-        descripcion: caso.descripcion,
-        descripcionTecnica: caso.descripcionTecnica,
-        descripcionSalida: caso.descripcionSalida,
-        garantia: caso.garantia,
-        fechaIngreso: caso.fechaIngreso,
-        fechaSalida: new Date().toISOString().slice(0, 10), // Provisional para PDF
-        rtat: caso.rtat,
-        clasificacionSLA: caso.clasificacionSLA,
-        estadoGeneral: caso.estadoGeneral,
-        emisor: userEmail,
-        repuestos,
-      });
-
-      // 3. Subir a Supabase Storage
-      const { error: uploadError } = await supabase.storage
-        .from("casos_pdfs")
-        .upload(`salida_${caso.id}.pdf`, pdfBlob, {
-          contentType: "application/pdf",
-          upsert: true,
-        });
-
-      if (uploadError) {
-        setErrorMsg("Error subiendo el PDF: " + uploadError.message);
-        return;
-      }
-
-      // 4. Registrar en base de datos
+      // 2. Registrar fecha de salida en base de datos
       const res = await registrarSalida(caso.id);
       if (res.error) {
         setErrorMsg(res.error);
         return;
       }
 
-      setSuccessMsg(`Salida registrada el ${formatFecha(res.fechaSalida!)}. PDF guardado.`);
+      setSuccessMsg(`Salida registrada el ${formatFecha(res.fechaSalida!)}. PDF descargado.`);
       onSalida(caso.id, res.fechaSalida!);
     });
   };
@@ -247,15 +247,13 @@ export function ModalDetalleCaso({
                   {formatFecha(caso.fechaIngreso)}
                 </div>
               </div>
-              <a
-                href={urlPdfIngreso}
-                target="_blank"
-                rel="noreferrer"
+              <button
+                onClick={handleDescargarPdfIngreso}
                 className="text-xs font-semibold text-emerald-400 hover:text-emerald-300 transition-colors flex items-center gap-1.5"
               >
                 <ClipboardCheck className="w-3.5 h-3.5" />
-                Ver PDF
-              </a>
+                Descargar PDF
+              </button>
             </div>
           )}
 
@@ -275,8 +273,8 @@ export function ModalDetalleCaso({
             </button>
           )}
 
-          {/* Fecha salida bloqueada y Descarga PDF Salida */}
-          {tieneSalida && (
+          {/* Fecha salida bloqueada y Descarga PDF Salida — solo si CERRADO */}
+          {tieneSalida && caso.estadoGeneral === "CERRADO" && (
             <div className="flex items-center justify-between gap-2 px-4 py-2.5 bg-slate-800/50 border border-slate-700 rounded-xl">
               <div className="flex items-center gap-2">
                 <Lock className="w-4 h-4 text-slate-500 shrink-0" />
@@ -285,15 +283,13 @@ export function ModalDetalleCaso({
                   {formatFecha(caso.fechaSalida)}
                 </div>
               </div>
-              <a
-                href={urlPdfSalida}
-                target="_blank"
-                rel="noreferrer"
+              <button
+                onClick={handleDescargarPdfSalida}
                 className="text-xs font-semibold text-indigo-400 hover:text-indigo-300 transition-colors flex items-center gap-1.5"
               >
                 <FileOutput className="w-3.5 h-3.5" />
-                Ver PDF
-              </a>
+                Descargar PDF
+              </button>
             </div>
           )}
 
