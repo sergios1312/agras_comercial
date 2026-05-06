@@ -2,11 +2,12 @@
 
 import { useActionState, useEffect, useState } from "react";
 import { useFormStatus } from "react-dom";
-import { Trash2, ShoppingCart, Loader2, AlertCircle, CheckCircle2, Ban, Eraser } from "lucide-react";
+import { Trash2, ShoppingCart, Loader2, AlertCircle, CheckCircle2, Ban, Eraser, FileText } from "lucide-react";
 import { esNumeroCasoValido } from "@/lib/utils";
 import { submitPedido, type PedidoState } from "@/app/(dashboard)/inventario/actions";
 import type { RepuestoConStock, ItemCarrito, ConfigPedidos } from "@/types/database.types";
 import { calcularTipoReporte } from "@/lib/transferencias";
+import { ModalCotizacion } from "@/components/inventario/ModalCotizacion";
 
 const LIMA_KEY = "lima"; // fragmento que debe estar en la sede Lima
 const SUBMIT_KEY = "pedido_enviando"; // flag anti-duplicación en sessionStorage
@@ -22,6 +23,7 @@ interface SolicitudTabProps {
     clearCarrito: () => void;
   };
   configPedidos: ConfigPedidos;
+  // catalogo ya estaba como prop — solo se documenta su uso en la cotización
 }
 
 function SubmitBtn({ isSubmitting }: { isSubmitting: boolean }) {
@@ -49,6 +51,7 @@ export function SolicitudTab({
   const [state, formAction] = useActionState(submitPedido, initialState);
   const [sedeDestino, setSedeDestino] = useState(isAdmin ? "" : sucursalOrigen);
   const { carrito, setCarrito, clearCarrito } = carritoProps;
+  const [showModalCotizacion, setShowModalCotizacion] = useState(false);
 
   // ── Anti-duplicación: persiste el estado "enviando" en sessionStorage ──
   // Así el botón queda bloqueado aunque el usuario cambie de pestaña y el
@@ -324,14 +327,28 @@ export function SolicitudTab({
                 Vaciar carrito
               </button>
             </div>
-            {mensajeBloqueo ? (
-              <div className="flex items-center gap-2 px-6 py-2.5 bg-slate-800 border border-red-500/30 text-red-400 text-sm font-semibold rounded-xl cursor-not-allowed opacity-70">
-                <Ban className="w-4 h-4" />
-                Pedido bloqueado
-              </div>
-            ) : (
-              <SubmitBtn isSubmitting={isSubmitting} />
-            )}
+            <div className="flex items-center gap-3">
+              {/* Botón Cotizar — no requiere número de caso ni sede */}
+              <button
+                type="button"
+                onClick={() => setShowModalCotizacion(true)}
+                className="flex items-center gap-2 px-5 py-2.5 bg-emerald-700 hover:bg-emerald-600
+                           text-white text-sm font-semibold rounded-xl transition-all duration-200
+                           shadow-lg shadow-emerald-700/20"
+              >
+                <FileText className="w-4 h-4" />
+                Cotizar
+              </button>
+
+              {mensajeBloqueo ? (
+                <div className="flex items-center gap-2 px-6 py-2.5 bg-slate-800 border border-red-500/30 text-red-400 text-sm font-semibold rounded-xl cursor-not-allowed opacity-70">
+                  <Ban className="w-4 h-4" />
+                  Pedido bloqueado
+                </div>
+              ) : (
+                <SubmitBtn isSubmitting={isSubmitting} />
+              )}
+            </div>
           </div>
         </form>
       )}
@@ -342,6 +359,15 @@ export function SolicitudTab({
           <h3 className="text-lg font-semibold text-slate-300 mb-1">Carrito de Solicitudes Vacío</h3>
           <p className="text-sm">Ve a la pestaña <b>Catálogo</b> y presiona el botón [+] para añadir repuestos a tu orden.</p>
         </div>
+      )}
+
+      {/* Modal de Cotización */}
+      {showModalCotizacion && (
+        <ModalCotizacion
+          carrito={carrito}
+          catalogo={catalogo}
+          onClose={() => setShowModalCotizacion(false)}
+        />
       )}
     </div>
   );
