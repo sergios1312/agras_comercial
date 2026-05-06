@@ -43,7 +43,7 @@ export async function signIn(
   });
 
   revalidatePath("/", "layout");
-  redirect("/inventario");
+  redirect("/academy");
 }
 
 export async function signOut() {

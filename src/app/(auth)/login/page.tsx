@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
 import Image from "next/image";
 import { LoginForm } from "./LoginForm";
-import { ShieldCheck, Package, BarChart3, ClipboardList, Settings } from "lucide-react";
+import { Rocket, Package, BarChart3, ClipboardList, GraduationCap } from "lucide-react";
 
 export const metadata: Metadata = {
   title: "Iniciar Sesión",
-  description: "Accede al Sistema de Gestión de Garantías y Repuestos.",
+  description: "Accede al Sistema Comercial DJI Agras.",
 };
 
 export default function LoginPage() {
@@ -18,7 +18,7 @@ export default function LoginPage() {
         {/* Imagen de fondo */}
         <Image
           src="/img_portada.jpg"
-          alt="Sistema de Garantías portada"
+          alt="DJI Agras portada"
           fill
           priority
           className="object-cover object-center"
@@ -42,26 +42,26 @@ export default function LoginPage() {
           <div className="inline-flex items-center justify-center w-24 h-24 rounded-3xl
                           bg-indigo-600/20 border border-indigo-400/40
                           shadow-2xl shadow-indigo-600/30 backdrop-blur-sm">
-            <ShieldCheck className="w-12 h-12 text-indigo-300" />
+            <Rocket className="w-12 h-12 text-indigo-300" />
           </div>
 
           {/* Título */}
           <div>
             <h1 className="text-5xl font-extrabold text-white tracking-tight drop-shadow-lg">
-              Sistema de Garantías
+              DJI Agras Comercial
             </h1>
             <p className="mt-3 text-indigo-200/80 text-base font-medium">
-              Versión 2.0 — Plataforma de gestión centralizada
+              Plataforma de gestión comercial y capacitaciones
             </p>
           </div>
 
           {/* Módulos */}
           <div className="grid grid-cols-2 gap-4 pt-2">
             {[
-              { label: "Inventario", icon: Package },
+              { label: "Reportes", icon: ClipboardList },
               { label: "Estadísticas", icon: BarChart3 },
-              { label: "Solicitudes", icon: ClipboardList },
-              { label: "Procesos", icon: Settings },
+              { label: "Academy", icon: GraduationCap },
+              { label: "Simulador ROI", icon: Rocket },
             ].map(({ label, icon: Icon }, i) => (
               <div
                 key={i}
@@ -81,7 +81,7 @@ export default function LoginPage() {
 
           {/* Badge version */}
           <p className="text-xs text-indigo-300/50 tracking-widest uppercase pt-2">
-            © Quetalcompra — Acceso restringido
+            © Quetalcompra — Área Comercial
           </p>
         </div>
       </div>
@@ -93,15 +93,15 @@ export default function LoginPage() {
 
           {/* Cabecera mobile */}
           <div className="flex lg:hidden items-center justify-center gap-3 mb-2">
-            <ShieldCheck className="w-7 h-7 text-indigo-400" />
-            <span className="text-lg font-bold text-white">Sistema de Garantías</span>
+            <Rocket className="w-7 h-7 text-indigo-400" />
+            <span className="text-lg font-bold text-white">DJI Agras</span>
           </div>
 
           {/* Logo desktop pequeño (visible en panel derecho) */}
           <div className="hidden lg:flex flex-col items-center gap-2 mb-1">
             <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl
                             bg-indigo-600/20 border border-indigo-500/30 shadow-lg">
-              <ShieldCheck className="w-6 h-6 text-indigo-400" />
+              <Rocket className="w-6 h-6 text-indigo-400" />
             </div>
           </div>
 

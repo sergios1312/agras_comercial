@@ -17,11 +17,11 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: {
-    default: "Sistema de Garantías 2.0",
-    template: "%s | Sistema de Garantías",
+    default: "DJI Agras Comercial",
+    template: "%s | DJI Agras",
   },
   description:
-    "Sistema de gestión de garantías y control de inventario para múltiples sucursales.",
+    "Sistema de gestión comercial, capacitaciones y ROI para DJI Agras.",
 };
 
 /**

@@ -34,7 +34,7 @@ function SubmitButton() {
 import { SUCURSALES_DATA } from "@/lib/constants";
 
 export function LoginForm() {
-  const [state, action] = useActionState(signIn, null);
+  const [state, action] = useActionState(signIn, initialState);
 
   return (
     <form action={action} className="space-y-5">

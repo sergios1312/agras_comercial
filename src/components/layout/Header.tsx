@@ -3,9 +3,10 @@
 import { usePathname } from "next/navigation";
 
 const ROUTE_LABELS: Record<string, string> = {
-  "/inventario": "📦 Solicitudes de Repuestos",
-  "/estadisticas": "📊 Estadísticas y Dashboards",
-  "/casos": "📋 Procesos y Notificaciones",
+  "/reportes": "📋 Reportes y Cotizaciones",
+  "/estadisticas": "📊 Estadísticas Comerciales",
+  "/academy": "🎓 Academy (Capacitaciones)",
+  "/administrador": "⚙️ Panel de Administrador",
 };
 
 export function Header() {
@@ -13,7 +14,7 @@ export function Header() {
 
   const title =
     Object.entries(ROUTE_LABELS).find(([key]) => pathname.startsWith(key))?.[1] ??
-    "Sistema de Garantías";
+    "DJI Agras Comercial";
 
   return (
     <header className="flex items-center h-14 px-6 border-b border-slate-800 bg-slate-950 shrink-0">

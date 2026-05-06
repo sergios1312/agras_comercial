@@ -15,7 +15,8 @@ import {
   ChevronLeft,
   ChevronRight,
   ClipboardList,
-  ClipboardCheck,
+  GraduationCap,
+  Rocket,
 } from "lucide-react";
 import { useState } from "react";
 
@@ -40,14 +41,9 @@ export function Sidebar({ userEmail, userRole }: SidebarProps) {
   // Items del menú con sus permisos
   const navItems: NavItem[] = [
     {
-      href: "/inventario",
-      label: "Solicitudes",
-      icon: <Package className="w-5 h-5 shrink-0" />,
-    },
-    {
       href: "/reportes",
-      label: "Casos",
-      icon: <ClipboardCheck className="w-5 h-5 shrink-0" />,
+      label: "Reportes",
+      icon: <ClipboardList className="w-5 h-5 shrink-0" />,
     },
     {
       href: "/estadisticas",
@@ -55,9 +51,9 @@ export function Sidebar({ userEmail, userRole }: SidebarProps) {
       icon: <BarChart3 className="w-5 h-5 shrink-0" />,
     },
     {
-      href: "/casos",
-      label: "Procesos",
-      icon: <FileText className="w-5 h-5 shrink-0" />,
+      href: "/academy",
+      label: "Academy",
+      icon: <GraduationCap className="w-5 h-5 shrink-0" />,
     },
     {
       href: "/administrador",
@@ -69,14 +65,12 @@ export function Sidebar({ userEmail, userRole }: SidebarProps) {
   // Filtrar items según permisos
   const itemsVisibles = navItems.filter((item) => {
     switch (item.href) {
-      case "/inventario":
-        return permisos.puedeVerSolicitudes;
       case "/reportes":
         return permisos.puedeVerReportes;
       case "/estadisticas":
         return permisos.puedeVerEstadisticas;
-      case "/casos":
-        return permisos.puedeVerProcesos;
+      case "/academy":
+        return permisos.puedeVerAcademy;
       case "/administrador":
         return permisos.puedeVerAdministrador;
       default:
@@ -122,12 +116,12 @@ export function Sidebar({ userEmail, userRole }: SidebarProps) {
         )}
       >
         <div className="flex items-center justify-center w-9 h-9 rounded-xl bg-indigo-600/20 border border-indigo-500/30 shrink-0">
-          <ShieldCheck className="w-5 h-5 text-indigo-400" />
+          <Rocket className="w-5 h-5 text-indigo-400" />
         </div>
         {!collapsed && (
           <div className="overflow-hidden">
-            <p className="text-sm font-bold text-white leading-tight whitespace-nowrap">Garantías</p>
-            <p className="text-xs text-slate-500">v2.0</p>
+            <p className="text-sm font-bold text-white leading-tight whitespace-nowrap">DJI Agras</p>
+            <p className="text-xs text-slate-500">Comercial</p>
           </div>
         )}
       </div>

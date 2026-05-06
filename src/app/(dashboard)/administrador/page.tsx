@@ -1,10 +1,7 @@
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
 import type { Metadata } from "next";
-import { AdminPageClient } from "@/components/inventario/AdminPageClient";
-import { getConfigPedidos, getUltimasActualizaciones } from "@/app/(dashboard)/inventario/config-actions";
 import { Shield } from "lucide-react";
-import { createAdminClient } from "@/utils/supabase/admin";
 
 export const metadata: Metadata = {
   title: "Panel Administrador",
@@ -14,14 +11,7 @@ export const metadata: Metadata = {
 export default async function AdministradorPage() {
   const user = await getSession();
   if (!user) redirect("/login");
-  if (user.role !== "admin") redirect("/inventario");
-
-  const configPedidos = await getConfigPedidos();
-  const actualizaciones = await getUltimasActualizaciones();
-
-  const db = createAdminClient();
-  const sucursalesRes = await db.from("sucursales").select("nombre_ciudad");
-  const sucursalesNombres = sucursalesRes.data?.map((s: any) => s.nombre_ciudad) || [];
+  if (user.role !== "admin") redirect("/reportes");
 
   return (
     <div className="space-y-6">
@@ -36,7 +26,11 @@ export default async function AdministradorPage() {
         </div>
       </div>
 
-      <AdminPageClient configInicial={configPedidos} actualizaciones={actualizaciones} sucursalesDB={sucursalesNombres} />
+      <div className="p-6 rounded-xl border border-slate-800 bg-slate-900/50">
+        <p className="text-slate-400">
+          Panel de administración en construcción. Aquí se implementarán las opciones de configuración para la nueva área comercial.
+        </p>
+      </div>
     </div>
   );
 }

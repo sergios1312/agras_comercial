@@ -1,7 +1,6 @@
 // ============================================================
 // src/types/database.types.ts
-// Tipos TypeScript que reflejan el esquema de Supabase v2.0
-// Tablas: repuestos, sucursales, inventario, historial_pedidos
+// Tipos TypeScript que reflejan el esquema de Supabase para Agras Comercial
 // ============================================================
 
 export type Json =
@@ -21,148 +20,24 @@ export type EstadoPedido =
   | "Rechazado"
   | "Finalizado";
 
+export type EstadoEventoAcademy = 
+  | "Tentativo"
+  | "Confirmado"
+  | "Agendado"
+  | "Finalizado"
+  | "Cancelado";
 
-export type TipoSolicitud = "Consumo normal" | "Solicitud/Reserva sin stock";
 
-export type TipoReporte = "Abastecimiento" | "Reposición" | "Envío Interno";
-
-// ─── Tabla: repuestos ────────────────────────────────────────
-export interface Repuesto {
-  id: number;
-  codigo: string;
-  nombre: string;
-  nombre_traducido: string | null;
-  codigo_sap: string | null;
-  precio_venta: number | null;
-  modelos_compatibles: string | null;
+// ─── Tabla: clientes ─────────────────────────────────────────
+export interface Cliente {
+  id_cliente: string; // uuid
+  nombre_razon_social: string;
+  datos_contacto?: string | null;
   created_at?: string;
 }
 
-// ─── Tabla: sucursales ───────────────────────────────────────
-export interface Sucursal {
-  id: number;
-  nombre_ciudad: string;
-  nombre_tecnico?: string;
-  numero_telefono?: string;
-  correo?: string;
-}
-
-// ─── Tabla: inventario ───────────────────────────────────────
-export interface InventarioRow {
-  id: number;
-  repuesto_id: number;
-  sucursal_id: number;
-  cantidad: number;
-  // Join fields (cuando se usa foreign key expand)
-  sucursales?: { nombre_ciudad: string };
-  repuestos?: Repuesto;
-}
-
-// Vista pivotada del inventario por sucursal (para la UI)
-export interface InventarioPivot extends Repuesto {
-  stock_por_sucursal: Record<string, number>;
-  stock_total: number;
-}
-
-// ─── Tabla: transferencias ───────────────────────────────────
-export interface Transferencia {
-  id: number;
-  estado: "Pendiente" | "Enviado";
-  sucursal_destino: string | null;
-  codigo_transferencia: string | null;
-  orden_venta: string | null;
-  factura: string | null;
-  fecha_hora: string;
-  ultimo_message_id?: string | null;
-}
-
-// ─── Tabla: historial_pedidos ────────────────────────────────
-export interface HistorialPedido {
-  id: number;
-  tecnico_destino: string;
-  sucursal_origen: string;
-  repuesto_id: number | null;         // FK → repuestos(id)
-  numero_caso: string;
-  caso_reposicion_id?: number | null;
-  cantidad: number;
-  tipo_reporte: string;
-  estado: EstadoPedido;
-  fecha_pedido: string;
-  // Fechas de trazabilidad (se rellenan automáticamente al cambiar estado)
-  fecha_aprobacion?: string | null;
-  fecha_envio?: string | null;
-  fecha_recepcion?: string | null;
-  transferencia_id?: number | null; // FK -> transferencias
-  is_test?: boolean; // Bandera virtual para UI
-  // Join expandido desde Supabase (disponible cuando se hace select con FK join)
-  transferencias?: Transferencia | null;
-  repuestos?: {
-    id: number;
-    codigo: string;
-    nombre: string;
-    nombre_traducido: string | null;
-    codigo_sap: string | null;
-    precio_venta: number | null;
-  } | null;
-}
-
-
-// ─── Tabla: casos_reposicion ─────────────────────────────────
-export interface CasoReposicion {
-  id: number;
-  fecha: string;
-  codigo_caso: string;
-  serie_equipo: string;
-  ubicacion: string;
-  tipo_equipo?: string | null;
-}
-
-// ─── Tabla: configuracion_sistema ────────────────────────────
-export interface ConfiguracionSistema {
-  id: number;
-  clave: string;
-  valor: string;
-  updated_at: string;
-}
-
-/** Estado de habilitación de cada tipo de pedido */
-export interface ConfigPedidos {
-  abastecimiento: boolean; // pedidos_abastecimiento → destino Lima
-  internos: boolean;       // pedidos_internos → Envío Interno
-  reposicion: boolean;     // pedidos_reposicion → Sin Stock
-  modo_prueba: boolean;    // modo_prueba → Guardo en tabla prueba
-}
-
-// ─── Tipos UI ─────────────────────────────────────────────────
-
-/** Ítem dentro del carrito de pedidos (estado en memoria) */
-export interface ItemCarrito {
-  id: string; // UUID temporal para key de React
-  repuesto_id: number;
-  codigo: string;
-  nombre: string;
-  nombre_traducido: string;
-  cantidad: number;
-  numero_caso: string;
-  sucursal_destino: string;
-  es_venta: boolean;
-  stock_disponible: number; // stock de la sede seleccionada
-  inv_ids: Record<string, number>;
-}
-
-/** Resultado del motor de búsqueda por score (_score: menor = mayor prioridad) */
-export interface RepuestoConScore extends RepuestoConStock {
-  _score: number;
-}
-
-/** Repuesto con stock de todas las sucursales */
-export interface RepuestoConStock extends Repuesto {
-  stock_por_sucursal: Record<string, number>;
-  inv_ids: Record<string, number>; // map sucursal → inventario.id
-}
-
-// ─── Tabla: documentos_reporte ───────────────────────────────
-export type TipoDocumentoReporte = "cotizacion_venta" | "cotizacion_reparacion" | "reporte_salida";
+// ─── Tabla: documentos_reporte (Cotizaciones) ────────────────
+export type TipoDocumentoReporte = "cotizacion_venta" | "orden_venta" | "reporte_ventas";
 
 export interface DocumentoReporte {
   id: number;
@@ -171,7 +46,6 @@ export interface DocumentoReporte {
   usuario_emisor: string;
   fecha_creacion: string;
   cliente_id?: string | null; // uuid
-  caso_id?: number | null; // bigint
   descripcion_trabajo?: string | null;
   subtotal: number;
   igv: number;
@@ -182,82 +56,78 @@ export interface DocumentoReporte {
 export interface DetalleDocumentoReporte {
   id: number;
   documento_id: number;
-  repuesto_id: number;
+  repuesto_id: number; // Esto cambiará al ID del nuevo catálogo
   cantidad: number;
   precio_unitario: number;
   subtotal: number;
-  
-  // Relaciones (expand)
-  repuestos?: Repuesto;
 }
 
-// ─── Tabla: clientes ─────────────────────────────────────────
-export interface Cliente {
-  id_cliente: string; // uuid
-  nombre_razon_social: string;
-  datos_contacto?: string | null;
+// ─── Tabla: configuracion_sistema ────────────────────────────
+export interface ConfiguracionSistema {
+  id: number;
+  clave: string;
+  valor: string;
+  updated_at: string;
+}
+
+// ─── Módulo Academy ──────────────────────────────────────────
+
+export interface AcademyInstructor {
+  id: number;
+  nombre: string;
+  correo: string;
+  score_promedio: number;
+  activo: boolean;
+}
+
+export interface AcademyDronDemo {
+  id: number;
+  modelo: string;
+  numero_serie: string;
+  horas_vuelo: number;
+  ciclos_bateria_estimado: number;
+  estado: "Operativo" | "En Mantenimiento" | "Baja";
+}
+
+export interface AcademyEvento {
+  id: number;
+  cliente_id: string; // uuid FK a clientes
+  modelo_dron: string; // El dron que le interesa al cliente
+  fecha_estimada: string;
+  estado: EstadoEventoAcademy;
+  creado_por: string; // usuario comercial
+  instructor_id?: number | null; // Asignado por coordinador
+  dron_demo_id?: number | null; // Opcional
+  notas_comerciales?: string | null;
   created_at?: string;
 }
 
-// ─── Tabla: casos ────────────────────────────────────────────
-export interface Caso {
-  id: number; // bigint
-  numeracion_caso: string;
-  estado_general?: string | null;
-  descripcion?: string | null;
-  sucursal_id?: number | null;
-  cliente?: string | null;
-  garantia?: string | null;
-  estado_caso?: string | null;
-  tipo_trabajo?: string | null;
-  fecha_ingreso?: string | null;
-  fecha_salida?: string | null;
-  created_at?: string;
-  equipo?: string | null;
-  estado_sistema?: string | null;
-  descripcion_tecnica?: string | null;
-  descripcion_salida?: string | null;
+export interface AcademyEvaluacion {
+  id: number;
+  evento_id: number; // FK a academy_eventos
+  calificacion_instructor: number; // 1 al 5
+  calificacion_equipo: number;
+  comentarios?: string | null;
+  fecha_evaluacion: string;
+}
+
+export interface AcademySimulacionROI {
+  id: number;
+  cliente_id: string;
+  modelo_dron: string;
+  input_hectareas: number;
+  input_costo_jornal: number;
+  input_tiempo_actual: number;
+  output_ahorro_dinero: number;
+  output_ahorro_tiempo: number;
+  output_meses_recuperacion: number;
+  fecha_simulacion: string;
 }
 
 // ─── Database Schema (para tipado de Supabase Client) ────────
 export interface Database {
   public: {
     Tables: {
-      repuestos: {
-        Row: Repuesto;
-        Insert: Omit<Repuesto, "id" | "created_at">;
-        Update: Partial<Omit<Repuesto, "id">>;
-      };
-      sucursales: {
-        Row: Sucursal;
-        Insert: Omit<Sucursal, "id">;
-        Update: Partial<Omit<Sucursal, "id">>;
-      };
-      inventario: {
-        Row: InventarioRow;
-        Insert: Omit<InventarioRow, "id">;
-        Update: Partial<Omit<InventarioRow, "id">>;
-      };
-      historial_pedidos: {
-        Row: HistorialPedido;
-        Insert: Omit<HistorialPedido, "id" | "fecha_pedido" | "repuestos">;
-        Update: Partial<Omit<HistorialPedido, "id" | "repuestos">>;
-      };
-      historial_pedidos_prueba: {
-        Row: HistorialPedido;
-        Insert: Omit<HistorialPedido, "id" | "fecha_pedido" | "repuestos">;
-        Update: Partial<Omit<HistorialPedido, "id" | "repuestos">>;
-      };
-      casos_reposicion: {
-        Row: CasoReposicion;
-        Insert: Omit<CasoReposicion, "id" | "fecha">;
-        Update: Partial<Omit<CasoReposicion, "id">>;
-      };
-      transferencias: {
-        Row: Transferencia;
-        Insert: Omit<Transferencia, "id" | "fecha_hora">;
-        Update: Partial<Omit<Transferencia, "id" | "fecha_hora">>;
-      };
       documentos_reporte: {
         Row: DocumentoReporte;
         Insert: Omit<DocumentoReporte, "id" | "fecha_creacion">;
@@ -273,11 +143,36 @@ export interface Database {
         Insert: Omit<Cliente, "id_cliente" | "created_at">;
         Update: Partial<Omit<Cliente, "id_cliente">>;
       };
-      casos: {
-        Row: Caso;
-        Insert: Omit<Caso, "id" | "created_at">;
-        Update: Partial<Omit<Caso, "id">>;
-      };
+      configuracion_sistema: {
+        Row: ConfiguracionSistema;
+        Insert: Omit<ConfiguracionSistema, "id" | "updated_at">;
+        Update: Partial<Omit<ConfiguracionSistema, "id" | "updated_at">>;
+      },
+      academy_eventos: {
+        Row: AcademyEvento;
+        Insert: Omit<AcademyEvento, "id" | "created_at">;
+        Update: Partial<Omit<AcademyEvento, "id">>;
+      },
+      academy_instructores: {
+        Row: AcademyInstructor;
+        Insert: Omit<AcademyInstructor, "id">;
+        Update: Partial<Omit<AcademyInstructor, "id">>;
+      },
+      academy_drones_demo: {
+        Row: AcademyDronDemo;
+        Insert: Omit<AcademyDronDemo, "id">;
+        Update: Partial<Omit<AcademyDronDemo, "id">>;
+      },
+      academy_evaluaciones: {
+        Row: AcademyEvaluacion;
+        Insert: Omit<AcademyEvaluacion, "id" | "fecha_evaluacion">;
+        Update: Partial<Omit<AcademyEvaluacion, "id">>;
+      },
+      academy_simulaciones_roi: {
+        Row: AcademySimulacionROI;
+        Insert: Omit<AcademySimulacionROI, "id" | "fecha_simulacion">;
+        Update: Partial<Omit<AcademySimulacionROI, "id">>;
+      }
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;
