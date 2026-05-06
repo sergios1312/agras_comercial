@@ -17,6 +17,8 @@ export interface DatosRegistroIngreso {
   fechaIngreso: string; // YYYY-MM-DD
   horaIngreso?: string; // HH:MM
   emisor: string;
+  descripcion: string;
+  descripcionTecnica: string | null;
 }
 
 export interface DatosReporteSalida {
@@ -26,6 +28,8 @@ export interface DatosReporteSalida {
   sucursal: string;
   tipoTrabajo: string;
   descripcion: string;
+  descripcionTecnica: string | null;
+  descripcionSalida: string | null;
   garantia: string;
   fechaIngreso: string | null;
   fechaSalida: string | null;
@@ -33,6 +37,7 @@ export interface DatosReporteSalida {
   clasificacionSLA: string | null;
   estadoGeneral: string;
   emisor: string;
+  repuestos: { codigo: string; nombre: string }[];
 }
 
 // ─── Helpers ──────────────────────────────────────────────────
@@ -121,18 +126,42 @@ function campoInfo(
   doc.text(valor || "—", x, y + 5);
 }
 
+function footerPaginas(doc: jsPDF, emisor: string) {
+  const pageCount = doc.getNumberOfPages();
+  const w = doc.internal.pageSize.getWidth();
+  const h = doc.internal.pageSize.getHeight();
+
+  for (let i = 1; i <= pageCount; i++) {
+    doc.setPage(i);
+    doc.setFontSize(6.5);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(160, 160, 170);
+    doc.text(
+      "Soporte técnico oficial DJI AGRICULTURE  |  Grupo QTC S.A.C.",
+      w / 2,
+      h - 8,
+      { align: "center" }
+    );
+    doc.setFont("helvetica", "italic");
+    doc.text(`Emitido por: ${emisor} - Página ${i} de ${pageCount}`, 12, h - 8);
+    
+    doc.setDrawColor(...BORDER);
+    doc.setLineWidth(0.3);
+    doc.line(12, h - 12, w - 12, h - 12);
+  }
+}
+
 // ════════════════════════════════════════════════════════════
 // PDF 1: REGISTRO DE INGRESO
 // ════════════════════════════════════════════════════════════
 
-export function generarPDFRegistroIngreso(datos: DatosRegistroIngreso) {
+export function generarPDFRegistroIngreso(datos: DatosRegistroIngreso): Blob {
   const doc = new jsPDF();
   const w = doc.internal.pageSize.getWidth();
-  const h = doc.internal.pageSize.getHeight();
   const codigo = `ING-${datos.numeroCaso}-${Date.now().toString().slice(-4)}`;
   const ahora = new Date().toLocaleDateString("es-PE");
 
-  dibujarHeader(doc, "REGISTRO DE INGRESO", "Comprobante de recepción", codigo, ahora);
+  dibujarHeader(doc, "REPORTE DE INGRESO", "Recepción y Diagnóstico Inicial", codigo, ahora);
 
   // ── Cuerpo ───────────────────────────────────────────────
   let y = 54;
@@ -155,7 +184,7 @@ export function generarPDFRegistroIngreso(datos: DatosRegistroIngreso) {
   y += 18;
 
   campoInfo(doc, "Cliente", datos.cliente, col1, y);
-  campoInfo(doc, "Equipo", datos.equipo, col2, y);
+  campoInfo(doc, "Equipo (Dron/Modelo)", datos.equipo, col2, y);
   y += 18;
 
   // Fecha y hora — destacado
@@ -167,7 +196,7 @@ export function generarPDFRegistroIngreso(datos: DatosRegistroIngreso) {
   doc.setFont("helvetica", "bold");
   doc.setFontSize(8);
   doc.setTextColor(...INDIGO);
-  doc.text("FECHA Y HORA DE INGRESO REGISTRADA", col1 + 4, y + 6);
+  doc.text("FECHA Y HORA DE INGRESO OFICIAL", col1 + 4, y + 6);
 
   doc.setFont("helvetica", "bold");
   doc.setFontSize(14);
@@ -176,25 +205,44 @@ export function generarPDFRegistroIngreso(datos: DatosRegistroIngreso) {
   doc.text(textoFechaHora, col1 + 4, y + 16);
   y += 30;
 
-  // Nota informativa
-  doc.setFillColor(255, 248, 220);
-  doc.setDrawColor(200, 160, 0);
-  doc.setLineWidth(0.4);
-  doc.roundedRect(col1, y, w - 28, 14, 2, 2, "FD");
+  // Descripciones (Motivo inicial + Descripción técnica)
+  doc.setFillColor(...LIGHT);
+  doc.rect(12, y, w - 24, 8, "F");
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(8);
+  doc.setTextColor(...INDIGO);
+  doc.text("DETALLES Y CONDICIÓN DEL EQUIPO", 16, y + 5.5);
+  y += 14;
 
   doc.setFont("helvetica", "bold");
   doc.setFontSize(7.5);
-  doc.setTextColor(130, 100, 0);
-  doc.text("⚠  IMPORTANTE", col1 + 4, y + 5);
+  doc.setTextColor(...GRAY);
+  doc.text("MOTIVO DEL REPORTE / CASO INICIAL", col1, y);
+  y += 5;
   doc.setFont("helvetica", "normal");
-  doc.text(
-    "Esta fecha de ingreso es definitiva y no podrá ser modificada una vez registrada.",
-    col1 + 4,
-    y + 10
-  );
-  y += 22;
+  doc.setFontSize(8.5);
+  doc.setTextColor(...DARK);
+  const descLines = doc.splitTextToSize(datos.descripcion || "Sin detalles iniciales", w - 28);
+  doc.text(descLines, col1, y);
+  y += descLines.length * 4 + 8;
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(7.5);
+  doc.setTextColor(...GRAY);
+  doc.text("DESCRIPCIÓN TÉCNICA DEL EQUIPO (Estado al ingresar)", col1, y);
+  y += 5;
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(8.5);
+  doc.setTextColor(...DARK);
+  const techLines = doc.splitTextToSize(datos.descripcionTecnica || "No registrada", w - 28);
+  doc.text(techLines, col1, y);
+  y += techLines.length * 4 + 15;
 
   // Firma del técnico
+  if (y > doc.internal.pageSize.getHeight() - 40) {
+    doc.addPage();
+    y = 30;
+  }
   doc.setDrawColor(...BORDER);
   doc.setLineWidth(0.4);
 
@@ -207,43 +255,24 @@ export function generarPDFRegistroIngreso(datos: DatosRegistroIngreso) {
   doc.setTextColor(...GRAY);
   doc.text("Firma del Técnico Receptor", col1, y + 25);
   doc.text("Firma del Cliente", col2, y + 25);
-  y += 35;
+  
+  footerPaginas(doc, datos.emisor);
 
-  // Emisor
-  doc.setFont("helvetica", "italic");
-  doc.setFontSize(7);
-  doc.setTextColor(...GRAY);
-  doc.text(`Documento emitido por: ${datos.emisor}`, col1, y);
-
-  // ── Footer ───────────────────────────────────────────────
-  doc.setFontSize(6.5);
-  doc.setFont("helvetica", "normal");
-  doc.setTextColor(160, 160, 170);
-  doc.text(
-    "Soporte técnico oficial DJI AGRICULTURE  |  Grupo QTC S.A.C.",
-    w / 2,
-    h - 8,
-    { align: "center" }
-  );
-  doc.setDrawColor(...BORDER);
-  doc.setLineWidth(0.3);
-  doc.line(12, h - 12, w - 12, h - 12);
-
-  doc.save(`Registro_Ingreso_${datos.numeroCaso}.pdf`);
+  return doc.output("blob");
 }
 
 // ════════════════════════════════════════════════════════════
 // PDF 2: REPORTE DE SALIDA
 // ════════════════════════════════════════════════════════════
 
-export function generarPDFReporteSalida(datos: DatosReporteSalida) {
+export function generarPDFReporteSalida(datos: DatosReporteSalida): Blob {
   const doc = new jsPDF();
   const w = doc.internal.pageSize.getWidth();
   const h = doc.internal.pageSize.getHeight();
   const codigo = `SAL-${datos.numeroCaso}-${Date.now().toString().slice(-4)}`;
   const ahora = new Date().toLocaleDateString("es-PE");
 
-  dibujarHeader(doc, "REPORTE DE SALIDA", "Resumen de cierre del caso", codigo, ahora);
+  dibujarHeader(doc, "REPORTE DE SALIDA", "Cierre y Detalles del Trabajo", codigo, ahora);
 
   let y = 54;
   const col1 = 14;
@@ -263,51 +292,99 @@ export function generarPDFReporteSalida(datos: DatosReporteSalida) {
   y += 16;
 
   campoInfo(doc, "Cliente", datos.cliente, col1, y);
-  campoInfo(doc, "Equipo / Modelo", datos.equipo, col2, y);
+  campoInfo(doc, "Equipo (Dron/Modelo)", datos.equipo, col2, y);
   y += 16;
 
-  campoInfo(doc, "Sucursal", datos.sucursal, col1, y);
+  campoInfo(doc, "Tipo de Trabajo", datos.tipoTrabajo, col1, y);
   campoInfo(doc, "Garantía", datos.garantia, col2, y);
   y += 16;
 
-  // ── Sección: Detalles Técnicos ───────────────────────────
+  // ── Sección: Descripciones y Detalles ───────────────────────────
   doc.setFillColor(...LIGHT);
   doc.rect(12, y, w - 24, 8, "F");
   doc.setFont("helvetica", "bold");
   doc.setFontSize(8);
   doc.setTextColor(...INDIGO);
-  doc.text("DETALLES TÉCNICOS", 16, y + 5.5);
+  doc.text("DESCRIPCIONES Y TRABAJO REALIZADO", 16, y + 5.5);
   y += 14;
 
-  campoInfo(doc, "Tipo de Trabajo", datos.tipoTrabajo, col1, y);
-  y += 14;
-
-  // Descripción (puede ser larga)
   doc.setFont("helvetica", "bold");
   doc.setFontSize(7.5);
   doc.setTextColor(...GRAY);
-  doc.text("DESCRIPCIÓN / TRABAJO REALIZADO", col1, y);
+  doc.text("MOTIVO INICIAL", col1, y);
   y += 5;
-
-  doc.setFillColor(250, 250, 255);
-  doc.setDrawColor(...BORDER);
-  doc.setLineWidth(0.3);
-  doc.roundedRect(col1, y, w - 28, 22, 2, 2, "FD");
-
   doc.setFont("helvetica", "normal");
   doc.setFontSize(8.5);
   doc.setTextColor(...DARK);
-  const descLines = doc.splitTextToSize(datos.descripcion || "Sin descripción registrada.", w - 36);
-  doc.text(descLines.slice(0, 3), col1 + 3, y + 6);
-  y += 28;
+  const descLines = doc.splitTextToSize(datos.descripcion || "Sin descripción registrada", w - 28);
+  doc.text(descLines, col1, y);
+  y += descLines.length * 4 + 4;
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(7.5);
+  doc.setTextColor(...GRAY);
+  doc.text("DESCRIPCIÓN TÉCNICA DEL EQUIPO (AL INGRESO)", col1, y);
+  y += 5;
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(8.5);
+  doc.setTextColor(...DARK);
+  const techLines = doc.splitTextToSize(datos.descripcionTecnica || "No registrada", w - 28);
+  doc.text(techLines, col1, y);
+  y += techLines.length * 4 + 4;
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(7.5);
+  doc.setTextColor(...INDIGO);
+  doc.text("REPORTE DE SALIDA (DETALLES DEL TRABAJO FINALIZADO)", col1, y);
+  y += 5;
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(8.5);
+  doc.setTextColor(...DARK);
+  const salidaLines = doc.splitTextToSize(datos.descripcionSalida || "No registrado", w - 28);
+  doc.text(salidaLines, col1, y);
+  y += salidaLines.length * 4 + 8;
+
+  // ── Repuestos ────────────────────────
+  if (datos.repuestos && datos.repuestos.length > 0) {
+    autoTable(doc, {
+      startY: y,
+      head: [["Código", "Descripción del Repuesto/Pieza Utilizada"]],
+      body: datos.repuestos.map((r) => [r.codigo, r.nombre]),
+      theme: "grid",
+      headStyles: {
+        fillColor: INDIGO,
+        textColor: 255,
+        fontStyle: "bold",
+        fontSize: 8,
+      },
+      styles: { fontSize: 8, cellPadding: 2 },
+      columnStyles: {
+        0: { cellWidth: 35 },
+        1: { cellWidth: "auto" },
+      },
+      margin: { left: 14, right: 14 },
+    });
+    y = (doc as any).lastAutoTable.finalY + 12;
+  } else {
+    doc.setFont("helvetica", "italic");
+    doc.setFontSize(8);
+    doc.setTextColor(...GRAY);
+    doc.text("No se registraron repuestos para este caso.", col1, y);
+    y += 12;
+  }
 
   // ── Sección: Registro Temporal ───────────────────────────
+  if (y > doc.internal.pageSize.getHeight() - 60) {
+    doc.addPage();
+    y = 30;
+  }
+  
   doc.setFillColor(...LIGHT);
   doc.rect(12, y, w - 24, 8, "F");
   doc.setFont("helvetica", "bold");
   doc.setFontSize(8);
   doc.setTextColor(...INDIGO);
-  doc.text("REGISTRO TEMPORAL", 16, y + 5.5);
+  doc.text("REGISTRO TEMPORAL OFICIAL", 16, y + 5.5);
   y += 14;
 
   campoInfo(doc, "Fecha de Ingreso", formatFecha(datos.fechaIngreso), col1, y);
@@ -325,28 +402,28 @@ export function generarPDFReporteSalida(datos: DatosReporteSalida) {
   doc.setFillColor(240, 245, 255);
   doc.setDrawColor(...INDIGO);
   doc.setLineWidth(0.5);
-  doc.roundedRect(col1, y, (w - 28) / 2 - 4, 22, 3, 3, "FD");
+  doc.roundedRect(col1, y, (w - 28) / 2 - 4, 18, 3, 3, "FD");
 
   doc.setFont("helvetica", "bold");
   doc.setFontSize(7.5);
   doc.setTextColor(...GRAY);
   doc.text("RTAT (DÍAS HÁBILES)", col1 + 4, y + 6);
-  doc.setFontSize(18);
+  doc.setFontSize(14);
   doc.setTextColor(...INDIGO);
-  doc.text(datos.rtat !== null ? String(datos.rtat) : "—", col1 + 4, y + 18);
+  doc.text(datos.rtat !== null ? String(datos.rtat) : "—", col1 + 4, y + 14);
 
   doc.setFillColor(240, 255, 245);
   doc.setDrawColor(...colorSLA);
-  doc.roundedRect(col2, y, (w - 28) / 2 - 4, 22, 3, 3, "FD");
+  doc.roundedRect(col2, y, (w - 28) / 2 - 4, 18, 3, 3, "FD");
 
   doc.setFontSize(7.5);
   doc.setTextColor(...GRAY);
   doc.text("CLASIFICACIÓN SLA", col2 + 4, y + 6);
-  doc.setFontSize(12);
+  doc.setFontSize(10);
   doc.setFont("helvetica", "bold");
   doc.setTextColor(...colorSLA);
-  doc.text(datos.clasificacionSLA ?? "SIN CLASIFICAR", col2 + 4, y + 18);
-  y += 32;
+  doc.text(datos.clasificacionSLA ?? "SIN CLASIFICAR", col2 + 4, y + 14);
+  y += 28;
 
   // Firma
   doc.setDrawColor(...BORDER);
@@ -360,25 +437,8 @@ export function generarPDFReporteSalida(datos: DatosReporteSalida) {
   doc.setTextColor(...GRAY);
   doc.text("Firma del Técnico Responsable", col1, y + 25);
   doc.text("Conformidad del Cliente", col2, y + 25);
-  y += 35;
+  
+  footerPaginas(doc, datos.emisor);
 
-  doc.setFont("helvetica", "italic");
-  doc.setFontSize(7);
-  doc.text(`Documento emitido por: ${datos.emisor}`, col1, y);
-
-  // Footer
-  doc.setFontSize(6.5);
-  doc.setFont("helvetica", "normal");
-  doc.setTextColor(160, 160, 170);
-  doc.text(
-    "Soporte técnico oficial DJI AGRICULTURE  |  Grupo QTC S.A.C.",
-    w / 2,
-    h - 8,
-    { align: "center" }
-  );
-  doc.setDrawColor(...BORDER);
-  doc.setLineWidth(0.3);
-  doc.line(12, h - 12, w - 12, h - 12);
-
-  doc.save(`Reporte_Salida_${datos.numeroCaso}.pdf`);
+  return doc.output("blob");
 }

@@ -95,6 +95,8 @@ export default async function ReportesPage() {
         periodoMensual: periodo,
         rtat: rtatFinal,
         clasificacionSLA: sla,
+        descripcionTecnica: row.descripcion_tecnica || null,
+        descripcionSalida: row.descripcion_salida || null,
       };
     });
 

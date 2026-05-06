@@ -58,6 +58,8 @@ export function ModalCrearEditarCaso({
     tipo_trabajo: string;
     sucursal_id: number | null;
     descripcion: string;
+    descripcion_tecnica: string;
+    descripcion_salida: string;
     fecha_salida: string;
   }>({
     numeracion_caso: caso?.numeracionCaso ?? "",
@@ -69,6 +71,8 @@ export function ModalCrearEditarCaso({
     tipo_trabajo: caso?.tipoTrabajo === "SIN TIPO" ? "" : (caso?.tipoTrabajo ?? ""),
     sucursal_id: caso?.sucursalId ?? userSucursalId ?? sucursales[0]?.id ?? null,
     descripcion: caso?.descripcion ?? "",
+    descripcion_tecnica: caso?.descripcionTecnica ?? "",
+    descripcion_salida: caso?.descripcionSalida ?? "",
     fecha_salida: caso?.fechaSalida ?? "",
   });
 
@@ -84,6 +88,8 @@ export function ModalCrearEditarCaso({
         tipo_trabajo: caso.tipoTrabajo === "SIN TIPO" ? "" : caso.tipoTrabajo,
         sucursal_id: caso.sucursalId,
         descripcion: caso.descripcion,
+        descripcion_tecnica: caso.descripcionTecnica ?? "",
+        descripcion_salida: caso.descripcionSalida ?? "",
         fecha_salida: caso.fechaSalida ?? "",
       });
     }
@@ -111,6 +117,8 @@ export function ModalCrearEditarCaso({
         tipo_trabajo: form.tipo_trabajo || undefined,
         sucursal_id: isAdmin ? Number(form.sucursal_id) : userSucursalId,
         descripcion: form.descripcion.trim() || undefined,
+        descripcion_tecnica: form.descripcion_tecnica.trim() || undefined,
+        descripcion_salida: form.descripcion_salida.trim() || undefined,
         fecha_salida: form.fecha_salida || null,
       };
 
@@ -141,6 +149,8 @@ export function ModalCrearEditarCaso({
           periodoMensual: payload.fecha_salida ? payload.fecha_salida.slice(0, 7) : null,
           rtat: null,
           clasificacionSLA: null,
+          descripcionTecnica: payload.descripcion_tecnica ?? null,
+          descripcionSalida: payload.descripcion_salida ?? null,
         });
       } else if (caso) {
         const res = await actualizarCaso(caso.id, payload);
@@ -162,6 +172,8 @@ export function ModalCrearEditarCaso({
           sucursal: sucursalNombre,
           sucursalId: isAdmin ? Number(form.sucursal_id) : caso.sucursalId,
           descripcion: payload.descripcion ?? "",
+          descripcionTecnica: payload.descripcion_tecnica ?? null,
+          descripcionSalida: payload.descripcion_salida ?? null,
           fechaSalida: payload.fecha_salida ?? null,
         });
       }
@@ -348,6 +360,34 @@ export function ModalCrearEditarCaso({
               placeholder="Descripción del problema o trabajo realizado..."
             />
           </div>
+
+          {/* Descripción Técnica */}
+          <div>
+            <label className={labelCls}>Descripción técnica del equipo</label>
+            <textarea
+              name="descripcion_tecnica"
+              value={form.descripcion_tecnica}
+              onChange={handleChange}
+              rows={2}
+              className={inputCls}
+              placeholder="Estado físico, componentes dañados, diagnóstico preliminar..."
+            />
+          </div>
+
+          {/* Descripción Reporte Salida */}
+          {form.estado_general === "CERRADO" && (
+            <div>
+              <label className={labelCls}>Descripción del reporte de salida (Trabajo finalizado)</label>
+              <textarea
+                name="descripcion_salida"
+                value={form.descripcion_salida}
+                onChange={handleChange}
+                rows={3}
+                className={inputCls}
+                placeholder="Detalles del trabajo finalizado, pruebas realizadas, etc."
+              />
+            </div>
+          )}
 
           {/* Error */}
           {error && (

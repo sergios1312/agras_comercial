@@ -36,6 +36,8 @@ export interface CasoUI {
   periodoMensual: string | null;
   rtat: number | null;
   clasificacionSLA: "A TIEMPO" | "APLAZADO" | "ATRASADO" | null;
+  descripcionTecnica: string | null;
+  descripcionSalida: string | null;
 }
 
 interface Sucursal {
@@ -166,6 +168,15 @@ export function CasosClientWrapper({
     );
     if (casoDetalle?.id === casoId) {
       setCasoDetalle((prev) => prev ? { ...prev, fechaIngreso } : prev);
+    }
+  };
+
+  const handleSalida = (casoId: number, fechaSalida: string) => {
+    setCasos((prev) =>
+      prev.map((c) => (c.id === casoId ? { ...c, fechaSalida } : c))
+    );
+    if (casoDetalle?.id === casoId) {
+      setCasoDetalle((prev) => prev ? { ...prev, fechaSalida } : prev);
     }
   };
 
@@ -358,6 +369,7 @@ export function CasosClientWrapper({
           userEmail={userEmail}
           onClose={() => setCasoDetalle(null)}
           onIngresado={handleIngresado}
+          onSalida={handleSalida}
         />
       )}
 

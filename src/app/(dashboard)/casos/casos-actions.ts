@@ -171,3 +171,73 @@ export async function registrarIngreso(id: number) {
   revalidatePath("/reportes");
   return { success: true, fechaIngreso, horaIngreso };
 }
+
+// ─── Registrar Salida ─────────────────────────────────────────
+// Acción irreversible: establece fecha_salida = ahora.
+export async function registrarSalida(id: number) {
+  const user = await getSession();
+  if (!user) return { error: "No autorizado." };
+
+  const db = createAdminClient() as any;
+
+  const { data: casoActual, error: errBuscar } = await db
+    .from("casos")
+    .select("id, fecha_salida, sucursal_id")
+    .eq("id", id)
+    .single();
+
+  if (errBuscar || !casoActual) return { error: "Caso no encontrado." };
+
+  if (casoActual.fecha_salida) {
+    return { error: "Este caso ya tiene una fecha de salida registrada." };
+  }
+
+  if (user.role !== "admin" && casoActual.sucursal_id !== user.id_db) {
+    return { error: "No tienes permiso para registrar la salida de este caso." };
+  }
+
+  const fechaSalida = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+
+  const { error } = await db
+    .from("casos")
+    .update({ fecha_salida: fechaSalida })
+    .eq("id", id);
+
+  if (error) {
+    console.error("Error registrarSalida:", error);
+    return { error: "No se pudo registrar la salida: " + error.message };
+  }
+
+  revalidatePath("/reportes");
+  return { success: true, fechaSalida };
+}
+
+// ─── Obtener Repuestos por Caso ───────────────────────────────
+export async function obtenerRepuestosPorCaso(numeroCaso: string) {
+  const db = createAdminClient() as any;
+  const { data, error } = await db
+    .from("historial_pedidos")
+    .select("estado, repuestos(codigo, nombre)")
+    .eq("numero_caso", numeroCaso)
+    .neq("estado", "Rechazado"); // Excluir los rechazados
+
+  if (error) {
+    console.error("Error obtenerRepuestosPorCaso:", error);
+    return [];
+  }
+
+  if (!data) return [];
+
+  // Filtrar y extraer únicos (por si pidieron el mismo repuesto varias veces)
+  const map = new Map<string, { codigo: string; nombre: string }>();
+  data.forEach((row: any) => {
+    if (row.repuestos) {
+      map.set(row.repuestos.codigo, {
+        codigo: row.repuestos.codigo,
+        nombre: row.repuestos.nombre,
+      });
+    }
+  });
+
+  return Array.from(map.values());
+}

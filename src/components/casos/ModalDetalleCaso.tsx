@@ -14,11 +14,12 @@ import {
   Clock,
   Lock,
 } from "lucide-react";
-import { registrarIngreso } from "@/app/(dashboard)/casos/casos-actions";
+import { registrarIngreso, registrarSalida, obtenerRepuestosPorCaso } from "@/app/(dashboard)/casos/casos-actions";
 import {
   generarPDFRegistroIngreso,
   generarPDFReporteSalida,
 } from "@/lib/pdf/generar-pdf-casos";
+import { createBrowserClient } from "@/utils/supabase/client";
 import type { CasoUI } from "./CasosClientWrapper";
 
 interface Props {
@@ -26,6 +27,7 @@ interface Props {
   userEmail: string;
   onClose: () => void;
   onIngresado: (casoId: number, fechaIngreso: string) => void;
+  onSalida: (casoId: number, fechaSalida: string) => void;
 }
 
 function formatFecha(iso: string | null): string {
@@ -72,54 +74,109 @@ export function ModalDetalleCaso({
   userEmail,
   onClose,
   onIngresado,
+  onSalida,
 }: Props) {
   const [isPendingIngreso, startIngreso] = useTransition();
+  const [isPendingSalida, startSalida] = useTransition();
   const [errorMsg, setErrorMsg] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
+  const supabase = createBrowserClient();
 
   const puedeRegistrarIngreso = !caso.fechaIngreso;
-  const puedeSalida = caso.estadoGeneral === "CERRADO";
+  const puedeRegistrarSalida = caso.estadoGeneral === "CERRADO" && !caso.fechaSalida;
+  const tieneSalida = !!caso.fechaSalida;
+
+  const urlPdfIngreso = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/casos_pdfs/ingreso_${caso.id}.pdf`;
+  const urlPdfSalida = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/casos_pdfs/salida_${caso.id}.pdf`;
 
   const handleRegistrarIngreso = () => {
     setErrorMsg("");
     startIngreso(async () => {
+      // 1. Generar PDF como Blob
+      const pdfBlob = generarPDFRegistroIngreso({
+        numeroCaso: caso.numeracionCaso,
+        cliente: caso.cliente,
+        equipo: caso.equipo,
+        sucursal: caso.sucursal,
+        descripcion: caso.descripcion,
+        descripcionTecnica: caso.descripcionTecnica,
+        fechaIngreso: new Date().toISOString().slice(0, 10), // Fecha provisional para el PDF
+        emisor: userEmail,
+      });
+
+      // 2. Subir a Supabase Storage
+      const { error: uploadError } = await supabase.storage
+        .from("casos_pdfs")
+        .upload(`ingreso_${caso.id}.pdf`, pdfBlob, {
+          contentType: "application/pdf",
+          upsert: true,
+        });
+
+      if (uploadError) {
+        setErrorMsg("Error subiendo el PDF: " + uploadError.message);
+        return;
+      }
+
+      // 3. Registrar en base de datos
       const res = await registrarIngreso(caso.id);
       if (res.error) {
         setErrorMsg(res.error);
         return;
       }
-      // Generar PDF automáticamente
-      generarPDFRegistroIngreso({
-        numeroCaso: caso.numeracionCaso,
-        cliente: caso.cliente,
-        equipo: caso.equipo,
-        sucursal: caso.sucursal,
-        fechaIngreso: res.fechaIngreso!,
-        horaIngreso: res.horaIngreso,
-        emisor: userEmail,
-      });
-      setSuccessMsg(
-        `Ingreso registrado el ${formatFecha(res.fechaIngreso!)}. PDF generado.`
-      );
+
+      setSuccessMsg(`Ingreso registrado el ${formatFecha(res.fechaIngreso!)}. PDF guardado.`);
       onIngresado(caso.id, res.fechaIngreso!);
     });
   };
 
   const handleReporteSalida = () => {
-    generarPDFReporteSalida({
-      numeroCaso: caso.numeracionCaso,
-      cliente: caso.cliente,
-      equipo: caso.equipo,
-      sucursal: caso.sucursal,
-      tipoTrabajo: caso.tipoTrabajo,
-      descripcion: caso.descripcion,
-      garantia: caso.garantia,
-      fechaIngreso: caso.fechaIngreso,
-      fechaSalida: caso.fechaSalida,
-      rtat: caso.rtat,
-      clasificacionSLA: caso.clasificacionSLA,
-      estadoGeneral: caso.estadoGeneral,
-      emisor: userEmail,
+    setErrorMsg("");
+    startSalida(async () => {
+      // 1. Obtener repuestos utilizados para este caso
+      const repuestos = await obtenerRepuestosPorCaso(caso.numeracionCaso);
+
+      // 2. Generar PDF como Blob
+      const pdfBlob = generarPDFReporteSalida({
+        numeroCaso: caso.numeracionCaso,
+        cliente: caso.cliente,
+        equipo: caso.equipo,
+        sucursal: caso.sucursal,
+        tipoTrabajo: caso.tipoTrabajo,
+        descripcion: caso.descripcion,
+        descripcionTecnica: caso.descripcionTecnica,
+        descripcionSalida: caso.descripcionSalida,
+        garantia: caso.garantia,
+        fechaIngreso: caso.fechaIngreso,
+        fechaSalida: new Date().toISOString().slice(0, 10), // Provisional para PDF
+        rtat: caso.rtat,
+        clasificacionSLA: caso.clasificacionSLA,
+        estadoGeneral: caso.estadoGeneral,
+        emisor: userEmail,
+        repuestos,
+      });
+
+      // 3. Subir a Supabase Storage
+      const { error: uploadError } = await supabase.storage
+        .from("casos_pdfs")
+        .upload(`salida_${caso.id}.pdf`, pdfBlob, {
+          contentType: "application/pdf",
+          upsert: true,
+        });
+
+      if (uploadError) {
+        setErrorMsg("Error subiendo el PDF: " + uploadError.message);
+        return;
+      }
+
+      // 4. Registrar en base de datos
+      const res = await registrarSalida(caso.id);
+      if (res.error) {
+        setErrorMsg(res.error);
+        return;
+      }
+
+      setSuccessMsg(`Salida registrada el ${formatFecha(res.fechaSalida!)}. PDF guardado.`);
+      onSalida(caso.id, res.fechaSalida!);
     });
   };
 
@@ -180,26 +237,64 @@ export function ModalDetalleCaso({
             </button>
           )}
 
-          {/* Fecha ingreso bloqueada (ya registrada) */}
+          {/* Fecha ingreso bloqueada y Descarga PDF Ingreso */}
           {!puedeRegistrarIngreso && (
-            <div className="flex items-center gap-2 px-4 py-2.5 bg-slate-800/50 border border-slate-700 rounded-xl">
-              <Lock className="w-4 h-4 text-slate-500 shrink-0" />
-              <div className="text-xs text-slate-400">
-                <span className="font-semibold text-slate-300">Ingreso registrado: </span>
-                {formatFecha(caso.fechaIngreso)}
+            <div className="flex items-center justify-between gap-2 px-4 py-2.5 bg-slate-800/50 border border-slate-700 rounded-xl">
+              <div className="flex items-center gap-2">
+                <Lock className="w-4 h-4 text-slate-500 shrink-0" />
+                <div className="text-xs text-slate-400">
+                  <span className="font-semibold text-slate-300">Ingreso: </span>
+                  {formatFecha(caso.fechaIngreso)}
+                </div>
               </div>
+              <a
+                href={urlPdfIngreso}
+                target="_blank"
+                rel="noreferrer"
+                className="text-xs font-semibold text-emerald-400 hover:text-emerald-300 transition-colors flex items-center gap-1.5"
+              >
+                <ClipboardCheck className="w-3.5 h-3.5" />
+                Ver PDF
+              </a>
             </div>
           )}
 
-          {/* Reporte de Salida */}
-          {puedeSalida && (
+          {/* Registrar Reporte de Salida */}
+          {puedeRegistrarSalida && (
             <button
               onClick={handleReporteSalida}
-              className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold rounded-xl transition-all shadow-lg shadow-indigo-600/20"
+              disabled={isPendingSalida}
+              className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-sm font-semibold rounded-xl transition-all shadow-lg shadow-indigo-600/20"
             >
-              <FileOutput className="w-4 h-4" />
-              Reporte de Salida
+              {isPendingSalida ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <FileOutput className="w-4 h-4" />
+              )}
+              {isPendingSalida ? "Registrando Salida..." : "Registrar Reporte de Salida"}
             </button>
+          )}
+
+          {/* Fecha salida bloqueada y Descarga PDF Salida */}
+          {tieneSalida && (
+            <div className="flex items-center justify-between gap-2 px-4 py-2.5 bg-slate-800/50 border border-slate-700 rounded-xl">
+              <div className="flex items-center gap-2">
+                <Lock className="w-4 h-4 text-slate-500 shrink-0" />
+                <div className="text-xs text-slate-400">
+                  <span className="font-semibold text-slate-300">Salida: </span>
+                  {formatFecha(caso.fechaSalida)}
+                </div>
+              </div>
+              <a
+                href={urlPdfSalida}
+                target="_blank"
+                rel="noreferrer"
+                className="text-xs font-semibold text-indigo-400 hover:text-indigo-300 transition-colors flex items-center gap-1.5"
+              >
+                <FileOutput className="w-3.5 h-3.5" />
+                Ver PDF
+              </a>
+            </div>
           )}
 
           {/* Mensajes */}

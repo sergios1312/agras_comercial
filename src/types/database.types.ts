@@ -215,6 +215,8 @@ export interface Caso {
   created_at?: string;
   equipo?: string | null;
   estado_sistema?: string | null;
+  descripcion_tecnica?: string | null;
+  descripcion_salida?: string | null;
 }
 
 // ─── Database Schema (para tipado de Supabase Client) ────────
