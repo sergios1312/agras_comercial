@@ -15,6 +15,7 @@ import {
   ChevronLeft,
   ChevronRight,
   ClipboardList,
+  ClipboardCheck,
 } from "lucide-react";
 import { useState } from "react";
 
@@ -55,8 +56,8 @@ export function Sidebar({ userEmail, userRole }: SidebarProps) {
     },
     {
       href: "/casos",
-      label: "Procesos",
-      icon: <FileText className="w-5 h-5 shrink-0" />,
+      label: "Casos",
+      icon: <ClipboardCheck className="w-5 h-5 shrink-0" />,
     },
     {
       href: "/administrador",

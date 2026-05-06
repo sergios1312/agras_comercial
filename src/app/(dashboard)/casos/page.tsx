@@ -1,120 +1,136 @@
-import { createClient } from "@/utils/supabase/server";
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
 import type { Metadata } from "next";
-import { SucursalExpander } from "@/components/casos/SucursalExpander";
-import { KpiCard } from "@/components/estadisticas/KpiCard";
-import { FileText, Clock, CheckCircle, AlertTriangle } from "lucide-react";
-import { PanelNotificaciones } from "@/components/casos/PanelNotificaciones";
-import type { HistorialPedido } from "@/types/database.types";
-import { getUltimasActualizaciones } from "@/app/(dashboard)/inventario/config-actions";
+import { createAdminClient } from "@/utils/supabase/admin";
+import { CasosClientWrapper } from "@/components/casos/CasosClientWrapper";
+import { contarDiasHabiles } from "@/lib/rtat";
+import { PLAZOS_IDEALES } from "@/types/casos.types";
+import type { ClasificacionSLA } from "@/types/casos.types";
+import type { CasoUI } from "@/components/casos/CasosClientWrapper";
+
+export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Procesos y Notificaciones",
-  description: "Gestión y seguimiento de procesos por sucursal.",
+  title: "Casos | Sistema de Garantías",
+  description: "Gestión completa de casos de garantía con seguimiento de ingreso y salida.",
 };
 
-export default async function CasosPage() {
-  const supabase = await createClient();
+function clasificarSLA(rtat: number | null, tipoTrabajo: string): ClasificacionSLA {
+  if (rtat === null) return null;
+  const plazo = PLAZOS_IDEALES[tipoTrabajo];
+  if (!plazo) return null;
+  if (rtat <= plazo) return "A TIEMPO";
+  if (rtat <= plazo * 2) return "APLAZADO";
+  return "ATRASADO";
+}
 
+export default async function CasosPage() {
   const user = await getSession();
   if (!user) redirect("/login");
 
   const isAdmin = user.role === "admin";
+  const db = createAdminClient() as any;
+  const hoy = new Date().toISOString().slice(0, 10);
 
-  if (!isAdmin) {
-    return (
-      <div className="flex flex-col items-center justify-center h-full py-20 text-slate-500">
-        <FileText className="w-12 h-12 mb-3 opacity-30" />
-        <p className="text-sm">Acceso restringido al administrador.</p>
-      </div>
-    );
-  }
+  // ── Sucursales para el formulario ────────────────────────────
+  const { data: sucursalesData } = await db
+    .from("sucursales")
+    .select("id, nombre_ciudad")
+    .order("nombre_ciudad");
 
-  // Obtener configuración para ver si modo prueba está activo
-  const { getConfigPedidos } = await import("@/app/(dashboard)/inventario/config-actions");
-  const configPedidos = await getConfigPedidos();
+  const sucursales = (sucursalesData ?? []) as { id: number; nombre_ciudad: string }[];
 
-  // Obtener fecha de la base de casos crudos desde la DB
-  const updates = await getUltimasActualizaciones();
-  const fechaCasosRaw = updates.casos;
-  const fechaCasos = fechaCasosRaw ? new Date(fechaCasosRaw).toLocaleString('es-PE') : null;
+  // ── Carga de casos ───────────────────────────────────────────
+  const casosRaw: any[] = [];
+  let from = 0;
+  const step = 1000;
 
-  // Cargar todos los pedidos reales
-  const { data: historialOriginal } = await supabase
-    .from("historial_pedidos")
-    .select("*, repuestos(codigo, nombre, codigo_sap)")
-    .order("fecha_pedido", { ascending: false });
+  while (true) {
+    let query = db
+      .from("casos")
+      .select("*, sucursales(id, nombre_ciudad)")
+      .eq("estado_sistema", "activo")
+      .order("numeracion_caso", { ascending: false })
+      .range(from, from + step - 1);
 
-  let pedidos = (historialOriginal ?? []) as HistorialPedido[];
-
-  // Si hay modo prueba, traemos también las de prueba
-  if (configPedidos.modo_prueba) {
-    const { data: historialPrueba } = await supabase
-      .from("historial_pedidos_prueba")
-      .select("*, repuestos(codigo, nombre, codigo_sap)");
-      
-    if (historialPrueba && historialPrueba.length > 0) {
-      const historialPruebaMarcado = (historialPrueba as HistorialPedido[]).map(p => ({ ...p, is_test: true }));
-      pedidos = [...pedidos, ...historialPruebaMarcado].sort(
-        (a, b) => new Date(b.fecha_pedido).getTime() - new Date(a.fecha_pedido).getTime()
-      );
+    // Filtrar por sucursal para usuarios no-admin
+    if (!isAdmin && user.id_db) {
+      query = query.eq("sucursal_id", user.id_db);
     }
+
+    const { data, error } = await query;
+    if (error || !data || data.length === 0) break;
+    casosRaw.push(...data);
+    if (data.length < step) break;
+    from += step;
   }
 
-  // KPIs globales
-  const total = pedidos.length;
-  const pendientes = pedidos.filter((p) => p.estado === "Pendiente").length;
-  const completados = pedidos.filter((p) =>
-    p.estado === "Recibido" || p.estado === "Aprobado"
-  ).length;
-  const sinStock = pedidos.filter((p) => p.tipo_reporte.toLowerCase() === "reposición").length;
+  // ── Procesamiento ─────────────────────────────────────────────
+  const casos: CasoUI[] = casosRaw
+    .filter((row) => row.numeracion_caso !== "0000")
+    .map((row) => {
+      const rtat = row.fecha_ingreso
+        ? contarDiasHabiles(row.fecha_ingreso, row.fecha_salida ?? hoy)
+        : null;
+      const rtatFinal = rtat !== null && rtat >= 0 ? rtat : null;
+      const fechaSalida = row.fecha_salida || null;
+      const periodo = fechaSalida ? fechaSalida.slice(0, 7) : null;
+      const sla = clasificarSLA(rtatFinal, row.tipo_trabajo || "");
+      const sucursalNombre: string = row.sucursales?.nombre_ciudad ?? "Sin sucursal";
 
-  // Agrupar por sucursal de origen
-  const porSucursal: Record<string, HistorialPedido[]> = {};
-  for (const p of pedidos) {
-    const key = p.sucursal_origen ?? "sin definir";
-    if (!porSucursal[key]) porSucursal[key] = [];
-    porSucursal[key].push(p);
-  }
+      return {
+        id: row.id,
+        numeracionCaso: row.numeracion_caso,
+        estadoGeneral: row.estado_general || "ABIERTO",
+        descripcion: row.descripcion || "",
+        sucursal: sucursalNombre,
+        sucursalId: row.sucursal_id ?? null,
+        cliente: row.cliente || "",
+        equipo: row.equipo || "",
+        garantia: row.garantia || "",
+        estadoCaso: row.estado_caso || "SIN ESTADO",
+        tipoTrabajo: row.tipo_trabajo || "SIN TIPO",
+        fechaIngreso: row.fecha_ingreso || null,
+        fechaSalida,
+        periodoMensual: periodo,
+        rtat: rtatFinal,
+        clasificacionSLA: sla,
+      };
+    });
 
   return (
-    <div className="space-y-6">
-      {/* Indicador de última vez modificado */}
-      {fechaCasos && (
-        <div className="flex justify-end text-sm text-indigo-400 font-medium">
-          Base de casos actualizada el {fechaCasos}
+    <div className="space-y-5">
+      {/* Header de página */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-slate-800 pb-4">
+        <div>
+          <h1 className="text-2xl font-bold text-white flex items-center gap-2">
+            📋 Casos
+          </h1>
+          <p className="text-sm text-slate-400 mt-1">
+            {isAdmin
+              ? `${casos.length} casos en total · Acceso completo a todas las sucursales.`
+              : `${casos.length} casos de la sucursal ${user.ciudad}.`}
+          </p>
         </div>
-      )}
-
-      {/* Zona Superior Admin - Operaciones */}
-      {/* Panel de Notificaciones Interactivo */}
-      <PanelNotificaciones />
-
-      {/* KPIs globales */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <KpiCard title="Total Casos" value={total} icon={<FileText className="w-5 h-5" />} />
-        <KpiCard title="Pendientes" value={pendientes} icon={<Clock className="w-5 h-5" />} trend={pendientes > 0 ? "down" : "neutral"} />
-        <KpiCard title="Completados" value={completados} icon={<CheckCircle className="w-5 h-5" />} trend="up" />
-        <KpiCard title="Sin Stock" value={sinStock} icon={<AlertTriangle className="w-5 h-5" />} trend={sinStock > 0 ? "down" : "neutral"} />
-      </div>
-
-      {/* Expanders por sucursal */}
-      <div className="space-y-3">
-        <h2 className="text-sm font-semibold text-slate-400 uppercase tracking-widest">
-          Detalle por Sucursal
-        </h2>
-        {Object.entries(porSucursal).length === 0 ? (
-          <div className="text-center py-12 text-slate-500">
-            <FileText className="w-10 h-10 mx-auto mb-2 opacity-30" />
-            <p className="text-sm">No hay datos disponibles.</p>
+        {!isAdmin && (
+          <div className="px-3 py-1.5 bg-slate-800/50 border border-slate-700/50 rounded-lg text-xs text-slate-400 font-medium">
+            Sede:{" "}
+            <span className="text-slate-200 font-semibold uppercase">
+              {user.ciudad}
+            </span>
           </div>
-        ) : (
-          Object.entries(porSucursal).map(([sucursal, items]) => (
-            <SucursalExpander key={sucursal} sucursal={sucursal} pedidos={items} />
-          ))
         )}
       </div>
+
+      {/* Módulo principal */}
+      <CasosClientWrapper
+        casos={casos}
+        sucursales={sucursales}
+        isAdmin={isAdmin}
+        userSucursal={user.ciudad}
+        userSucursalId={user.id_db ?? null}
+        userEmail={user.usuario}
+      />
     </div>
   );
 }
