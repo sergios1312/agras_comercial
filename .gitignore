@@ -36,12 +36,10 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# installers and large files
+# Large files and installers (GitHub limit 100MB)
 *.exe
 *.xlsm
-*.xlsx
-*.webp
-*.jpg
-*.png
-!public/
-!src/
+*.msi
+/scratch/
+/.next/
+/node_modules/
