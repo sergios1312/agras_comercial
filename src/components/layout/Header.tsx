@@ -3,10 +3,10 @@
 import { usePathname } from "next/navigation";
 
 const ROUTE_LABELS: Record<string, string> = {
-  "/reportes": "📋 Reportes y Cotizaciones",
-  "/estadisticas": "📊 Estadísticas Comerciales",
-  "/academy": "🎓 Academy (Capacitaciones)",
-  "/administrador": "⚙️ Panel de Administrador",
+  "/reportes": "Reportes y Cotizaciones",
+  "/estadisticas": "Estadísticas Comerciales",
+  "/academy": "Academy (Capacitaciones)",
+  "/administrador": "Panel de Administrador",
 };
 
 export function Header() {

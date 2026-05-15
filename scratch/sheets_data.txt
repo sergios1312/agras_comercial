@@ -1,0 +1,310 @@
+﻿python : C:\Users\s_ara\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\openpyxl\worksheet\_reader.py:329: 
+UserWarning: Conditional Formatting extension is not supported and will be removed
+En línea: 1 Carácter: 1
++ python scratch\extract_sheets.py 2>&1 | Out-File -Encoding utf8 scrat ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (C:\Users\s_ara\...will be removed:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+  warn(msg)
+C:\Users\s_ara\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\openpyxl\worksheet\_reader.py:329: 
+UserWarning: Data Validation extension is not supported and will be removed
+  warn(msg)
+Found: ['C:\\Users\\s_ara\\OneDrive\\Escritorio\\Proyectos\\agras_comercial\\Cotizaci├│n Ecommerce (1).xlsm']
+Sheets: ['VENTA DIRECTA QTC', 'Hoja1', 'PRODUCTOS', 'CLIENTES', 'REGISTRO', 'base']
+
+=== VENTA DIRECTA QTC (rows 1-40, cols A-R) ===
+  B2: 'DJI PER├Ü - QTC'
+  J2: 'FORMULA ACCESORIOS INDIVIDUALES'
+  B4: 'GRUPO QTC S.A.C.'
+  G4: 'COTIZACI├ôN ECOMMERCE'
+  J4: '#REF!'
+  B5: 20601844916
+  H5: 'VENTA DIRECTA'
+  B6: 'Av. Rep├║blica de Panam├í Nro. 3623 Int. 2901 Urb. El Palomar Lima - Lima - San Isidro'
+  B7: 'San Isidro - Lima'
+  G7: 'FECHA '
+  H7: datetime.datetime(2026, 5, 7, 0, 0)
+  G8: 'COTIZACION # '
+  H8: 659
+  G9: 'CLIENTE ID '
+  B10: 'Ejecutivo Comercial: '
+  C10: 'Giantmarco Garcia'
+  G10: 'VALIDO HASTA '
+  H10: datetime.datetime(2026, 5, 14, 0, 0)
+  B11: 'Telefono: '
+  C11: '51 922 808 197'
+  B12: 'Correo:'
+  C12: 'giantmarco.garcia@quetalcompra.com'
+  B14: 'CLIENTE:'
+  B15: 'DNI O RUC: '
+  C15: 20564232221
+  B16: 'Nombre:'
+  C16: 'Matilda Global S.A.C.'
+  B17: 'Telefono: '
+  B18: 'Correo:'
+  I18: 'e'
+  B19: 'Cotizaci├│n:'
+  C19: 'KIT AGRAS T100 GENERADOR'
+  B21: '├ìTEMS'
+  C21: 'DESCRIPCION'
+  D21: 'FOTO'
+  E21: 'MONTO UNIT.'
+  F21: 'IGV'
+  G21: 'CANT.'
+  H21: 'TOTAL'
+  I21: 'Columna1'
+  J21: 'KIT AGRAS T70P GENERADOR'
+  B22: 1
+  C22: 'DJI T100 Spraying System with Air-Cooled Heat Sink?Overseas?'
+  D22: '#VALUE!'
+  E22: 128500
+  F22: 23130
+  G22: 1
+  H22: 128500
+  I22: 'CN9405465NA8'
+  J22: 'KIT AGRAS T100 GENERADOR'
+  R22: 0
+  B23: 2
+  C23: 'DJI T100 Intelligent Airframe(Overseas V1?'
+  D23: '#VALUE!'
+  G23: 1
+  I23: 'CN9405464NA8'
+  J23: 'KIT AGRAS T100 GENERADOR'
+  R23: 108898.31
+  B24: 3
+  C24: 'DB2160 Intelligent Flight Battery (Global)'
+  D24: '#VALUE!'
+  G24: 3
+  I24: 'CN9405119NA8'
+  J24: 'KIT AGRAS T100 GENERADOR'
+  R24: 0
+  B25: 4
+  C25: 'D14000IE Multifunctional Inverter Generator'
+  D25: '#VALUE!'
+  G25: 1
+  I25: 'CN9405498NA8'
+  J25: 'KIT AGRAS T100 GENERADOR'
+  R25: 0
+  B26: 5
+  C26: 'DJI 65W Portable Charger(NA)'
+  D26: '#VALUE!'
+  G26: 1
+  I26: 'CN13100001NA8'
+  J26: 'ACCESORIOS'
+  R26: 0
+  B27: 6
+  C27: 'WB37 Intelligent Battery'
+  D27: '#VALUE!'
+  G27: 1
+  I27: 'CN9406006NA2'
+  J27: 'ACCESORIOS'
+  R27: 0
+  B28: 7
+  I28: 'CN9409108NA8'
+  J28: 'KIT AGRAS T100 GENERADOR'
+  R28: 0
+  B29: '┬╣ Esta cotizaci├│n es valida para Que Tal Compra. ┬▓ Que Tal Compra del Per├║ S.A.C no cuenta con pol├¡ticas de devoluci├│n.
+  R29: 0
+  B31: 'En caso el cliente desista de su compra, luego de haber realizado el pago, se realizar├í una retenci├│n de S/1,500 por ga
+  F31: 'IGV %'
+  H31: 23130
+  F32: 'TOTAL'
+  H32: 128500
+  B33: 'Los precios no incluyen gastos de env├¡o.'
+  B34: 'TIEMPO DE GARANT├ìA '
+  E34: '   M├ëTODOS DE PAGO'
+  B35: 'Brindamos 12 meses de garant├¡a o 1,500 ciclos de uso de la bater├¡a (lo que ocurra primero). Para m├ís informaci├│n sobre 
+
+=== PRODUCTOS (first 40 rows, cols A-J) ===
+  A1='TIPO' | B1='COD. FABRICANTE' | C1='COD. SAP' | D1='PRODUCTO' | E1='CANTIDAD' | F1='PVP' | G1='P.SUBDEALER' | H1='FOTO' | I1='Column1'
+  A2='ACCESORIOS' | B2='CP.BX.000229.02' | C2='CN9406006NA2' | D2='WB37 Intelligent Battery' | E2=1 | F2=503.09999999999997 | H2='#VALUE!'
+  A3='ACCESORIOS' | C3='CN0900384NA8' | D3='UGREEN Nexode Pro 65W 3-Port GaN Fast Charger Set US X755' | E3=1 | F3=178.9
+  A4='ACCESORIOS' | B4='CP.AG.0000074702' | C4='CN13100006NA8' | D4='T50 Atomized Sprinkler Package(Global)' | E4=1 | F4=3120 | H4='#VALUE!'
+  A5='ACCESORIOS' | B5='CP.AG.00000563.0' | C5='CN0909185NA9' | D5='T40 Spreading System' | E5=1 | F5=5456.099999999999
+  A6='ACCESORIOS' | B6='CP.AG.00000583.0' | C6='CN0909182NA5' | D6='T40 Intelligent Flight Battery' | E6=1 | F6=12714.585000000001
+  A7='ACCESORIOS' | C7='CN0909180NA5' | D7='T30 Intelligent Battery Station' | E7=1 | F7=8158.839000000001
+  A8='ACCESORIOS' | B8='CP.AG.0000074802' | C8='CN13100002NA8' | D8='T25 Atomized SprinklerPackage(Global)' | E8=1 | F8=2730 | H8='#VALUE!'
+  A9='ACCESORIOS' | B9='CP.AG.00000567.0' | C9='CN0909183NA5' | D9='T20P Spreading System' | E9=1 | F9=4676.099999999999 | H9='#VALUE!'
+  A10='ACCESORIOS' | B10='CP.AG.00000584.0' | C10='CN0909183NA8' | D10='T20P Intelligent Flight Battery (Oversa)' | E10=1 | F10=5261.099999999999 | H10='#VALUE!'
+  A11='ACCESORIOS' | B11='CP.AG.0000042102' | C11='CN13100423NA8' | D11='T20 Intelligent flight battery' | E11=1 | F11=4250.598 | H11='#VALUE!'
+  A12='ACCESORIOS' | B12='CP.AG.0000028901' | C12='CN13100421NA8' | D12='T10 Intelligent Battery Station (with ACDC) (HJ)' | E12=1 | F12=4167.119 | H12='#VALUE!'
+  A13='ACCESORIOS' | B13='CP.AG.0000078002' | C13='CN13100010NA8' | D13='Spreading System T50' | E13=1 | F13=6630 | H13='#VALUE!'
+  A14='ACCESORIOS' | B14='CP.AG.0000078101' | C14='CN13100004NA8' | D14='Spreading System T25' | E14=1 | F14=6240 | H14='#VALUE!'
+  A15='ACCESORIOS' | C15='CN9406009NA1' | D15='Mavic 3 Battery Charging Hub (100W)' | E15=1 | F15=509.1570000000001
+  A16='ACCESORIOS' | C16='LIFT T70' | D16='Lifting System T70' | F16=7200 | H16='#VALUE!'
+  A17='ACCESORIOS' | C17='LIFT T100' | D17='Lifting System T100' | F17=8100 | H17='#VALUE!'
+  A18='ACCESORIOS' | C18='CN0909189NA2' | D18='D6000i Multifunctional Inverter generator (KR)' | E18=1 | F18=9750 | H18='#VALUE!'
+  A19='ACCESORIOS' | C19='CN9401793NA8' | D19='External RC Antenna' | F19=140 | G19=60 | H19='#VALUE!'
+  A20='ACCESORIOS' | B20='CP.EN.00000304.0' | C20='CN9406003NA1' | D20='D-RTK 2 High Precision GNSS Mobile Station (NA&AU&TW&BR)' | E20=1 | F20=13934.348999999998 | H20='#VALUE!'
+  A21='ACCESORIOS' | B21='CP.AG.00000002.0' | C21='CN9406005NA3' | D21='D-RTK 2 BASE STATION TRIPOD (RH)' | E21=1 | F21=995.241 | H21='#VALUE!'
+  A22='ACCESORIOS' | B22='CP.RN.00000203.0' | C22='CN12800004NA8' | D22='DJI WB37 Battery Charging Hub (USB-C)' | E22=1 | F22=581.1 | H22='#VALUE!'
+  A23='ACCESORIOS' | C23='CN9405496NA8' | D23='DJI T70 Spreading System' | E23=1 | F23=7045 | H23='#VALUE!'
+  A24='ACCESORIOS' | C24='CN13100211NA8' | D24='DJI Spotlight´╝êAG T50/T25)' | F24=700 | H24='#VALUE!'
+  A25='ACCESORIOS' | C25='CN12800001BK8' | D25='DJI RC Pro Enterprise' | E25=1 | F25=6240 | H25='#VALUE!'
+  A26='ACCESORIOS' | C26='CN9500001NA8' | D26='DJI Mavic Intelligent Flight Batter' | E26=1 | F26=1149.0013999999999
+  A27='ACCESORIOS' | C27='CN9405263NA8' | D27='DJI D-RTK 3 Survey Pole and Tripod Kit' | E27=1 | F27=995.241 | H27='#VALUE!'
+  A28='ACCESORIOS' | C28='CN9405263NA8' | D28='DJI D-RTK 3 Survey Pole and Tripod Kit' | E28=1 | F28=995.241
+  A29='ACCESORIOS' | C29='CN9405262NA8' | D29='DJI D-RTK 3 Multifunctional Station ' | E29=1 | F29=13934.349 | H29='#VALUE!'
+  A30='ACCESORIOS' | C30='CN9405262NA8' | D30='DJI D-RTK 3 Multifunctional Station ' | E30=1 | F30=13934.348999999998 | H30='#VALUE!'
+  A31='ACCESORIOS' | B31='CP.AG.0000081103' | C31='CN13100321NA8' | D31='DJI C8000 Intelligent Battery' | E31=1 | F31=8158.4 | H31='#VALUE!'
+  A32='ACCESORIOS' | C32='CN9405466NA8' | D32='DJI C12000 Intelligent Power Supply' | E32=1 | F32=9820 | H32='#VALUE!'
+  A33='ACCESORIOS' | B33='CP.MA.00000428.0' | C33='CN13100001NA8' | D33='DJI 65W Portable Charger(NA)' | E33=1 | F33=386.09999999999997 | H33='#VALUE!'
+  A34='ACCESORIOS' | C34='CN9405500NA8' | D34='DJI 150L Spreading System (Global)' | E34=1 | F34=10670 | H34='#VALUE!'
+  A35='ACCESORIOS' | C35='enfriador' | D35='Disipador de calor para bater├¡as DB1560' | H35='#VALUE!'
+  A36='ACCESORIOS' | B36='CP.AG.0000078402' | C36='CN13100009NA8' | D36='DB800 Intelligent Flight Battery' | E36=1 | F36=7800 | H36='#VALUE!'
+  A37='ACCESORIOS' | C37='CN9405119NA8' | D37='DB2160 Intelligent Flight Battery (Global)' | E37=1 | F37=14600 | H37='#VALUE!'
+  A38='ACCESORIOS' | B38='CP.AG.0000078301' | C38='CN13100212NA8' | D38='DB1560 Intelligent Flight Battery(Oversea)' | E38=1 | F38=13006.5 | H38='#VALUE!'
+  A39='ACCESORIOS' | C39='CN0909189NA2' | D39='D6000i Multifunctional Inverter generator (KR)' | E39=1 | F39=9551.1 | H39='#VALUE!'
+  A40='ACCESORIOS' | B40='CP.AG.00000574.0' | C40='CN0909182NA2' | D40='D12000iE-Paper Filter' | E40=1 | F40=77.61 | H40='#VALUE!'
+
+=== CLIENTES (first 5 rows) ===
+  A1: 'DNI O RUC: '
+  B1: 'Nombre:'
+  C1: 'Telefono: '
+  D1: 'Correo:'
+  A2: '20531513615'
+  B2: 'Agr├¡cola del Biavo SA'
+  C2: 51989597611
+  D2: 'allisongavilan2@gmail.com'
+  A3: '20116225779\xa0'
+  B3: 'Agroindustrias San Jacinto'
+  C3: '+51 934 778 481'
+  A4: '20613492926'
+  B4: 'ASOCIACION DE PRODUCTORES DE MANZANA DEL DISTRITO DE MALA'
+  C4: 979644337
+  D4: 'bullconsultores2025@gmail.com'
+  A5: '20558642417'
+  B5: 'C&M FUMIGACIONES SAC'
+  C5: 950313779
+
+=== REGISTRO (first 3 rows) ===
+  A1: 'OV'
+  B1: 'DNI O RUC: '
+  C1: 'Nombre:'
+  D1: 'Telefono: '
+  E1: 'Correo:'
+  F1: 'Tipo Venta'
+  G1: 'Fecha'
+  H1: 'Margen'
+  I1: 'SAP'
+  J1: 'Cantidad'
+  K1: 'Nombre Producto'
+  L1: 'Precio Articulos'
+  M1: 'Ejecutivo'
+  A2: 188
+  B2: '20524743532\xa0'
+  C2: 'GEODESIA Y TOPOGRAF├ìA S.A.C'
+  D2: '+51 999 021 588'
+  E2: 'bettina.villanueva@geotop.la'
+  F2: 'VENTA DIRECTA'
+  G2: datetime.datetime(2025, 6, 8, 0, 0)
+  H2: 0
+  I2: 'CN13100421NA8'
+  J2: 3
+  K2: 'T10 Intelligent Battery Station (with ACDC) (HJ)'
+  L2: 12501.357
+  M2: 'Ana Heiland'
+  A3: 190
+  B3: 47963953
+  C3: 'Mu├▒oz'
+  D3: 961492493
+  F3: 'VENTA DIRECTA'
+  G3: datetime.datetime(2025, 6, 9, 0, 0)
+  H3: 0
+  I3: 'CN9402577NA8'
+  J3: 2
+  K3: 'Auxiliary Bottom Light Module'
+  L3: 500.01
+  M3: 'Jerson Mendoza'
+
+=== base (first 10 rows) ===
+  A1: '#'
+  B1: 'Cod.SAP'
+  C1: 'Descripci├│n del art├¡culo'
+  D1: 'Nombre de grupo'
+  E1: 'QC Color Item'
+  F1: 'XIAOMI SKU'
+  G1: 'XIAOMI ID'
+  H1: 'En stock'
+  I1: 'C├│digo de almac├®n'
+  J1: 'Nombre de almac├®n'
+  A2: 1
+  B2: 'CN9401246NA8'
+  C2: '32"TV bracket'
+  D2: 'HOGAR'
+  E2: 'NA'
+  H2: 16
+  I2: 'APRI.REC'
+  J2: 'APRI REC'
+  A3: 2
+  B3: 'CN9401247NA8'
+  C3: '65"TV bracket'
+  D3: 'HOGAR'
+  E3: 'NA'
+  H3: 10
+  I3: 'APRI.REC'
+  J3: 'APRI REC'
+  A4: 3
+  B4: 'CN9405044NA8'
+  C4: 'BLOKEES Minions preCool 01 Bob Age: 4+ 74835'
+  D4: 'JUGUETES'
+  E4: 'NA'
+  G4: 0
+  H4: 61
+  I4: 'APRI.001'
+  J4: 'ALMACEN CENTRAL'
+  A5: 4
+  B5: 'CN9405044NA8'
+  C5: 'BLOKEES Minions preCool 01 Bob Age: 4+ 74835'
+  D5: 'JUGUETES'
+  E5: 'NA'
+  G5: 0
+  H5: 1
+  I5: 'APRI.PRE'
+  J5: 'ALMAC├ëN CENTRAL - PRESTAMO'
+  A6: 5
+  B6: 'CN9405044NA8'
+  C6: 'BLOKEES Minions preCool 01 Bob Age: 4+ 74835'
+  D6: 'JUGUETES'
+  E6: 'NA'
+  G6: 0
+  H6: 1
+  I6: 'HUCO.TRA'
+  J6: 'TIENDA HUAWEI - COMAS - TRANSITO'
+  A7: 6
+  B7: 'CN9405045NA8'
+  C7: 'BLOKEES Minions preCool 02 Otto Age: 4+ 74836'
+  D7: 'JUGUETES'
+  E7: 'NA'
+  G7: 0
+  H7: 1
+  I7: 'HUCO.TRA'
+  J7: 'TIENDA HUAWEI - COMAS - TRANSITO'
+  A8: 7
+  B8: 'CN9405045NA8'
+  C8: 'BLOKEES Minions preCool 02 Otto Age: 4+ 74836'
+  D8: 'JUGUETES'
+  E8: 'NA'
+  G8: 0
+  H8: 61
+  I8: 'APRI.001'
+  J8: 'ALMACEN CENTRAL'
+  A9: 8
+  B9: 'CN9405045NA8'
+  C9: 'BLOKEES Minions preCool 02 Otto Age: 4+ 74836'
+  D9: 'JUGUETES'
+  E9: 'NA'
+  G9: 0
+  H9: 1
+  I9: 'APRI.PRE'
+  J9: 'ALMAC├ëN CENTRAL - PRESTAMO'
+  A10: 9
+  B10: 'CN9405046NA8'
+  C10: 'BLOKEES Minions preCool 03 Stuart Age: 4+ 74837'
+  D10: 'JUGUETES'
+  E10: 'NA'
+  G10: 0
+  H10: 60
+  I10: 'APRI.001'
+  J10: 'ALMACEN CENTRAL'

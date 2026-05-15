@@ -126,7 +126,7 @@ export function HeatmapSLA({ getDataPeriodo, getDataTipo }: Props) {
                 ? "bg-emerald-600/25 border-emerald-500/40 text-emerald-300"
                 : "bg-slate-800 border-slate-700 text-slate-400 hover:text-slate-200"}`}
           >
-            {m === "ETD" ? "🎯 ETD (A tiempo)" : "⏱ TAT (Tiempo máximo)"}
+            {m === "ETD" ? " ETD (A tiempo)" : " TAT (Tiempo máximo)"}
           </button>
         ))}
         <span className="text-[11px] text-slate-600 self-center ml-2">{metaLabel}</span>
@@ -141,7 +141,7 @@ export function HeatmapSLA({ getDataPeriodo, getDataTipo }: Props) {
               ? "border-emerald-500 text-emerald-300"
               : "border-transparent text-slate-500 hover:text-slate-300"}`}
         >
-          📅 Por Periodo
+           Por Periodo
         </button>
         <button
           onClick={() => setActiveTab("tipo")}
@@ -150,7 +150,7 @@ export function HeatmapSLA({ getDataPeriodo, getDataTipo }: Props) {
               ? "border-emerald-500 text-emerald-300"
               : "border-transparent text-slate-500 hover:text-slate-300"}`}
         >
-          🔧 Por Tipo de Trabajo
+           Por Tipo de Trabajo
         </button>
       </div>
 

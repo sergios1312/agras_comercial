@@ -337,7 +337,7 @@ export function ModalCrearEditarCaso({
               <div>
                 <label className={labelCls}>
                   Fecha de Ingreso{" "}
-                  <span className="text-amber-400 text-[10px] ml-1">🔒 BLOQUEADA</span>
+                  <span className="text-amber-400 text-[10px] ml-1"> BLOQUEADA</span>
                 </label>
                 <input
                   readOnly

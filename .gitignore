@@ -35,3 +35,13 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# installers and large files
+*.exe
+*.xlsm
+*.xlsx
+*.webp
+*.jpg
+*.png
+!public/
+!src/

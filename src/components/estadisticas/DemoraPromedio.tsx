@@ -51,7 +51,7 @@ export function DemoraPromedio({ isAdmin = true, demoraSucData, demoraTipoData }
                 ? "border-indigo-500 text-indigo-300"
                 : "border-transparent text-slate-500 hover:text-slate-300"}`}
           >
-            🔒 Garantía
+             Garantía
           </button>
           <button
             onClick={() => setActiveTab("tipoTrabajo")}
@@ -60,7 +60,7 @@ export function DemoraPromedio({ isAdmin = true, demoraSucData, demoraTipoData }
                 ? "border-indigo-500 text-indigo-300"
                 : "border-transparent text-slate-500 hover:text-slate-300"}`}
           >
-            🔧 Tipo de Trabajo
+             Tipo de Trabajo
           </button>
         </div>
       )}

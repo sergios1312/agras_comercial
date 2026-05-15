@@ -1,0 +1,604 @@
+=== MODULE: ThisWorkbook.cls ===
+Attribute VB_Name = "ThisWorkbook"
+Attribute VB_Base = "0{00020819-0000-0000-C000-000000000046}"
+Attribute VB_GlobalNameSpace = False
+Attribute VB_Creatable = False
+Attribute VB_PredeclaredId = True
+Attribute VB_Exposed = True
+Attribute VB_TemplateDerived = False
+Attribute VB_Customizable = True
+
+
+=== MODULE: Sheet21.cls ===
+Attribute VB_Name = "Sheet21"
+Attribute VB_Base = "0{00020820-0000-0000-C000-000000000046}"
+Attribute VB_GlobalNameSpace = False
+Attribute VB_Creatable = False
+Attribute VB_PredeclaredId = True
+Attribute VB_Exposed = True
+Attribute VB_TemplateDerived = False
+Attribute VB_Customizable = True
+
+
+=== MODULE: Sheet12.cls ===
+Attribute VB_Name = "Sheet12"
+Attribute VB_Base = "0{00020820-0000-0000-C000-000000000046}"
+Attribute VB_GlobalNameSpace = False
+Attribute VB_Creatable = False
+Attribute VB_PredeclaredId = True
+Attribute VB_Exposed = True
+Attribute VB_TemplateDerived = False
+Attribute VB_Customizable = True
+
+
+=== MODULE: Sheet93.cls ===
+Attribute VB_Name = "Sheet93"
+Attribute VB_Base = "0{00020820-0000-0000-C000-000000000046}"
+Attribute VB_GlobalNameSpace = False
+Attribute VB_Creatable = False
+Attribute VB_PredeclaredId = True
+Attribute VB_Exposed = True
+Attribute VB_TemplateDerived = False
+Attribute VB_Customizable = True
+
+
+=== MODULE: Module4.bas ===
+Attribute VB_Name = "Module4"
+Sub GuardadoGian()
+    Dim Ruta As String
+    Dim nombre1 As String, nombre2 As String, nombre3 As String, nombre4 As String
+    Dim nombreCompleto As String, fullPath As String
+    Dim caracteresInvalidos As Variant
+    Dim i As Integer
+
+    RutaPDF = "C:\Users\USER\Desktop\COTIZACIONES\"
+    RutaXLSX = "C:\Users\USER\Desktop\COTIZACIONES\"
+ 
+    If Dir(RutaPDF, vbDirectory) = "" Or Dir(RutaXLSX, vbDirectory) = "" Then
+        MsgBox "Una de las carpetas no existe", vbCritical
+        Exit Sub
+    End If
+
+    ' Obtener nombre
+    nombre1 = Range("H8").Value
+    nombre2 = Range("C16").Value
+    nombre3 = Range("C19").Value
+    nombre4 = Range("H7").Value
+    nombre5 = Range("C10").Value
+    
+    nombreCompletoSinExtension = "Cotización " & nombre1 & " " & nombre2 & " " & nombre3 & " " & nombre4 & " " & nombre5
+    
+    caracteresInvalidos = Array("\", "/", ":", "*", "?", """", "<", ">", "|")
+    For i = LBound(caracteresInvalidos) To UBound(caracteresInvalidos)
+        nombreCompletoSinExtension = Replace(nombreCompletoSinExtension, caracteresInvalidos(i), "-")
+    Next i
+
+    fullPathPDF = RutaPDF & nombreCompletoSinExtension & ".pdf"
+    fullPathXLSX = RutaXLSX & nombreCompletoSinExtension & ".xlsx"
+
+    ' Guardar como PDF
+     ActiveSheet.ExportAsFixedFormat _
+        Type:=xlTypePDF, _
+        Filename:=fullPathPDF, _
+        Quality:=xlQualityStandard, _
+        IncludeDocProperties:=True, _
+        IgnorePrintAreas:=False, _
+        OpenAfterPublish:=False
+
+    ' Guardar como Excel
+    ThisWorkbook.Sheets(ActiveSheet.Name).Copy
+    ActiveWorkbook.SaveAs Filename:=fullPathXLSX, FileFormat:=xlOpenXMLWorkbook
+    ActiveWorkbook.Close SaveChanges:=False
+
+    ' === REGISTRO DE PRODUCTOS (registroCoti) ===
+    Dim hojaVenta As Worksheet
+    Dim hojaRegistro As Worksheet
+    Dim tablaCoti As ListObject, filaCoti As ListRow
+    Dim iRow As Long
+
+    Set hojaVenta = ThisWorkbook.Sheets("VENTA DIRECTA QTC")
+    Set hojaRegistro = ThisWorkbook.Sheets("REGISTRO")
+    Set tablaCoti = hojaRegistro.ListObjects("registroCoti")
+
+    iRow = 21
+    Do While hojaVenta.Cells(iRow, "I").Value <> ""
+        Set filaCoti = tablaCoti.ListRows.Add
+        With filaCoti
+            .Range(1, 1).Value = hojaVenta.Range("H8").Value       ' Cliente
+            .Range(1, 2).Value = hojaVenta.Range("C15").Value      ' DNI o RUC
+            .Range(1, 3).Value = hojaVenta.Range("C16").Value      ' Nombre
+            .Range(1, 4).Value = hojaVenta.Range("C17").Value      ' Teléfono
+            .Range(1, 5).Value = hojaVenta.Range("C18").Value      ' Correo
+            .Range(1, 6).Value = hojaVenta.Range("G5").Value       ' Tipo Cliente
+            .Range(1, 7).Value = hojaVenta.Range("H7").Value       ' Fecha
+            .Range(1, 8).Value = hojaVenta.Range("H15").Value      ' Descuento
+            .Range(1, 9).Value = hojaVenta.Cells(iRow, "I").Value  ' Código SAP
+            .Range(1, 10).Value = hojaVenta.Cells(iRow, "G").Value ' Cantidad
+            .Range(1, 11).Value = hojaVenta.Cells(iRow, "C").Value ' Nombre Producto
+            .Range(1, 12).Value = hojaVenta.Cells(iRow, "H").Value ' Precio Producto
+            .Range(1, 13).Value = hojaVenta.Range("C10").Value     ' Ejecutivo
+        End With
+        iRow = iRow + 1
+    Loop
+
+    ' === REGISTRO DE CLIENTE (registroClientes) ===
+    Dim hojaClientes As Worksheet
+    Dim tablaClientes As ListObject
+    Dim ruc As String, nombre As String, telefono As String, correo As String
+    Dim existeCliente As Boolean
+    Dim filaCliente As ListRow
+
+    Set hojaClientes = ThisWorkbook.Sheets("CLIENTES")
+    Set tablaClientes = hojaClientes.ListObjects("registroClientes")
+    
+    ruc = Trim(hojaVenta.Range("C15").Value)
+    nombre = Trim(hojaVenta.Range("C16").Value)
+    telefono = Trim(hojaVenta.Range("C17").Value)
+    correo = Trim(hojaVenta.Range("C18").Value)
+
+    existeCliente = False
+    For Each filaCliente In tablaClientes.ListRows
+        If Trim(filaCliente.Range(1, 1).Value) = ruc Then
+            existeCliente = True
+            Exit For
+        End If
+    Next filaCliente
+
+    If Not existeCliente And ruc <> "" Then
+        Set filaCliente = tablaClientes.ListRows.Add
+        With filaCliente
+            .Range(1, 1).Value = ruc
+            .Range(1, 2).Value = nombre
+            .Range(1, 3).Value = telefono
+            .Range(1, 4).Value = correo
+        End With
+    End If
+
+    MsgBox "Cotización y cliente registrados correctamente.", vbInformation
+End Sub
+
+
+
+
+
+=== MODULE: Module7.bas ===
+Attribute VB_Name = "Module7"
+Sub IntroduceKITS()
+    Dim hojaProductos As Worksheet
+    Dim hojaVenta As Worksheet
+    Dim tipoCombo As String
+    Dim filaDestino As Long
+    Dim i As Long
+    Dim precioTotal As Double
+    Dim esKIT As Boolean
+    Dim codExtra As Variant
+    Dim k As Long
+    Dim filaExtra As Variant
+    Dim tipoExtra As String
+    
+    Set hojaProductos = ThisWorkbook.Sheets("PRODUCTOS")
+    Set hojaVenta = ThisWorkbook.Sheets("VENTA DIRECTA QTC")
+    
+    ' Clear ranges
+    hojaVenta.Range("I22:I27").ClearContents
+    hojaVenta.Range("J22:J27").ClearContents
+    hojaVenta.Range("E22:E27").ClearContents
+    hojaVenta.Range("F22:F27").ClearContents
+    hojaVenta.Range("G22:G27").ClearContents
+    hojaVenta.Range("H22:H27").ClearContents
+    hojaVenta.Range("R22:R27").ClearContents
+    
+    ' Read combo
+    tipoCombo = hojaVenta.Range("C19").Value
+    If tipoCombo = "" Then
+        MsgBox "Select a product type in C19.", vbExclamation
+        Exit Sub
+    End If
+    
+    ' ====================================================
+    ' ?? Case: ACCESORIOS
+    ' ====================================================
+    If tipoCombo = "ACCESORIOS" Then
+        For filaDestino = 22 To 27
+            hojaVenta.Cells(filaDestino, "J").Value = "ACCESORIOS"
+            
+            ' Unit price formula (E)
+            hojaVenta.Cells(filaDestino, "E").Formula = _
+                "=IF(J" & filaDestino & "=""ACCESORIOS""," & _
+                "IF(H$15<>0,INDEX(PRODUCTOS[PVP],MATCH(1,(PRODUCTOS[COD. SAP]=I" & filaDestino & ")*(PRODUCTOS[TIPO]=J" & filaDestino & "),0))*(1-H$15)," & _
+                "INDEX(PRODUCTOS[PVP],MATCH(1,(PRODUCTOS[COD. SAP]=I" & filaDestino & ")*(PRODUCTOS[TIPO]=J" & filaDestino & "),0)))," & _
+                "IF(J" & filaDestino & "=""REPUESTOS""," & _
+                "IF(H$15<>0,INDEX(PRODUCTOS[P.SUBDEALER],MATCH(1,(PRODUCTOS[COD. SAP]=I" & filaDestino & ")*(PRODUCTOS[TIPO]=J" & filaDestino & "),0))," & _
+                "INDEX(PRODUCTOS[PVP],MATCH(1,(PRODUCTOS[COD. SAP]=I" & filaDestino & ")*(PRODUCTOS[TIPO]=J" & filaDestino & "),0))),""""))"
+
+
+            hojaVenta.Cells(filaDestino, "F").Formula = "=E" * 0.18
+            
+            ' Quantity (G)
+            hojaVenta.Cells(filaDestino, "G").Value = 1
+            
+            ' Total with IGV (H)
+            hojaVenta.Cells(filaDestino, "H").Formula = "=(E" & filaDestino & ")*G" & filaDestino
+            
+            ' Product (C)
+            hojaVenta.Cells(filaDestino, "C").Formula = _
+                "=XLOOKUP(I" & filaDestino & ",PRODUCTOS[COD. SAP],PRODUCTOS[PRODUCTO],""No encontrado"",0)"
+            
+            ' Photo (D)
+            hojaVenta.Cells(filaDestino, "D").Formula = _
+                "=XLOOKUP(I" & filaDestino & ",PRODUCTOS[COD. SAP],PRODUCTOS[FOTO],""No encontrado"",0)"
+        Next filaDestino
+        
+        MsgBox "Accesorios inserted correctly.", vbInformation
+        Exit Sub
+    End If
+    
+    ' ====================================================
+    ' ?? Case: KITs
+    ' ====================================================
+    esKIT = False
+    Select Case tipoCombo
+        Case "KIT AGRAS T25 GENERADOR", _
+             "KIT AGRAS T25 CARGADOR", _
+             "KIT AGRAS T50 GENERADOR", _
+             "KIT AGRAS T50 CARGADOR", _
+             "KIT AGRAS T10", _
+             "KIT AGRAS T100 GENERADOR", _
+             "KIT AGRAS T100 CARGADOR", _
+             "KIT AGRAS T70P GENERADOR", _
+             "MAVIC 3 MULTISPECTRAL", _
+             "KIT AGRAS T25P GENERADOR", _
+             "KIT AGRAS T25P CARGADOR", _
+             "KIT AGRAS T70P CARGADOR"
+            esKIT = True
+    End Select
+    
+    filaDestino = 22
+    precioTotal = 0
+    
+    ' Insert products of the combo from sheet PRODUCTOS
+    For i = 2 To hojaProductos.Cells(hojaProductos.Rows.Count, 1).End(xlUp).Row
+        If hojaProductos.Cells(i, 1).Value = tipoCombo Then
+            hojaVenta.Cells(filaDestino, "I").Value = hojaProductos.Cells(i, 3).Value ' Cod. SAP
+            hojaVenta.Cells(filaDestino, "J").Value = hojaProductos.Cells(i, 1).Value ' Type
+            hojaVenta.Cells(filaDestino, "G").Value = hojaProductos.Cells(i, 5).Value ' Quantity
+            
+            ' Formulas in C and D
+            hojaVenta.Cells(filaDestino, "C").Formula = _
+                "=XLOOKUP(I" & filaDestino & ",PRODUCTOS[COD. SAP],PRODUCTOS[PRODUCTO],""No encontrado"",0)"
+            hojaVenta.Cells(filaDestino, "D").Formula = _
+                "=XLOOKUP(I" & filaDestino & ",PRODUCTOS[COD. SAP],PRODUCTOS[FOTO],""No encontrado"",0)"
+            
+            ' Add to total price
+            precioTotal = precioTotal + (hojaProductos.Cells(i, 5).Value * hojaProductos.Cells(i, 6).Value)
+            
+            ' Column R (unit cost without IGV with margin if applies)
+            If hojaVenta.Range("H15").Value <> 0 Then
+                hojaVenta.Cells(filaDestino, "R").Value = Round((hojaProductos.Cells(i, 6).Value * (1 - hojaVenta.Range("H15").Value)) / 1.18, 2)
+            Else
+                hojaVenta.Cells(filaDestino, "R").Value = Round(hojaProductos.Cells(i, 6).Value / 1.18, 2)
+            End If
+            
+            filaDestino = filaDestino + 1
+            If filaDestino > 40 Then Exit For
+        End If
+    Next i
+    
+    ' If KIT calculate totals in row 22
+    If esKIT Then
+        hojaVenta.Range("E22").Value = Round(precioTotal, 2)
+        If hojaVenta.Range("H15").Value <> 0 Then
+            hojaVenta.Range("E22").Value = Round((precioTotal * (1 - hojaVenta.Range("H15").Value)) / 1.18, 2)
+        End If
+        
+        hojaVenta.Range("F22").Formula = "=E22*0.18"
+        hojaVenta.Range("H22").Formula = "=(E22)*G22"
+        
+        ' Insert required accessories
+        codExtra = Array("CN13100001NA8", "CN9406006NA2")
+        For k = 0 To UBound(codExtra)
+            If filaDestino <= 40 Then
+                hojaVenta.Cells(filaDestino, "I").Value = codExtra(k)
+                hojaVenta.Cells(filaDestino, "G").Value = 1
+                
+                ' Find product row in PRODUCTOS by COD. SAP
+                filaExtra = Application.Match(codExtra(k), hojaProductos.Range("C:C"), 0)
+                If Not IsError(filaExtra) Then
+                    tipoExtra = hojaProductos.Cells(filaExtra, 1).Value
+                Else
+                    tipoExtra = "NO ENCONTRADO"
+                End If
+                hojaVenta.Cells(filaDestino, "J").Value = tipoExtra
+                
+                ' Formulas in C and D
+                hojaVenta.Cells(filaDestino, "C").Formula = _
+                    "=XLOOKUP(I" & filaDestino & ",PRODUCTOS[COD. SAP],PRODUCTOS[PRODUCTO],""No encontrado"",0)"
+                hojaVenta.Cells(filaDestino, "D").Formula = _
+                    "=XLOOKUP(I" & filaDestino & ",PRODUCTOS[COD. SAP],PRODUCTOS[FOTO],""No encontrado"",0)"
+                
+                ' Price formula (E)
+                hojaVenta.Cells(filaDestino, "E").Formula = _
+                    "=IF(J" & filaDestino & "=""ACCESORIOS""," & _
+                    "IF(H$15<>0,XLOOKUP(I" & filaDestino & ",PRODUCTOS[COD. SAP],PRODUCTOS[PVP])*(1-H$15)," & _
+                    "XLOOKUP(I" & filaDestino & ",PRODUCTOS[COD. SAP],PRODUCTOS[PVP]))," & _
+                    "IF(J" & filaDestino & "=""REPUESTOS""," & _
+                    "IF(H$15<>0,XLOOKUP(I" & filaDestino & ",PRODUCTOS[COD. SAP],PRODUCTOS[P.SUBDEALER])," & _
+                    "XLOOKUP(I" & filaDestino & ",PRODUCTOS[COD. SAP],PRODUCTOS[PVP])),""""))"
+                
+                hojaVenta.Cells(filaDestino, "F").Formula = "=E" & filaDestino & "*0.18"
+                hojaVenta.Cells(filaDestino, "H").Formula = "=(E" & filaDestino & ")*G" & filaDestino
+                hojaVenta.Cells(filaDestino, "R").Formula = "=E" & filaDestino
+                
+                filaDestino = filaDestino + 1
+            End If
+        Next k
+    End If
+    
+    MsgBox "Products inserted correctly.", vbInformation
+End Sub
+
+
+
+=== MODULE: Module2.bas ===
+Attribute VB_Name = "Module2"
+Sub Guardardo()
+    Dim RutaPDF As String, RutaXLSX As String
+    Dim nombre1 As String, nombre2 As String, nombre3 As String, nombre4 As String
+    Dim nombreCompletoSinExtension As String
+    Dim fullPathPDF As String, fullPathXLSX As String
+    Dim caracteresInvalidos As Variant
+    Dim i As Integer
+    
+    ' Rutas
+    RutaPDF = "C:\Users\USER\Quetalcompra\EDWIN PORTILLA - E-COMMERCE\Cotizaciones\"
+    RutaXLSX = "C:\Users\USER\Quetalcompra\EDWIN PORTILLA - E-COMMERCE\Cotizaciones\Archivos\"
+    
+    If Dir(RutaPDF, vbDirectory) = "" Or Dir(RutaXLSX, vbDirectory) = "" Then
+        MsgBox "Una de las carpetas no existe", vbCritical
+        Exit Sub
+    End If
+
+    ' Obtener nombre
+    nombre1 = Range("H8").Value
+    nombre2 = Range("C16").Value
+    nombre3 = Range("C19").Value
+    nombre4 = Range("H7").Value
+    nombre5 = Range("C10").Value
+
+    
+    nombreCompletoSinExtension = "Cotización " & nombre1 & " " & nombre2 & " " & nombre3 & " " & nombre4 & " " & nombre5
+    
+    caracteresInvalidos = Array("\", "/", ":", "*", "?", """", "<", ">", "|")
+    For i = LBound(caracteresInvalidos) To UBound(caracteresInvalidos)
+        nombreCompletoSinExtension = Replace(nombreCompletoSinExtension, caracteresInvalidos(i), "-")
+    Next i
+
+    fullPathPDF = RutaPDF & nombreCompletoSinExtension & ".pdf"
+    fullPathXLSX = RutaXLSX & nombreCompletoSinExtension & ".xlsx"
+
+    ' Guardar como PDF
+    ActiveSheet.ExportAsFixedFormat _
+        Type:=xlTypePDF, _
+        Filename:=fullPathPDF, _
+        Quality:=xlQualityStandard, _
+        IncludeDocProperties:=True, _
+        IgnorePrintAreas:=False, _
+        OpenAfterPublish:=False
+
+    ' Guardar como Excel
+    ThisWorkbook.Sheets(ActiveSheet.Name).Copy
+    ActiveWorkbook.SaveAs Filename:=fullPathXLSX, FileFormat:=xlOpenXMLWorkbook
+    ActiveWorkbook.Close SaveChanges:=False
+
+    ' === REGISTRO DE PRODUCTOS (registroCoti) ===
+    Dim hojaVenta As Worksheet
+    Dim hojaRegistro As Worksheet
+    Dim tablaCoti As ListObject, filaCoti As ListRow
+    Dim iRow As Long
+
+    Set hojaVenta = ThisWorkbook.Sheets("VENTA DIRECTA QTC")
+    Set hojaRegistro = ThisWorkbook.Sheets("REGISTRO")
+    Set tablaCoti = hojaRegistro.ListObjects("registroCoti")
+
+    iRow = 22
+    Do While hojaVenta.Cells(iRow, "I").Value <> ""
+        Set filaCoti = tablaCoti.ListRows.Add
+        With filaCoti
+            .Range(1, 1).Value = hojaVenta.Range("H8").Value       ' Cliente
+            .Range(1, 2).Value = hojaVenta.Range("C15").Value      ' DNI o RUC
+            .Range(1, 3).Value = hojaVenta.Range("C16").Value      ' Nombre
+            .Range(1, 4).Value = hojaVenta.Range("C17").Value      ' Teléfono
+            .Range(1, 5).Value = hojaVenta.Range("C18").Value      ' Correo
+            .Range(1, 6).Value = hojaVenta.Range("G5").Value       ' Tipo Cliente
+            .Range(1, 7).Value = hojaVenta.Range("H7").Value       ' Fecha
+            .Range(1, 8).Value = hojaVenta.Range("H15").Value      ' Descuento
+            .Range(1, 9).Value = hojaVenta.Cells(iRow, "I").Value  ' Código SAP
+            .Range(1, 10).Value = hojaVenta.Cells(iRow, "G").Value ' Cantidad
+            .Range(1, 11).Value = hojaVenta.Cells(iRow, "C").Value ' Nombre Producto
+            .Range(1, 12).Value = hojaVenta.Cells(iRow, "H").Value ' Precio Producto
+            .Range(1, 13).Value = hojaVenta.Range("C10").Value     ' Ejecutivo
+        End With
+        iRow = iRow + 1
+    Loop
+
+    ' === REGISTRO DE CLIENTE (registroClientes) ===
+    Dim hojaClientes As Worksheet
+    Dim tablaClientes As ListObject
+    Dim ruc As String, nombre As String, telefono As String, correo As String
+    Dim existeCliente As Boolean
+    Dim filaCliente As ListRow
+
+    Set hojaClientes = ThisWorkbook.Sheets("CLIENTES")
+    Set tablaClientes = hojaClientes.ListObjects("registroClientes")
+    
+    ruc = Trim(hojaVenta.Range("C15").Value)
+    nombre = Trim(hojaVenta.Range("C16").Value)
+    telefono = Trim(hojaVenta.Range("C17").Value)
+    correo = Trim(hojaVenta.Range("C18").Value)
+
+    existeCliente = False
+    For Each filaCliente In tablaClientes.ListRows
+        If Trim(filaCliente.Range(1, 1).Value) = ruc Then
+            existeCliente = True
+            Exit For
+        End If
+    Next filaCliente
+
+    If Not existeCliente And ruc <> "" Then
+        Set filaCliente = tablaClientes.ListRows.Add
+        With filaCliente
+            .Range(1, 1).Value = ruc
+            .Range(1, 2).Value = nombre
+            .Range(1, 3).Value = telefono
+            .Range(1, 4).Value = correo
+        End With
+    End If
+
+    MsgBox "Cotización y cliente registrados correctamente.", vbInformation
+End Sub
+
+
+
+=== MODULE: Módulo1.bas ===
+Attribute VB_Name = "Módulo1"
+Sub GuardadoRosa()
+    Dim Ruta As String
+    Dim nombre1 As String, nombre2 As String, nombre3 As String, nombre4 As String
+    Dim nombreCompleto As String, fullPath As String
+    Dim caracteresInvalidos As Variant
+    Dim i As Integer
+
+    RutaPDF = "C:\Users\USER\OneDrive - Quetalcompra\Escritorio\Rosa Cajan\Cotizaciones\"
+    RutaXLSX = "C:\Users\USER\OneDrive - Quetalcompra\Escritorio\Rosa Cajan\Cotizaciones\"
+ 
+    If Dir(RutaPDF, vbDirectory) = "" Or Dir(RutaXLSX, vbDirectory) = "" Then
+        MsgBox "Una de las carpetas no existe", vbCritical
+        Exit Sub
+    End If
+
+    ' Obtener nombre
+    nombre1 = Range("H8").Value
+    nombre2 = Range("C16").Value
+    nombre3 = Range("C19").Value
+    nombre4 = Range("H7").Value
+    nombre5 = Range("C10").Value
+    
+    nombreCompletoSinExtension = "Cotización " & nombre1 & " " & nombre2 & " " & nombre3 & " " & nombre4 & " " & nombre5
+    
+    caracteresInvalidos = Array("\", "/", ":", "*", "?", """", "<", ">", "|")
+    For i = LBound(caracteresInvalidos) To UBound(caracteresInvalidos)
+        nombreCompletoSinExtension = Replace(nombreCompletoSinExtension, caracteresInvalidos(i), "-")
+    Next i
+
+    fullPathPDF = RutaPDF & nombreCompletoSinExtension & ".pdf"
+    fullPathXLSX = RutaXLSX & nombreCompletoSinExtension & ".xlsx"
+
+    ' Guardar como PDF
+    ActiveSheet.ExportAsFixedFormat _
+        Type:=xlTypePDF, _
+        Filename:=fullPathPDF, _
+        Quality:=xlQualityStandard, _
+        IncludeDocProperties:=True, _
+        IgnorePrintAreas:=False, _
+        OpenAfterPublish:=False
+
+    ' Guardar como Excel
+    ThisWorkbook.Sheets(ActiveSheet.Name).Copy
+    ActiveWorkbook.SaveAs Filename:=fullPathXLSX, FileFormat:=xlOpenXMLWorkbook
+    ActiveWorkbook.Close SaveChanges:=False
+
+    ' === REGISTRO DE PRODUCTOS (registroCoti) ===
+    Dim hojaVenta As Worksheet
+    Dim hojaRegistro As Worksheet
+    Dim tablaCoti As ListObject, filaCoti As ListRow
+    Dim iRow As Long
+
+    Set hojaVenta = ThisWorkbook.Sheets("VENTA DIRECTA QTC")
+    Set hojaRegistro = ThisWorkbook.Sheets("REGISTRO")
+    Set tablaCoti = hojaRegistro.ListObjects("registroCoti")
+
+    iRow = 22
+    Do While hojaVenta.Cells(iRow, "I").Value <> ""
+        Set filaCoti = tablaCoti.ListRows.Add
+        With filaCoti
+            .Range(1, 1).Value = hojaVenta.Range("H8").Value       ' Cliente
+            .Range(1, 2).Value = hojaVenta.Range("C15").Value      ' DNI o RUC
+            .Range(1, 3).Value = hojaVenta.Range("C16").Value      ' Nombre
+            .Range(1, 4).Value = hojaVenta.Range("C17").Value      ' Teléfono
+            .Range(1, 5).Value = hojaVenta.Range("C18").Value      ' Correo
+            .Range(1, 6).Value = hojaVenta.Range("G5").Value       ' Tipo Cliente
+            .Range(1, 7).Value = hojaVenta.Range("H7").Value       ' Fecha
+            .Range(1, 8).Value = hojaVenta.Range("H15").Value      ' Descuento
+            .Range(1, 9).Value = hojaVenta.Cells(iRow, "I").Value  ' Código SAP
+            .Range(1, 10).Value = hojaVenta.Cells(iRow, "G").Value ' Cantidad
+            .Range(1, 11).Value = hojaVenta.Cells(iRow, "C").Value ' Nombre Producto
+            .Range(1, 12).Value = hojaVenta.Cells(iRow, "H").Value ' Precio Producto
+            .Range(1, 13).Value = hojaVenta.Range("C10").Value     ' Ejecutivo
+        End With
+        iRow = iRow + 1
+    Loop
+
+    ' === REGISTRO DE CLIENTE (registroClientes) ===
+    Dim hojaClientes As Worksheet
+    Dim tablaClientes As ListObject
+    Dim ruc As String, nombre As String, telefono As String, correo As String
+    Dim existeCliente As Boolean
+    Dim filaCliente As ListRow
+
+    Set hojaClientes = ThisWorkbook.Sheets("CLIENTES")
+    Set tablaClientes = hojaClientes.ListObjects("registroClientes")
+    
+    ruc = Trim(hojaVenta.Range("C15").Value)
+    nombre = Trim(hojaVenta.Range("C16").Value)
+    telefono = Trim(hojaVenta.Range("C17").Value)
+    correo = Trim(hojaVenta.Range("C18").Value)
+
+    existeCliente = False
+    For Each filaCliente In tablaClientes.ListRows
+        If Trim(filaCliente.Range(1, 1).Value) = ruc Then
+            existeCliente = True
+            Exit For
+        End If
+    Next filaCliente
+
+    If Not existeCliente And ruc <> "" Then
+        Set filaCliente = tablaClientes.ListRows.Add
+        With filaCliente
+            .Range(1, 1).Value = ruc
+            .Range(1, 2).Value = nombre
+            .Range(1, 3).Value = telefono
+            .Range(1, 4).Value = correo
+        End With
+    End If
+
+    MsgBox "Cotización y cliente registrados correctamente.", vbInformation
+End Sub
+
+
+
+
+
+
+
+=== MODULE: Sheet1.cls ===
+Attribute VB_Name = "Sheet1"
+Attribute VB_Base = "0{00020820-0000-0000-C000-000000000046}"
+Attribute VB_GlobalNameSpace = False
+Attribute VB_Creatable = False
+Attribute VB_PredeclaredId = True
+Attribute VB_Exposed = True
+Attribute VB_TemplateDerived = False
+Attribute VB_Customizable = True
+
+
+=== MODULE: Sheet73.cls ===
+Attribute VB_Name = "Sheet73"
+Attribute VB_Base = "0{00020820-0000-0000-C000-000000000046}"
+Attribute VB_GlobalNameSpace = False
+Attribute VB_Creatable = False
+Attribute VB_PredeclaredId = True
+Attribute VB_Exposed = True
+Attribute VB_TemplateDerived = False
+Attribute VB_Customizable = True
+
+

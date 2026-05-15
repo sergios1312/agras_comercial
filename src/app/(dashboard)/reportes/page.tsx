@@ -1,6 +1,7 @@
-import { getSession } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import { getSession } from "@/lib/auth";
 import type { Metadata } from "next";
+import { FileText } from "lucide-react";
 
 export const metadata: Metadata = {
   title: "Reportes y Cotizaciones",
@@ -16,7 +17,8 @@ export default async function ReportesPage() {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-slate-800 pb-4">
         <div>
           <h1 className="text-2xl font-bold text-white flex items-center gap-2">
-            📄 Reportes y Cotizaciones
+            <FileText className="w-6 h-6 text-indigo-400" />
+            Reportes y Cotizaciones
           </h1>
           <p className="text-sm text-slate-400 mt-1">
             Módulo en construcción para DJI Agras Comercial.

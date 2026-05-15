@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
 import type { Metadata } from "next";
+import { BarChart3 } from "lucide-react";
 
 export const metadata: Metadata = {
   title: "Estadísticas Comerciales",
@@ -16,7 +17,8 @@ export default async function EstadisticasPage() {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-slate-800 pb-4">
         <div>
           <h1 className="text-2xl font-bold text-white flex items-center gap-2">
-            📊 Estadísticas Comerciales
+            <BarChart3 className="w-6 h-6 text-indigo-400" />
+            Estadísticas Comerciales
           </h1>
           <p className="text-sm text-slate-400 mt-1">
             Módulo en construcción para visualizar ventas y rendimiento.

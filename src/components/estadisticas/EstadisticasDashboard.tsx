@@ -487,7 +487,7 @@ export function EstadisticasDashboard({
               onClick={handleLimpiarFiltros}
               className="px-3 py-1 rounded-lg text-xs font-medium border border-slate-600 text-slate-500 hover:text-slate-200 hover:border-slate-400 transition-all"
             >
-              ✕ Limpiar filtros
+               Limpiar filtros
             </button>
           )}
         </div>
@@ -550,7 +550,7 @@ export function EstadisticasDashboard({
                               <input type="checkbox" className="mr-2 rounded border-slate-600 bg-slate-900 accent-indigo-500"
                                 checked={qtcSedes.length > 0 && qtcSedes.every(s => sucursalFiltro.includes(s))}
                                 onChange={() => toggleGroup(qtcSedes)} />
-                              <span className="text-xs text-indigo-300 font-semibold">🏙 Grupo QTC</span>
+                              <span className="text-xs text-indigo-300 font-semibold"> Grupo QTC</span>
                             </label>
                             {qtcSedes.map(s => (
                               <label key={s} className="flex items-center px-5 py-1 hover:bg-slate-700/30 cursor-pointer">
@@ -567,7 +567,7 @@ export function EstadisticasDashboard({
                               <input type="checkbox" className="mr-2 rounded border-slate-600 bg-slate-900 accent-indigo-500"
                                 checked={amzSedes.length > 0 && amzSedes.every(s => sucursalFiltro.includes(s))}
                                 onChange={() => toggleGroup(amzSedes)} />
-                              <span className="text-xs text-emerald-300 font-semibold">🌿 Grupo QTC Amazonas</span>
+                              <span className="text-xs text-emerald-300 font-semibold"> Grupo QTC Amazonas</span>
                             </label>
                             {amzSedes.map(s => (
                               <label key={s} className="flex items-center px-5 py-1 hover:bg-slate-700/30 cursor-pointer">
@@ -742,10 +742,10 @@ export function EstadisticasDashboard({
                   </label>
                   {/* Categorías principales con submodelos */}
                   {([
-                    { cat: "Dron", icon: "🚁", color: "text-blue-300", modelos: ["T100", "T25", "T25P", "T40", "T50", "T70P"] },
-                    { cat: "Generador", icon: "⚡", color: "text-cyan-300", modelos: ["D12000IE", "D12000IEP", "D14000IEP", "D6000IE"] },
-                    { cat: "Bateria", icon: "🔋", color: "text-fuchsia-300", modelos: ["DB1560", "DB2160", "DB800"] },
-                    { cat: "Otros", icon: "📦", color: "text-slate-400", modelos: [] },
+                    { cat: "Dron", icon: "", color: "text-blue-300", modelos: ["T100", "T25", "T25P", "T40", "T50", "T70P"] },
+                    { cat: "Generador", icon: "", color: "text-cyan-300", modelos: ["D12000IE", "D12000IEP", "D14000IEP", "D6000IE"] },
+                    { cat: "Bateria", icon: "", color: "text-fuchsia-300", modelos: ["DB1560", "DB2160", "DB800"] },
+                    { cat: "Otros", icon: "", color: "text-slate-400", modelos: [] },
                   ] as { cat: string; icon: string; color: string; modelos: string[] }[]).map(({ cat, icon, color, modelos }) => (
                     <div key={cat}>
                       <label className="flex items-center px-3 py-1.5 hover:bg-slate-700/50 cursor-pointer border-t border-slate-700/50">

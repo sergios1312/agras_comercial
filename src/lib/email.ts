@@ -69,7 +69,7 @@ export async function enviarNotificacionPedido(
 
       const asunto = modoPrueba
         ? `[PRUEBA] Envío de repuestos — ${destino || "Sin Stock"} → ${sedeDestinoFisico} (${items.length} ítems)`
-        : `📦 Envío de repuestos — ${destino || "Sin Stock"} → ${sedeDestinoFisico} (${items.length} ítems)`;
+        : ` Envío de repuestos — ${destino || "Sin Stock"} → ${sedeDestinoFisico} (${items.length} ítems)`;
 
       await transporter.sendMail({
         from: FROM,

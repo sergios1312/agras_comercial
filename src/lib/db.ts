@@ -20,7 +20,7 @@ export async function fetchAllParallel<T>(
     .range(0, batchSize - 1);
 
   if (error) {
-    console.error(`❌ Error en fetchAllParallel (${table}):`, error.message);
+    console.error(` Error en fetchAllParallel (${table}):`, error.message);
     throw error;
   }
 
@@ -72,7 +72,7 @@ export async function fetchAll<T>(
       .order('id', { ascending: true }); // Orden consistente para evitar duplicados
 
     if (error) {
-      console.error('❌ Error en fetchAll:', error.message);
+      console.error(' Error en fetchAll:', error.message);
       throw error;
     }
 

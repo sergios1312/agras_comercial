@@ -55,7 +55,7 @@ export function BarrasDesviacion({ data }: Props) {
                 ? "bg-indigo-600/25 border-indigo-500/40 text-indigo-300"
                 : "bg-slate-800 border-slate-700 text-slate-400 hover:text-slate-200"}`}
           >
-            {m === "ETD" ? "🎯 Tiempo ideal (ETD)" : "⏱ Tiempo máximo (TAT)"}
+            {m === "ETD" ? " Tiempo ideal (ETD)" : " Tiempo máximo (TAT)"}
           </button>
         ))}
       </div>

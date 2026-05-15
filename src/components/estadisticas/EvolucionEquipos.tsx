@@ -94,7 +94,7 @@ export function EvolucionEquipos({ isAdmin = true, evolucionData, sucursalData }
                 ? "border-indigo-500 text-indigo-300"
                 : "border-transparent text-slate-500 hover:text-slate-300"}`}
           >
-            📈 Evolución Temporal
+             Evolución Temporal
           </button>
           <button
             onClick={() => setActiveTab("sucursal")}
@@ -103,7 +103,7 @@ export function EvolucionEquipos({ isAdmin = true, evolucionData, sucursalData }
                 ? "border-indigo-500 text-indigo-300"
                 : "border-transparent text-slate-500 hover:text-slate-300"}`}
           >
-            🏢 Comparativa por Sucursal
+             Comparativa por Sucursal
           </button>
         </div>
       )}

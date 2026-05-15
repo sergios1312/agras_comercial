@@ -17,6 +17,7 @@ import {
   ClipboardList,
   GraduationCap,
   Rocket,
+  Calculator,
 } from "lucide-react";
 import { useState } from "react";
 
@@ -56,6 +57,11 @@ export function Sidebar({ userEmail, userRole }: SidebarProps) {
       icon: <GraduationCap className="w-5 h-5 shrink-0" />,
     },
     {
+      href: "/cotizaciones",
+      label: "Cotizaciones",
+      icon: <Calculator className="w-5 h-5 shrink-0" />,
+    },
+    {
       href: "/administrador",
       label: "Administrador",
       icon: <Shield className="w-5 h-5 shrink-0" />,
@@ -71,6 +77,8 @@ export function Sidebar({ userEmail, userRole }: SidebarProps) {
         return permisos.puedeVerEstadisticas;
       case "/academy":
         return permisos.puedeVerAcademy;
+      case "/cotizaciones":
+        return permisos.puedeVerCotizaciones;
       case "/administrador":
         return permisos.puedeVerAdministrador;
       default:

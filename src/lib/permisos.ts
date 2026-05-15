@@ -6,6 +6,7 @@ export interface PermisosUsuario {
   puedeVerReportes: boolean;
   puedeVerEstadisticas: boolean;
   puedeVerAdministrador: boolean;
+  puedeVerCotizaciones: boolean;
 }
 
 export const PERMISOS_POR_ROLE: Record<UserRole, PermisosUsuario> = {
@@ -14,18 +15,21 @@ export const PERMISOS_POR_ROLE: Record<UserRole, PermisosUsuario> = {
     puedeVerReportes: true,
     puedeVerEstadisticas: true,
     puedeVerAdministrador: true,
+    puedeVerCotizaciones: true,
   },
   sucursal: {
     puedeVerAcademy: true,
     puedeVerReportes: true,
     puedeVerEstadisticas: true,
     puedeVerAdministrador: false,
+    puedeVerCotizaciones: true,
   },
   subdealer: {
     puedeVerAcademy: false,
     puedeVerReportes: true,
     puedeVerEstadisticas: false,
     puedeVerAdministrador: false,
+    puedeVerCotizaciones: true,
   },
 };
 

@@ -26,7 +26,7 @@ export function RtatHistogram({ data }: RtatHistogramProps) {
 
   return (
     <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-4">
-      <h3 className="text-sm font-semibold text-slate-300">📊 RTAT Promedio por Sucursal (días hábiles)</h3>
+      <h3 className="text-sm font-semibold text-slate-300"> RTAT Promedio por Sucursal (días hábiles)</h3>
       <ResponsiveContainer width="100%" height={240}>
         <BarChart data={data} layout="vertical" margin={{ top: 4, right: 30, bottom: 4, left: 60 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="#334155" horizontal={false} />

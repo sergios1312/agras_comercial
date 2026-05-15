@@ -301,7 +301,7 @@ export function ModalDetalleCaso({
           )}
           {successMsg && (
             <p className="text-xs text-emerald-400 bg-emerald-950/40 border border-emerald-900/50 p-2.5 rounded-lg">
-              ✓ {successMsg}
+               {successMsg}
             </p>
           )}
         </div>
